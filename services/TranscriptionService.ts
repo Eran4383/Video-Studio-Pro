@@ -1,22 +1,49 @@
-import { DeepgramService } from './DeepgramService';
+import { DeepgramService, DeepgramOptions } from './DeepgramService';
+import { GeminiService } from './geminiService';
 import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
 import { DiagnosticsService } from './DiagnosticsService';
 
 export class TranscriptionService {
-  static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
+  static async processAsset(asset: Asset, context?: string, options?: DeepgramOptions): Promise<TranscriptionResult[]> {
     try {
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`);
-      // Fetch the asset data (assuming it's a blob URL or accessible URL)
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`, options);
+      
+      // 1. Fetch the asset data
       const response = await fetch(asset.url);
       const blob = await response.blob();
-      
-      // Create a File object from the blob
       const file = new File([blob], asset.name, { type: blob.type });
 
-      // Call Deepgram via our backend proxy
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Calling DeepgramService.transcribeAudio');
-      const result = await DeepgramService.transcribeAudio(file);
+      // 2. Convert to Base64 for Gemini
+      const arrayBuffer = await blob.arrayBuffer();
+      const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+      
+      // 3. Step 1: Get plain text from Gemini (Hybrid Strategy)
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 1: Calling Gemini for plain text transcription...');
+      let plainText = context || '';
+      
+      if (!plainText) {
+        try {
+          plainText = await GeminiService.getInstance().generatePlainTextTranscription(base64Audio, blob.type);
+          DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Gemini transcription complete. Length: ${plainText.length} chars`);
+        } catch (geminiError: any) {
+           DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Gemini transcription failed: ${geminiError.message}. Falling back to Deepgram only.`);
+           // Fallback: Proceed without context if Gemini fails
+        }
+      } else {
+        DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Using provided context (forced alignment script).');
+      }
+
+      // 4. Step 2: Call Deepgram with context (Forced Alignment)
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 2: Calling Deepgram with context...');
+      
+      const deepgramOptions: DeepgramOptions = {
+        ...options,
+        context: plainText // Pass the Gemini text (or user script) as context
+      };
+
+      const result = await DeepgramService.transcribeAudio(file, deepgramOptions);
       DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Transcription complete. Received ${result.length} results`);
+      
       return result;
     } catch (error: any) {
       DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Transcription failed: ${error.message}`, error);

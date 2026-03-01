@@ -28,6 +28,9 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   const [transcript, setTranscript] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState('');
+  
+  // New state for model selection
+  const [mode, setMode] = useState<'speech' | 'music'>('speech');
 
   const updateStatus = (msg: string) => {
     setStatus(msg);
@@ -45,8 +48,23 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
     DiagnosticsService.getInstance().log('info', 'Transcription', `Starting process for asset: ${asset.name} (${asset.id})`);
     
     try {
-      updateStatus('Analyzing audio with Gemini AI...');
-      const results = await TranscriptionService.processAsset(asset, transcript);
+      updateStatus(`Analyzing audio with ${mode === 'music' ? 'Nova-2 (Music)' : 'General (Speech)'}...`);
+      
+      const options = mode === 'music' ? {
+        model: 'nova-2' as const,
+        smart_format: true,
+        diarize: false,
+        punctuate: true,
+        utterances: true
+      } : {
+        model: 'general' as const,
+        smart_format: true,
+        diarize: false,
+        punctuate: true,
+        utterances: true
+      };
+
+      const results = await TranscriptionService.processAsset(asset, transcript, options);
       DiagnosticsService.getInstance().log('info', 'Transcription', `Received ${results.length} words from service`);
       
       updateStatus('Creating subtitle track...');
@@ -147,6 +165,34 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
                 ))}
               </select>
               <FileAudio className="absolute right-3 top-3 text-zinc-600 pointer-events-none" size={16} />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Transcription Mode</label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setMode('speech')}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  mode === 'speech' 
+                    ? 'bg-indigo-600/20 border-indigo-500 text-white' 
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                }`}
+              >
+                <div className="text-sm font-bold mb-1">Speech (General)</div>
+                <div className="text-[10px] opacity-70">Best for podcasts, interviews, and clear speech.</div>
+              </button>
+              <button
+                onClick={() => setMode('music')}
+                className={`p-3 rounded-lg border text-left transition-all ${
+                  mode === 'music' 
+                    ? 'bg-indigo-600/20 border-indigo-500 text-white' 
+                    : 'bg-zinc-900 border-zinc-800 text-zinc-400 hover:border-zinc-700'
+                }`}
+              >
+                <div className="text-sm font-bold mb-1">Lyrics (Nova-2)</div>
+                <div className="text-[10px] opacity-70">Optimized for songs, singing, and fast-paced audio.</div>
+              </button>
             </div>
           </div>
 

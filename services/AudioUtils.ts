@@ -4,8 +4,9 @@ export class AudioUtils {
   static async extractAndCompressAudio(file: File): Promise<Blob> {
     console.log('AudioUtils.extractAndCompressAudio started for:', file.name, file.type, file.size);
     // If it's already a small audio file, just return it
-    if (file.type.startsWith('audio/') && file.size < 2 * 1024 * 1024) {
-      console.log('File is small enough, returning as is');
+    // Increased limit to 50MB to avoid unnecessary client-side processing which might degrade quality or timing
+    if (file.type.startsWith('audio/') && file.size < 50 * 1024 * 1024) {
+      console.log('File is small enough (<50MB), returning as is to preserve original quality');
       return file;
     }
 

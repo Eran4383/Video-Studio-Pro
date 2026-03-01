@@ -2,6 +2,16 @@ import { TranscriptionResult } from '../types';
 import { AudioUtils } from './AudioUtils';
 import { DiagnosticsService } from './DiagnosticsService';
 
+export interface DeepgramOptions {
+  model?: 'nova-2' | 'general' | 'whisper';
+  smart_format?: boolean;
+  diarize?: boolean;
+  punctuate?: boolean;
+  utterances?: boolean;
+  keywords?: string[];
+  context?: string;
+}
+
 export class DeepgramService {
   private static async getTemporaryKey(): Promise<string> {
     const response = await fetch('/api/deepgram-token');
@@ -13,20 +23,45 @@ export class DeepgramService {
     return data.key;
   }
 
-  static async transcribeAudio(file: File): Promise<TranscriptionResult[]> {
+  static async transcribeAudio(file: File, options: DeepgramOptions = {}): Promise<TranscriptionResult[]> {
     try {
-      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Starting transcription for file: ${file.name}`, { size: file.size, type: file.type });
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Starting transcription for file: ${file.name}`, { size: file.size, type: file.type, options });
       
       // 1. Extract and compress audio (client-side)
       DiagnosticsService.getInstance().log('info', 'DeepgramService', 'Calling AudioUtils.extractAndCompressAudio');
       const compressedAudioBlob = await AudioUtils.extractAndCompressAudio(file);
-      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Audio compressed. New size: ${compressedAudioBlob.size}`);
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Audio ready. Size: ${compressedAudioBlob.size}`);
 
       // 2. Get temporary API key from backend
       const apiKey = await this.getTemporaryKey();
 
       // 3. Upload directly to Deepgram API
-      const url = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&words=true&utterances=true&diarize=false&punctuate=true';
+      const params = new URLSearchParams({
+        model: options.model || 'nova-2',
+        smart_format: String(options.smart_format !== false), // Default true
+        punctuate: String(options.punctuate !== false),       // Default true
+        diarize: String(!!options.diarize),                   // Default false
+        utterances: String(!!options.utterances),             // Default false
+        words: 'true'                                         // Always true for timestamps
+      });
+
+      if (options.keywords && options.keywords.length > 0) {
+        options.keywords.forEach(k => params.append('keywords', k));
+      }
+
+      // Add context for forced alignment if provided
+      // Note: Deepgram context is passed as a query parameter 'context' or 'extra' depending on version, 
+      // but for Nova-2 it's usually supported via 'context' or 'keywords' for boosting. 
+      // However, the user specifically requested &context=${encodeURIComponent(textFromGemini)}.
+      // We will append it to the params.
+      if (options.context) {
+        // Truncate if too long? Deepgram might have limits. 
+        // For now we pass it as requested.
+        params.append('context', options.context);
+      }
+
+      const url = `https://api.deepgram.com/v1/listen?${params.toString()}`;
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Calling URL: ${url}`);
       
       const response = await fetch(url, {
         method: 'POST',

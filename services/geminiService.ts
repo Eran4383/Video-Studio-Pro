@@ -71,6 +71,37 @@ export class GeminiService {
   }
 
   /**
+   * Transcribes audio to plain text using gemini-1.5-flash.
+   * Used for the first step of the hybrid transcription strategy.
+   */
+  async generatePlainTextTranscription(audioBase64: string, mimeType: string): Promise<string> {
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing.");
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    const prompt = "Transcribe the following audio file into plain text. Do not include timestamps, speaker labels, or any other metadata. Just the spoken/sung words. Return ONLY the text.";
+
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-1.5-flash',
+        contents: {
+          parts: [
+            { inlineData: { mimeType, data: audioBase64 } },
+            { text: prompt }
+          ]
+        }
+      });
+
+      return response.text || '';
+    } catch (error: any) {
+      console.error("Gemini Plain Text Transcription Error:", error);
+      throw new Error(error.message || "Unknown Gemini API error");
+    }
+  }
+
+  /**
    * Transcribes audio and returns word-level timestamps.
    */
   async transcribeAudio(audioBase64: string, mimeType: string, context?: string) {
