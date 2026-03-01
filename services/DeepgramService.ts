@@ -1,4 +1,4 @@
-import { TranscriptionResult } from './TranscriptionService';
+import { TranscriptionResult } from '../types';
 import { AudioUtils } from './AudioUtils';
 
 export class DeepgramService {

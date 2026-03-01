@@ -1,4 +1,11 @@
 
+export interface TranscriptionResult {
+  word: string;
+  start: number;
+  end: number;
+  confidence?: number;
+}
+
 export enum MediaType {
   VIDEO = 'VIDEO',
   AUDIO = 'AUDIO',

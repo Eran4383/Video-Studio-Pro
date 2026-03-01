@@ -1,12 +1,5 @@
 import { DeepgramService } from './DeepgramService';
-import { Clip, MediaType, Asset } from '../types';
-
-export interface TranscriptionResult {
-  word: string;
-  start: number;
-  end: number;
-  confidence?: number;
-}
+import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
 
 export class TranscriptionService {
   static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
@@ -54,5 +47,15 @@ export class TranscriptionService {
         linkedClipId: undefined // Could link to the audio clip if we had its ID
       };
     }).filter((clip): clip is Clip => clip !== null);
+  }
+
+  // Added to support potential legacy calls or marker-based workflows
+  static convertToMarkers(results: TranscriptionResult[], offset: number = 0): Marker[] {
+    return results.map((res, index) => ({
+      id: `marker-${Date.now()}-${index}`,
+      time: res.start + offset,
+      label: res.word,
+      color: '#3B82F6' // Blue color for transcription markers
+    }));
   }
 }
