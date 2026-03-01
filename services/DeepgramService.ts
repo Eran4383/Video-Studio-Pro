@@ -26,7 +26,7 @@ export class DeepgramService {
       const apiKey = await this.getTemporaryKey();
 
       // 3. Upload directly to Deepgram API
-      const url = 'https://api.deepgram.com/v1/listen?smart_format=true&punctuate=true&diarize=false&model=nova-2';
+      const url = 'https://api.deepgram.com/v1/listen?model=nova-2&smart_format=true&words=true&utterances=true&diarize=false&punctuate=true';
       
       const response = await fetch(url, {
         method: 'POST',
@@ -57,7 +57,7 @@ export class DeepgramService {
       }
 
       return words.map((word: any) => ({
-        word: word.word,
+        word: word.punctuated_word || word.word,
         start: word.start,
         end: word.end,
         confidence: word.confidence,

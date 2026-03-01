@@ -39,9 +39,16 @@ export class TranscriptionService {
       // Skip invalid timestamps
       if (isNaN(start)) return null;
 
-      // Ensure duration is at least a minimum visible amount (e.g., 0.1s)
-      // If end is missing or invalid, default to start + 0.5s
-      const duration = Math.max(0.1, (isNaN(end) ? start + 0.5 : end) - start);
+      // Calculate duration based on exact timestamps
+      // If end is missing, default to start + 0.3s (average word length)
+      // We enforce a tiny minimum (0.05s) just to ensure the clip exists in the UI
+      let duration = 0.3;
+      if (!isNaN(end) && end > start) {
+        duration = end - start;
+      }
+      
+      // Ensure we don't have zero or negative duration clips which break the timeline
+      duration = Math.max(0.05, duration);
       
       return {
         id: `sub-${Date.now()}-${index}`,
