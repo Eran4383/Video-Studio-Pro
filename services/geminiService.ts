@@ -112,31 +112,27 @@ export class GeminiService {
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `
-      Task: Precise Audio Transcription and Word-Level Forced Alignment
+      Task: High-Precision Audio Transcription with Exact Timestamps
       
-      Goal: Generate a JSON array of word-level timestamps that are perfectly synchronized with the audio, preventing any time drift.
-
-      Process:
-      1. IDENTIFICATION: First, listen to the entire audio to understand the flow, tempo, and content.
-      2. FORCED ALIGNMENT: Extract the exact start and end time for EVERY single word.
+      Goal: Transcribe the audio and provide exact start and end times for EVERY word.
       
-      CRITICAL TIMING INSTRUCTIONS:
-      - ABSOLUTE TIME: All timestamps must be calculated from the very beginning of the audio file (0.00s).
-      - NO DRIFT: Ensure that words at the end of the file are just as synchronized as words at the beginning. Do not let errors accumulate.
-      - CONTINUITY: Treat the audio as a single continuous stream.
+      CRITICAL INSTRUCTIONS:
+      1. ACCURACY: Transcribe exactly what is heard. Do not paraphrase.
+      2. TIMING: 
+         - "start" must be the exact second the word begins (e.g., 1.24).
+         - "end" must be the exact second the word ends.
+         - If there is silence or music before the first word, the "start" time MUST reflect that delay. Do NOT start at 0.0 unless the word actually starts at 0.0.
+      3. CONTINUITY: Ensure the timeline is continuous. Do not reset timestamps.
+      4. FORMAT: Return ONLY a JSON array.
       
-      Output Requirements:
-      - Return ONLY a JSON array of objects. No markdown, no code blocks.
-      - Schema: Array<{ word: string, start: number, end: number }>
-      - "start" and "end" must be numbers in seconds (float), e.g., 12.345.
+      Schema: Array<{ word: string, start: number, end: number }>
       
       Context / Ground Truth:
-      ${context ? `Use the following text as the strict ground truth for spelling and word order. Align the audio to this text:\n"${context}"` : "No text provided. Transcribe exactly what is heard."}
+      ${context ? `Use this text as the ground truth for spelling/order:\n"${context}"` : "No text provided."}
       
-      Handling Edge Cases:
-      - If a word is sung or elongated, "start" is when it begins and "end" is when it fully finishes.
-      - Background vocals: Include them if distinct, prefixed with (bg).
-      - Silence/Instrumentals: Do not generate words for these sections.
+      Edge Cases:
+      - Instrumental sections: Do NOT generate words.
+      - Background vocals: Include if distinct.
     `;
 
     try {
