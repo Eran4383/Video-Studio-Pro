@@ -1,19 +1,3 @@
-import express from 'express';
-import cors from 'cors';
-import { createServer as createViteServer } from 'vite';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// ES Module fix for __dirname
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const app = express();
-const PORT = 3000;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 // Helper to get Project ID
 async function getProjectId(apiKey: string): Promise<string> {
@@ -40,8 +24,21 @@ async function getProjectId(apiKey: string): Promise<string> {
   throw new Error('No Deepgram projects found');
 }
 
-// API Route: Generate Temporary Key
-app.get('/api/deepgram-token', async (req, res) => {
+export default async function handler(req: any, res: any) {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   try {
     const apiKey = process.env.DEEPGRAM_API_KEY;
     if (!apiKey) {
@@ -73,33 +70,10 @@ app.get('/api/deepgram-token', async (req, res) => {
     }
 
     const data = await response.json();
-    res.json({ key: data.key });
+    res.status(200).json({ key: data.key });
 
   } catch (error: any) {
     console.error('Token generation error:', error);
     res.status(500).json({ error: error.message || 'Internal Server Error' });
   }
-});
-
-// Vite Middleware (for development)
-async function startServer() {
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    // Production static file serving
-    app.use(express.static(path.join(__dirname, 'dist')));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
-
-startServer();
