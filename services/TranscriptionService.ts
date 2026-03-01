@@ -14,8 +14,20 @@ export class TranscriptionService {
       const file = new File([blob], asset.name, { type: blob.type });
 
       // 2. Convert to Base64 for Gemini
-      const arrayBuffer = await blob.arrayBuffer();
-      const base64Audio = Buffer.from(arrayBuffer).toString('base64');
+      const base64Audio = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          if (typeof reader.result === 'string') {
+            // Remove the data URL prefix (e.g., "data:audio/wav;base64,")
+            const base64 = reader.result.split(',')[1];
+            resolve(base64);
+          } else {
+            reject(new Error('Failed to convert blob to base64'));
+          }
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
       
       // 3. Step 1: Get plain text from Gemini (Hybrid Strategy)
       DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 1: Calling Gemini for plain text transcription...');
