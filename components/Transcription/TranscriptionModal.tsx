@@ -16,6 +16,8 @@ interface TranscriptionModalProps {
   onComplete: () => void;
 }
 
+import { DiagnosticsService } from '../../services/DiagnosticsService';
+
 export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({ 
   assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips,
   onStart, onUpdate, onComplete
@@ -30,6 +32,7 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   const updateStatus = (msg: string) => {
     setStatus(msg);
     onUpdate(msg);
+    DiagnosticsService.getInstance().log('info', 'Transcription', `Status update: ${msg}`);
   };
 
   const process = async () => {
@@ -39,12 +42,12 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
     setIsProcessing(true);
     onStart();
     updateStatus('Preparing audio...');
+    DiagnosticsService.getInstance().log('info', 'Transcription', `Starting process for asset: ${asset.name} (${asset.id})`);
     
     try {
       updateStatus('Analyzing audio with Gemini AI...');
-      console.log('Calling TranscriptionService.processAsset with:', asset.name);
       const results = await TranscriptionService.processAsset(asset, transcript);
-      console.log('TranscriptionService.processAsset returned:', results ? results.length : 'null');
+      DiagnosticsService.getInstance().log('info', 'Transcription', `Received ${results.length} words from service`);
       
       updateStatus('Creating subtitle track...');
       
@@ -54,10 +57,13 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
       if (!targetTrackId) {
         // Generate ID upfront to avoid stale state issues
         targetTrackId = `track-s-${Date.now()}`;
+        DiagnosticsService.getInstance().log('info', 'Transcription', `Creating new subtitle track: ${targetTrackId}`);
         onAddTrack('subtitle', targetTrackId); // Pass the ID we just generated
         
         // Small delay to ensure store update processes (though we already have the ID)
         await new Promise(r => setTimeout(r, 50));
+      } else {
+        DiagnosticsService.getInstance().log('info', 'Transcription', `Using existing subtitle track: ${targetTrackId}`);
       }
       
       updateStatus('Generating clips...');
@@ -80,13 +86,23 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
         }
       }
 
+      DiagnosticsService.getInstance().log('info', 'Transcription', `Calculated timeline offset: ${timelineOffset}s`);
+
       const clips = TranscriptionService.convertToClips(results, asset.id, targetTrackId, timelineOffset);
-      onAddClips(targetTrackId, clips);
+      DiagnosticsService.getInstance().log('info', 'Transcription', `Generated ${clips.length} clips. Adding to track ${targetTrackId}`);
+      
+      if (clips.length > 0) {
+        onAddClips(targetTrackId, clips);
+        DiagnosticsService.getInstance().log('info', 'Transcription', 'Clips added to store');
+      } else {
+        DiagnosticsService.getInstance().log('warn', 'Transcription', 'No clips were generated from the results');
+      }
       
       updateStatus('Complete');
       onComplete();
     } catch (e: any) {
       console.error(e);
+      DiagnosticsService.getInstance().log('error', 'Transcription', `Process failed: ${e.message}`, e);
       alert(`Transcription failed: ${e.message}`);
       setIsProcessing(false);
       updateStatus('Failed');

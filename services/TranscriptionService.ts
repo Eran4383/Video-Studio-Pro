@@ -1,10 +1,11 @@
 import { DeepgramService } from './DeepgramService';
 import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
+import { DiagnosticsService } from './DiagnosticsService';
 
 export class TranscriptionService {
   static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
     try {
-      console.log('TranscriptionService.processAsset started for:', asset.name);
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`);
       // Fetch the asset data (assuming it's a blob URL or accessible URL)
       const response = await fetch(asset.url);
       const blob = await response.blob();
@@ -13,19 +14,19 @@ export class TranscriptionService {
       const file = new File([blob], asset.name, { type: blob.type });
 
       // Call Deepgram via our backend proxy
-      console.log('Calling DeepgramService.transcribeAudio');
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Calling DeepgramService.transcribeAudio');
       const result = await DeepgramService.transcribeAudio(file);
-      console.log('DeepgramService.transcribeAudio returned:', result ? result.length : 'null');
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Transcription complete. Received ${result.length} results`);
       return result;
-    } catch (error) {
-      console.error("Transcription failed:", error);
+    } catch (error: any) {
+      DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Transcription failed: ${error.message}`, error);
       throw error;
     }
   }
 
   static convertToClips(results: TranscriptionResult[], assetId: string, trackId: string, offset: number = 0): Clip[] {
     if (!Array.isArray(results)) {
-      console.error('TranscriptionService.convertToClips received non-array results:', results);
+      DiagnosticsService.getInstance().log('error', 'TranscriptionService', 'convertToClips received non-array results', results);
       return [];
     }
     // Sort by start time to ensure order

@@ -1,5 +1,6 @@
 import { TranscriptionResult } from '../types';
 import { AudioUtils } from './AudioUtils';
+import { DiagnosticsService } from './DiagnosticsService';
 
 export class DeepgramService {
   private static async getTemporaryKey(): Promise<string> {
@@ -14,11 +15,12 @@ export class DeepgramService {
 
   static async transcribeAudio(file: File): Promise<TranscriptionResult[]> {
     try {
-      console.log('DeepgramService.transcribeAudio started for:', file.name);
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Starting transcription for file: ${file.name}`, { size: file.size, type: file.type });
+      
       // 1. Extract and compress audio (client-side)
-      console.log('Calling AudioUtils.extractAndCompressAudio');
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', 'Calling AudioUtils.extractAndCompressAudio');
       const compressedAudioBlob = await AudioUtils.extractAndCompressAudio(file);
-      console.log('AudioUtils.extractAndCompressAudio returned blob:', compressedAudioBlob.size);
+      DiagnosticsService.getInstance().log('info', 'DeepgramService', `Audio compressed. New size: ${compressedAudioBlob.size}`);
 
       // 2. Get temporary API key from backend
       const apiKey = await this.getTemporaryKey();
