@@ -4,6 +4,7 @@ import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
 export class TranscriptionService {
   static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
     try {
+      console.log('TranscriptionService.processAsset started for:', asset.name);
       // Fetch the asset data (assuming it's a blob URL or accessible URL)
       const response = await fetch(asset.url);
       const blob = await response.blob();
@@ -12,7 +13,10 @@ export class TranscriptionService {
       const file = new File([blob], asset.name, { type: blob.type });
 
       // Call Deepgram via our backend proxy
-      return await DeepgramService.transcribeAudio(file);
+      console.log('Calling DeepgramService.transcribeAudio');
+      const result = await DeepgramService.transcribeAudio(file);
+      console.log('DeepgramService.transcribeAudio returned:', result ? result.length : 'null');
+      return result;
     } catch (error) {
       console.error("Transcription failed:", error);
       throw error;
@@ -20,6 +24,10 @@ export class TranscriptionService {
   }
 
   static convertToClips(results: TranscriptionResult[], assetId: string, trackId: string, offset: number = 0): Clip[] {
+    if (!Array.isArray(results)) {
+      console.error('TranscriptionService.convertToClips received non-array results:', results);
+      return [];
+    }
     // Sort by start time to ensure order
     const sortedResults = [...results].sort((a, b) => a.start - b.start);
 

@@ -14,8 +14,11 @@ export class DeepgramService {
 
   static async transcribeAudio(file: File): Promise<TranscriptionResult[]> {
     try {
+      console.log('DeepgramService.transcribeAudio started for:', file.name);
       // 1. Extract and compress audio (client-side)
+      console.log('Calling AudioUtils.extractAndCompressAudio');
       const compressedAudioBlob = await AudioUtils.extractAndCompressAudio(file);
+      console.log('AudioUtils.extractAndCompressAudio returned blob:', compressedAudioBlob.size);
 
       // 2. Get temporary API key from backend
       const apiKey = await this.getTemporaryKey();
@@ -46,6 +49,11 @@ export class DeepgramService {
 
       const words = data.results.channels[0].alternatives[0].words;
       
+      if (!Array.isArray(words)) {
+        console.warn('Deepgram returned words but it is not an array:', words);
+        return [];
+      }
+
       return words.map((word: any) => ({
         word: word.word,
         start: word.start,

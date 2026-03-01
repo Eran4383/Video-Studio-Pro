@@ -11,14 +11,13 @@ interface TranscriptionModalProps {
   onMinimize: () => void;
   onAddTrack: (type: 'video' | 'audio' | 'subtitle', trackId?: string) => void;
   onAddClips: (trackId: string, clips: Clip[]) => void;
-  onUpdateClip: (clipId: string, updates: Partial<Clip>) => void;
   onStart: () => void;
   onUpdate: (status: string) => void;
   onComplete: () => void;
 }
 
 export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({ 
-  assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips, onUpdateClip,
+  assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips,
   onStart, onUpdate, onComplete
 }) => {
   const [selectedAssetId, setSelectedAssetId] = useState<string>(
@@ -43,7 +42,9 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
     
     try {
       updateStatus('Analyzing audio with Gemini AI...');
+      console.log('Calling TranscriptionService.processAsset with:', asset.name);
       const results = await TranscriptionService.processAsset(asset, transcript);
+      console.log('TranscriptionService.processAsset returned:', results ? results.length : 'null');
       
       updateStatus('Creating subtitle track...');
       
@@ -63,41 +64,25 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
       
       // Calculate offset based on the selected clip on the timeline
       let timelineOffset = 0;
+      
+      // 1. Try to use the explicitly selected clip
       if (selectedClipId) {
         const selectedClip = project.tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId);
         if (selectedClip && selectedClip.assetId === selectedAssetId) {
           timelineOffset = selectedClip.startTime - selectedClip.offset;
+        }
+      } 
+      // 2. If no clip selected (or asset mismatch), try to find ANY clip on the timeline using this asset
+      else {
+        const firstClipWithAsset = project.tracks.flatMap(t => t.clips).find(c => c.assetId === selectedAssetId);
+        if (firstClipWithAsset) {
+           timelineOffset = firstClipWithAsset.startTime - firstClipWithAsset.offset;
         }
       }
 
       const clips = TranscriptionService.convertToClips(results, asset.id, targetTrackId, timelineOffset);
       onAddClips(targetTrackId, clips);
       
-      // Add markers to the source audio clip
-      updateStatus('Adding markers to audio...');
-      const markers = TranscriptionService.convertToMarkers(results);
-      
-      // Find the clip to add markers to
-      let sourceClipId: string | null = null;
-      
-      // Check if the currently selected clip matches the asset we just transcribed
-      if (selectedClipId) {
-         const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId);
-         if (clip && clip.assetId === selectedAssetId) {
-            sourceClipId = clip.id;
-         }
-      }
-
-      if (!sourceClipId) {
-        // If not, find the first clip that uses this asset
-        const foundClip = project.tracks.flatMap(t => t.clips).find(c => c.assetId === selectedAssetId);
-        if (foundClip) sourceClipId = foundClip.id;
-      }
-
-      if (sourceClipId) {
-        onUpdateClip(sourceClipId, { markers });
-      }
-
       updateStatus('Complete');
       onComplete();
     } catch (e: any) {

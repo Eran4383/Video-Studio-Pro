@@ -2,17 +2,22 @@ import { Asset } from '../types';
 
 export class AudioUtils {
   static async extractAndCompressAudio(file: File): Promise<Blob> {
+    console.log('AudioUtils.extractAndCompressAudio started for:', file.name, file.type, file.size);
     // If it's already a small audio file, just return it
     if (file.type.startsWith('audio/') && file.size < 2 * 1024 * 1024) {
+      console.log('File is small enough, returning as is');
       return file;
     }
 
+    console.log('Creating AudioContext');
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
       sampleRate: 16000, // Downsample to 16kHz to save space
     });
 
+    console.log('Decoding audio data');
     const arrayBuffer = await file.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    console.log('Audio decoded, rendering offline');
 
     // We only need mono for transcription
     const offlineContext = new OfflineAudioContext(1, audioBuffer.length, 16000);
@@ -22,6 +27,7 @@ export class AudioUtils {
     source.start();
 
     const renderedBuffer = await offlineContext.startRendering();
+    console.log('Offline rendering complete, converting to WAV');
     
     return AudioUtils.bufferToWav(renderedBuffer);
   }
