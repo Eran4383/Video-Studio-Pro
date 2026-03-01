@@ -1,0 +1,8 @@
+{
+  "name": "Kalimi Video Studio Pro",
+  "description": "A professional-grade, AI-powered video editing suite featuring multi-layer timelines, real-time effects, and advanced generative video capabilities using Gemini Veo.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}

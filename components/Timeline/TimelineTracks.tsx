@@ -1,0 +1,102 @@
+import React, { memo } from 'react';
+import { Project, Clip, Asset, Marker } from '../../types';
+import { TrackHeader } from './TrackHeader';
+import { Link as LinkIcon } from 'lucide-react';
+import { Waveform } from './Waveform';
+
+interface TimelineTracksProps {
+  project: Project;
+  assets: Asset[];
+  zoom: number;
+  selectedClipId: string | null;
+  onToggleTrack: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
+  onSetTrackHeight: (trackId: string, height: number) => void;
+  onDrop: (e: React.DragEvent, trackId: string) => void;
+  onSelectClip: (id: string | null) => void;
+  onContextMenu: (e: React.MouseEvent, clipId: string, assetType: string) => void;
+  onClipMouseDown: (e: React.MouseEvent, clip: Clip, trackId: string) => void;
+  onClipMouseMove: (e: React.MouseEvent, clip: Clip) => void;
+  onClipMarkerMouseDown?: (e: React.MouseEvent, marker: Marker, clip: Clip) => void;
+  onClipMarkerDoubleClick?: (e: React.MouseEvent, marker: Marker, clip: Clip) => void;
+}
+
+export const TimelineTracks = memo(({
+  project, assets, zoom, selectedClipId, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove, onClipMarkerMouseDown, onClipMarkerDoubleClick
+}: TimelineTracksProps) => {
+  const pxPerSec = zoom * 10;
+
+  return (
+    <div className="flex flex-col">
+      {project.tracks.map(track => (
+        <div 
+          key={track.id} 
+          onDragOver={(e) => e.preventDefault()} 
+          onDrop={(e) => onDrop(e, track.id)} 
+          className={`flex border-b border-zinc-800 group/track relative ${track.isVisible ? '' : 'opacity-60'}`}
+          style={{ height: track.height || 72 }}
+        >
+          <TrackHeader track={track} onToggle={onToggleTrack} onSetHeight={onSetTrackHeight} />
+          <div className="flex-1 relative bg-[#0a0a0a] min-w-[5000px]" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
+            {track.clips.map(clip => {
+              const isSelected = selectedClipId === clip.id;
+              const isLinked = selectedClipId && (project.tracks.flatMap(t=>t.clips).find(c=>c.id === selectedClipId)?.linkedClipId === clip.id);
+              const asset = assets.find(a => a.id === clip.assetId);
+              return (
+                <div
+                  key={clip.id} 
+                  onContextMenu={(e) => onContextMenu(e, clip.id, track.type)}
+                  onMouseDown={(e) => onClipMouseDown(e, clip, track.id)}
+                  onMouseMove={(e) => onClipMouseMove(e, clip)}
+                  className={`absolute top-2 bottom-2 rounded-lg border-2 flex flex-col justify-center px-3 overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 border-indigo-500/50 z-20 border-dashed' : track.type === 'audio' ? 'bg-indigo-950/40 border-indigo-800/40 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 border-yellow-600/40 z-20' : 'bg-zinc-800/80 border-zinc-700 hover:border-zinc-500 z-10'}`}
+                  style={{ left: clip.startTime * pxPerSec, width: clip.duration * pxPerSec }}
+                >
+                  {track.type === 'audio' && <Waveform asset={asset} clip={clip} />}
+                  {track.type === 'subtitle' && (
+                    <div className="w-full h-full flex items-center justify-center text-center">
+                      <span className="text-[10px] font-black text-yellow-200 leading-tight truncate px-1">{clip.content}</span>
+                    </div>
+                  )}
+                  {track.type !== 'subtitle' && (
+                    <div className="flex items-center gap-1 z-10 pointer-events-none">
+                      {clip.linkedClipId && <LinkIcon size={8} className="text-indigo-400" />}
+                      <span className="text-[10px] font-bold text-white truncate uppercase">{clip.id.split('-')[1]}</span>
+                    </div>
+                  )}
+                  <span className="text-[8px] text-zinc-400 font-mono font-bold tracking-tighter z-10 pointer-events-none absolute bottom-0.5 right-1">{clip.duration.toFixed(2)}s</span>
+                  <div className="absolute left-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
+                  <div className="absolute right-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
+                  
+                  {/* Clip Markers */}
+                  {clip.markers?.map(marker => (
+                    <div
+                      key={marker.id}
+                      className="absolute top-0 bottom-0 w-px z-[60] cursor-ew-resize group/marker hover:w-1 hover:-ml-0.5 transition-all"
+                      style={{ left: (marker.time - clip.offset) * pxPerSec, backgroundColor: marker.color || '#00FF00' }}
+                      onMouseDown={(e) => onClipMarkerMouseDown?.(e, marker, clip)}
+                      onDoubleClick={(e) => onClipMarkerDoubleClick?.(e, marker, clip)}
+                    >
+                      <div 
+                        className="absolute top-0 -left-1 w-2 h-2 rounded-full shadow-sm shadow-black/50 transition-transform group-hover/marker:scale-150" 
+                        style={{ backgroundColor: marker.color || '#00FF00' }}
+                        title={marker.label || 'Marker'} 
+                      />
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}, (prev, next) => {
+  // Custom comparison to prevent re-renders when currentTime changes
+  // We only care about project structure, assets, zoom, and selection
+  return (
+    prev.project === next.project &&
+    prev.assets === next.assets &&
+    prev.zoom === next.zoom &&
+    prev.selectedClipId === next.selectedClipId
+  );
+});
