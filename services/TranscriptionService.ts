@@ -1,11 +1,12 @@
+import { DeepgramService, DeepgramOptions } from './DeepgramService';
 import { GeminiService } from './geminiService';
 import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
 import { DiagnosticsService } from './DiagnosticsService';
 
 export class TranscriptionService {
-  static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
+  static async processAsset(asset: Asset, context?: string, options?: DeepgramOptions): Promise<TranscriptionResult[]> {
     try {
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`);
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`, options);
       
       // 1. Fetch the asset data
       const response = await fetch(asset.url);
@@ -28,11 +29,31 @@ export class TranscriptionService {
         reader.readAsDataURL(blob);
       });
       
-      // 3. Call Gemini for transcription and timing
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Calling Gemini for transcription and timing...');
+      // 3. Step 1: Get plain text from Gemini (Hybrid Strategy)
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 1: Calling Gemini for plain text transcription...');
+      let plainText = context || '';
       
-      const result = await GeminiService.getInstance().transcribeAudio(base64Audio, blob.type, context);
+      if (!plainText) {
+        try {
+          plainText = await GeminiService.getInstance().generatePlainTextTranscription(base64Audio, blob.type);
+          DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Gemini transcription complete. Length: ${plainText.length} chars`);
+        } catch (geminiError: any) {
+           DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Gemini transcription failed: ${geminiError.message}. Falling back to Deepgram only.`);
+           // Fallback: Proceed without context if Gemini fails
+        }
+      } else {
+        DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Using provided context (forced alignment script).');
+      }
+
+      // 4. Step 2: Call Deepgram with context (Forced Alignment)
+      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 2: Calling Deepgram with context...');
       
+      const deepgramOptions: DeepgramOptions = {
+        ...options,
+        context: plainText // Pass the Gemini text (or user script) as context
+      };
+
+      const result = await DeepgramService.transcribeAudio(file, deepgramOptions);
       DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Transcription complete. Received ${result.length} results`);
       
       return result;
