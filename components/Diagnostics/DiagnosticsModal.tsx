@@ -10,12 +10,11 @@ interface DiagnosticsModalProps {
 
 export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) => {
   const store = useProjectStore();
-  const [activeTab, setActiveTab] = useState<'system' | 'subtitles' | 'logs'>('system');
+  const [activeTab, setActiveTab] = useState<'system' | 'subtitles'>('system');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [benchmarkResult, setBenchmarkResult] = useState<{ avgFps: number, minFps: number, maxFps: number } | null>(null);
   const [isBenchmarking, setIsBenchmarking] = useState(false);
   const [shiftAmount, setShiftAmount] = useState<string>('0');
-  const [logs, setLogs] = useState<any[]>([]);
 
   useEffect(() => {
     if (activeTab === 'system') {
@@ -30,13 +29,6 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) =
         service.stopMonitoring();
         clearInterval(interval);
       };
-    } else if (activeTab === 'logs') {
-      const service = DiagnosticsService.getInstance();
-      setLogs([...service.getLogs()]);
-      const interval = setInterval(() => {
-        setLogs([...service.getLogs()]);
-      }, 1000);
-      return () => clearInterval(interval);
     }
   }, [activeTab]);
 
@@ -130,12 +122,6 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) =
                 className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'subtitles' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
               >
                 Subtitle Inspector
-              </button>
-              <button 
-                onClick={() => setActiveTab('logs')}
-                className={`px-4 py-1.5 rounded-md text-[10px] font-black uppercase tracking-widest transition-all ${activeTab === 'logs' ? 'bg-indigo-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300'}`}
-              >
-                Logs
               </button>
             </div>
           </div>
@@ -235,7 +221,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) =
                  </div>
               </div>
             </div>
-          ) : activeTab === 'subtitles' ? (
+          ) : (
             <div className="flex flex-col h-full">
               <div className="p-6 border-b border-zinc-800 bg-zinc-900/20 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
@@ -297,43 +283,6 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) =
                       </tbody>
                     </table>
                   </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col h-full">
-              <div className="p-4 border-b border-zinc-800 bg-zinc-900/20 flex justify-end">
-                <button 
-                  onClick={() => { DiagnosticsService.getInstance().clearLogs(); setLogs([]); }}
-                  className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 text-white text-[10px] font-black uppercase tracking-widest rounded-lg transition-all"
-                >
-                  Clear Logs
-                </button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-xs">
-                {logs.length === 0 ? (
-                  <div className="text-zinc-500 text-center py-10">No logs recorded</div>
-                ) : (
-                  logs.map(log => (
-                    <div key={log.id} className="p-2 rounded bg-zinc-900/50 border border-zinc-800 flex gap-3">
-                      <span className="text-zinc-500 shrink-0">{new Date(log.timestamp).toLocaleTimeString()}</span>
-                      <span className={`shrink-0 font-bold w-16 uppercase text-[10px] ${
-                        log.level === 'error' ? 'text-red-500' : 
-                        log.level === 'warn' ? 'text-orange-500' : 
-                        log.level === 'debug' ? 'text-zinc-500' : 'text-cyan-500'
-                      }`}>{log.level}</span>
-                      <span className="text-zinc-400 shrink-0 font-bold w-24 truncate">[{log.category}]</span>
-                      <span className="text-zinc-300 break-all">{log.message}</span>
-                      {log.details && (
-                        <details className="w-full mt-1">
-                          <summary className="cursor-pointer text-zinc-600 hover:text-zinc-400 text-[10px]">Details</summary>
-                          <pre className="mt-1 p-2 bg-black rounded text-[10px] text-zinc-400 overflow-x-auto">
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
-                        </details>
-                      )}
-                    </div>
-                  ))
                 )}
               </div>
             </div>

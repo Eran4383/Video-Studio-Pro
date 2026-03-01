@@ -71,37 +71,6 @@ export class GeminiService {
   }
 
   /**
-   * Transcribes audio to plain text using gemini-1.5-flash.
-   * Used for the first step of the hybrid transcription strategy.
-   */
-  async generatePlainTextTranscription(audioBase64: string, mimeType: string): Promise<string> {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) {
-      throw new Error("Gemini API Key is missing.");
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    const prompt = "Transcribe the following audio file into plain text. Do not include timestamps, speaker labels, or any other metadata. Just the spoken/sung words. Return ONLY the text.";
-
-    try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-1.5-flash',
-        contents: {
-          parts: [
-            { inlineData: { mimeType, data: audioBase64 } },
-            { text: prompt }
-          ]
-        }
-      });
-
-      return response.text || '';
-    } catch (error: any) {
-      console.error("Gemini Plain Text Transcription Error:", error);
-      throw new Error(error.message || "Unknown Gemini API error");
-    }
-  }
-
-  /**
    * Transcribes audio and returns word-level timestamps.
    */
   async transcribeAudio(audioBase64: string, mimeType: string, context?: string) {
@@ -112,31 +81,27 @@ export class GeminiService {
 
     const ai = new GoogleGenAI({ apiKey });
     const prompt = `
-      Task: Precise Audio Transcription and Word-Level Forced Alignment
+      Task: Precise Audio Transcription and Word-Level Alignment
       
-      Goal: Generate a JSON array of word-level timestamps that are perfectly synchronized with the audio, preventing any time drift.
-
-      Process:
-      1. IDENTIFICATION: First, listen to the entire audio to understand the flow, tempo, and content.
-      2. FORCED ALIGNMENT: Extract the exact start and end time for EVERY single word.
-      
-      CRITICAL TIMING INSTRUCTIONS:
-      - ABSOLUTE TIME: All timestamps must be calculated from the very beginning of the audio file (0.00s).
-      - NO DRIFT: Ensure that words at the end of the file are just as synchronized as words at the beginning. Do not let errors accumulate.
-      - CONTINUITY: Treat the audio as a single continuous stream.
-      
-      Output Requirements:
-      - Return ONLY a JSON array of objects. No markdown, no code blocks.
-      - Schema: Array<{ word: string, start: number, end: number }>
-      - "start" and "end" must be numbers in seconds (float), e.g., 12.345.
-      
-      Context / Ground Truth:
-      ${context ? `Use the following text as the strict ground truth for spelling and word order. Align the audio to this text:\n"${context}"` : "No text provided. Transcribe exactly what is heard."}
-      
-      Handling Edge Cases:
-      - If a word is sung or elongated, "start" is when it begins and "end" is when it fully finishes.
-      - Background vocals: Include them if distinct, prefixed with (bg).
-      - Silence/Instrumentals: Do not generate words for these sections.
+      Instructions:
+      1. Analyze the provided audio file with EXTREME precision.
+      2. Return a JSON array of objects. Each object represents a SINGLE spoken word.
+      3. Required keys: "word" (string), "start" (number, seconds), "end" (number, seconds).
+      4. CRITICAL: Do NOT group words into phrases or sentences. Every single word must be a separate object.
+      5. TIMING RULES:
+         - "start": The exact moment the first sound of the word begins (the attack).
+         - "end": The exact moment the last sound of the word fades (the release).
+         - If a word is elongated (e.g., "FREEEEEEEEE"), the "end" time must reflect the full duration.
+         - Do not leave gaps between words if they are spoken continuously.
+      6. ${context ? `GUIDED ALIGNMENT MODE:
+         - The user has provided a script/lyrics below. Use this as the GROUND TRUTH for spelling and word order.
+         - Script: "${context}"
+         - Your goal is to align this text to the audio word-for-word.
+         - If the audio deviates (ad-libs, different words), transcribe what is actually heard, but prefer the script's spelling.
+         - Handle singing or spoken dubbing by finding the precise start/end times for each syllable/word.
+         - If there are background vocals/backing singers, include them if they are distinct words, but mark them with '(bg)' prefix, e.g., '(bg) hello'.` 
+         : 'PURE TRANSCRIPTION MODE: Transcribe every spoken word accurately. If there are background vocals, include them with a "(bg)" prefix.'}
+      7. Output ONLY valid JSON. No markdown formatting.
     `;
 
     try {

@@ -1,116 +1,78 @@
-import { DeepgramService, DeepgramOptions } from './DeepgramService';
 import { GeminiService } from './geminiService';
-import { Clip, MediaType, Asset, TranscriptionResult, Marker } from '../types';
-import { DiagnosticsService } from './DiagnosticsService';
+import { Clip, MediaType, Asset } from '../types';
+
+export interface TranscriptionResult {
+  word: string;
+  start: number;
+  end: number;
+}
+
+import { Marker } from '../types';
 
 export class TranscriptionService {
-  static async processAsset(asset: Asset, context?: string, options?: DeepgramOptions): Promise<TranscriptionResult[]> {
+  // ... existing methods
+
+  static convertToMarkers(results: TranscriptionResult[]): Marker[] {
+    return results.flatMap((res, index) => [
+      {
+        id: `marker-start-${index}`,
+        time: res.start,
+        label: `Start: ${res.word}`,
+        color: '#10b981' // green
+      },
+      {
+        id: `marker-end-${index}`,
+        time: res.end,
+        label: `End: ${res.word}`,
+        color: '#ef4444' // red
+      }
+    ]);
+  }
+
+  static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
     try {
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Processing asset: ${asset.name}`, options);
-      
-      // 1. Fetch the asset data
+      // Fetch the asset data (assuming it's a blob URL or accessible URL)
       const response = await fetch(asset.url);
       const blob = await response.blob();
-      const file = new File([blob], asset.name, { type: blob.type });
-
-      // 2. Convert to Base64 for Gemini
-      const base64Audio = await new Promise<string>((resolve, reject) => {
+      
+      // Convert to Base64
+      const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => {
-          if (typeof reader.result === 'string') {
-            // Remove the data URL prefix (e.g., "data:audio/wav;base64,")
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-          } else {
-            reject(new Error('Failed to convert blob to base64'));
-          }
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
         };
-        reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
-      
-      // 3. Step 1: Get plain text from Gemini (Hybrid Strategy)
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 1: Calling Gemini for plain text transcription...');
-      let plainText = context || '';
-      
-      if (!plainText) {
-        try {
-          plainText = await GeminiService.getInstance().generatePlainTextTranscription(base64Audio, blob.type);
-          DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Gemini transcription complete. Length: ${plainText.length} chars`);
-        } catch (geminiError: any) {
-           DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Gemini transcription failed: ${geminiError.message}. Falling back to Deepgram only.`);
-           // Fallback: Proceed without context if Gemini fails
-        }
-      } else {
-        DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Using provided context (forced alignment script).');
-      }
 
-      // 4. Step 2: Call Deepgram with context (Forced Alignment)
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', 'Step 2: Calling Deepgram with context...');
-      
-      const deepgramOptions: DeepgramOptions = {
-        ...options,
-        context: plainText // Pass the Gemini text (or user script) as context
-      };
-
-      const result = await DeepgramService.transcribeAudio(file, deepgramOptions);
-      DiagnosticsService.getInstance().log('info', 'TranscriptionService', `Transcription complete. Received ${result.length} results`);
-      
-      return result;
-    } catch (error: any) {
-      DiagnosticsService.getInstance().log('error', 'TranscriptionService', `Transcription failed: ${error.message}`, error);
+      // Call Gemini
+      return await GeminiService.getInstance().transcribeAudio(base64, blob.type, context);
+    } catch (error) {
+      console.error("Transcription failed:", error);
       throw error;
     }
   }
 
   static convertToClips(results: TranscriptionResult[], assetId: string, trackId: string, offset: number = 0): Clip[] {
-    if (!Array.isArray(results)) {
-      DiagnosticsService.getInstance().log('error', 'TranscriptionService', 'convertToClips received non-array results', results);
-      return [];
-    }
-    // Sort by start time to ensure order
-    const sortedResults = [...results].sort((a, b) => a.start - b.start);
-
-    return sortedResults.map((res, index) => {
-      const start = parseFloat(String(res.start));
-      const end = parseFloat(String(res.end));
+    return results.map((res, index) => {
+      // Clean text: remove content in parentheses like (bg), (laughter)
+      const cleanWord = res.word.replace(/\s*\(.*?\)\s*/g, '').trim();
       
-      // Skip invalid timestamps
-      if (isNaN(start)) return null;
-
-      // Calculate duration based on exact timestamps
-      // If end is missing, default to start + 0.3s (average word length)
-      // We enforce a tiny minimum (0.05s) just to ensure the clip exists in the UI
-      let duration = 0.3;
-      if (!isNaN(end) && end > start) {
-        duration = end - start;
-      }
-      
-      // Ensure we don't have zero or negative duration clips which break the timeline
-      duration = Math.max(0.05, duration);
+      // Ensure duration is at least a minimum visible amount (e.g., 0.1s)
+      const duration = Math.max(0.1, res.end - res.start);
       
       return {
         id: `sub-${Date.now()}-${index}`,
         assetId: assetId, // We link to the original asset, though it's text
-        startTime: start + offset,
+        startTime: res.start + offset,
         offset: 0, // Text clips don't really have an offset into an asset in the same way
         duration: duration,
         layer: 10, // High layer for visibility
         effects: [],
-        content: res.word,
+        content: cleanWord,
         isSilent: true, // Crucial: Prevent this clip from playing audio
         linkedClipId: undefined // Could link to the audio clip if we had its ID
       };
-    }).filter((clip): clip is Clip => clip !== null);
-  }
-
-  // Added to support potential legacy calls or marker-based workflows
-  static convertToMarkers(results: TranscriptionResult[], offset: number = 0): Marker[] {
-    return results.map((res, index) => ({
-      id: `marker-${Date.now()}-${index}`,
-      time: res.start + offset,
-      label: res.word,
-      color: '#3B82F6' // Blue color for transcription markers
-    }));
+    }).filter(clip => clip.content.length > 0); // Remove empty clips after cleaning
   }
 }

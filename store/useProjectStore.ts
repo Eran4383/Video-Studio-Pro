@@ -237,9 +237,9 @@ export const useProjectStore = () => {
     }));
   }, []);
 
-  const addTrack = useCallback((type: 'video' | 'audio' | 'subtitle', trackId?: string) => {
+  const addTrack = useCallback((type: 'video' | 'audio' | 'subtitle') => {
     setProject(prev => {
-      const id = trackId || `track-${type[0]}${prev.tracks.filter(t => t.type === type).length + 1}`;
+      const id = `track-${type[0]}${prev.tracks.filter(t => t.type === type).length + 1}`;
       return {
         ...prev,
         tracks: [...prev.tracks, { 
