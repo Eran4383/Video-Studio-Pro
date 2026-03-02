@@ -61,22 +61,6 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
         />
         <line x1="0" y1="50" x2="1000" y2="50" stroke="#4338ca" strokeWidth="0.1" strokeDasharray="2,2" className="opacity-20" />
       </svg>
-      {clip.markers?.map(marker => {
-        const relativeTime = marker.time - clip.offset;
-        if (relativeTime < 0 || relativeTime > clip.duration) return null;
-        const leftPercent = (relativeTime / clip.duration) * 100;
-        return (
-          <div 
-            key={marker.id}
-            className="absolute top-0 bottom-0 w-[1px] z-20 group/marker hover:w-[2px] transition-all"
-            style={{ left: `${leftPercent}%`, backgroundColor: marker.color || '#fbbf24' }}
-          >
-             <div className="hidden group-hover/marker:block absolute bottom-full mb-1 left-1/2 -translate-x-1/2 bg-zinc-900 text-[9px] text-white px-1.5 py-0.5 rounded border border-zinc-700 whitespace-nowrap z-50 shadow-xl">
-               {marker.label}
-             </div>
-          </div>
-        );
-      })}
     </div>
   );
 };

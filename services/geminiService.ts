@@ -84,24 +84,21 @@ export class GeminiService {
       Task: Precise Audio Transcription and Word-Level Alignment
       
       Instructions:
-      1. Analyze the provided audio file with EXTREME precision.
-      2. Return a JSON array of objects. Each object represents a SINGLE spoken word.
+      1. Analyze the provided audio file with high precision.
+      2. Return a JSON array of objects. Each object represents a single spoken word.
       3. Required keys: "word" (string), "start" (number, seconds), "end" (number, seconds).
-      4. CRITICAL: Do NOT group words into phrases or sentences. Every single word must be a separate object.
-      5. TIMING RULES:
-         - "start": The exact moment the first sound of the word begins (the attack).
-         - "end": The exact moment the last sound of the word fades (the release).
-         - If a word is elongated (e.g., "FREEEEEEEEE"), the "end" time must reflect the full duration.
-         - Do not leave gaps between words if they are spoken continuously.
-      6. ${context ? `GUIDED ALIGNMENT MODE:
+      4. CRITICAL: The "start" and "end" times must be EXACT. 
+         - If a word is elongated (e.g., "FREEEEEEEEE"), the "end" time must reflect the full duration of the utterance.
+         - Do not just mark the start; mark the entire duration the word is audible.
+      5. ${context ? `GUIDED ALIGNMENT MODE:
          - The user has provided a script/lyrics below. Use this as the GROUND TRUTH for spelling and word order.
          - Script: "${context}"
-         - Your goal is to align this text to the audio word-for-word.
+         - Your goal is to align this text to the audio.
          - If the audio deviates (ad-libs, different words), transcribe what is actually heard, but prefer the script's spelling.
          - Handle singing or spoken dubbing by finding the precise start/end times for each syllable/word.
          - If there are background vocals/backing singers, include them if they are distinct words, but mark them with '(bg)' prefix, e.g., '(bg) hello'.` 
          : 'PURE TRANSCRIPTION MODE: Transcribe every spoken word accurately. If there are background vocals, include them with a "(bg)" prefix.'}
-      7. Output ONLY valid JSON. No markdown formatting.
+      6. Output ONLY valid JSON. No markdown formatting.
     `;
 
     try {

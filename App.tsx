@@ -77,7 +77,7 @@ const App: React.FC = () => {
         return;
     }
 
-    if (e.code === 'KeyF') {
+    if (e.key.toLowerCase() === 'f') {
         e.preventDefault();
         handleDoubleClick();
         return;
@@ -95,7 +95,6 @@ const App: React.FC = () => {
       case 'zoom_in': store.setZoom(Math.min(100, store.zoom + 5)); break;
       case 'zoom_out': store.setZoom(Math.max(1, store.zoom - 5)); break;
       case 'toggle_magnet': store.setIsMagnetEnabled(!store.isMagnetEnabled); break;
-      case 'add_marker': store.addMarker(); break;
     }
   }, [store, shortcutStore]);
 
@@ -246,8 +245,6 @@ const App: React.FC = () => {
             onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
             selectedClipId={store.selectedClipId} onSelectClip={store.setSelectedClipId}
             onAddAsset={store.addAsset}
-            onUpdateMarker={store.updateMarker}
-            onDeleteMarker={store.deleteMarker}
           />
         </div>
       </main>
