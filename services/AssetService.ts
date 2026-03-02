@@ -3,23 +3,19 @@ import { Asset, MediaType } from '../types';
 
 export class AssetService {
   static async processFile(file: File): Promise<Asset> {
-    console.log("Processing file:", file.name, file.type);
     const url = URL.createObjectURL(file);
     
     // Improved type detection
     let type = MediaType.IMAGE;
-    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const ext = file.name.split('.').pop()?.toLowerCase();
     
-    // Check MIME type first, then extension
-    if (file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm', 'ts', 'm4v'].includes(ext)) {
+    if (file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm', 'ts'].includes(ext || '')) {
       type = MediaType.VIDEO;
-    } else if (file.type.startsWith('audio/') || ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac', 'wma'].includes(ext)) {
+    } else if (file.type.startsWith('audio/') || ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(ext || '')) {
       type = MediaType.AUDIO;
-    } else if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'tiff'].includes(ext)) {
+    } else if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) {
       type = MediaType.IMAGE;
     }
-    
-    console.log("Detected type:", type);
 
     let duration = 0;
     let thumbnail = '';
@@ -27,50 +23,29 @@ export class AssetService {
 
     try {
       if (type === MediaType.VIDEO || type === MediaType.AUDIO) {
-        // Get duration with timeout
-        console.log("Getting duration...");
         duration = await Promise.race([
           this.getMediaDuration(url),
-          new Promise<number>((resolve) => setTimeout(() => resolve(type === MediaType.VIDEO ? 10 : 0), 5000))
-        ]).catch((e) => {
-            console.warn("Duration check failed", e);
-            return type === MediaType.VIDEO ? 10 : 0;
-        });
-        console.log("Duration:", duration);
+          new Promise<number>((_, reject) => setTimeout(() => reject('Timeout'), 5000))
+        ]).catch(() => (type === MediaType.VIDEO ? 10 : 0));
 
         if (type === MediaType.VIDEO) {
-          console.log("Generating thumbnail...");
-          thumbnail = await Promise.race([
-              this.generateThumbnail(url),
-              new Promise<string>((resolve) => setTimeout(() => resolve(''), 5000))
-          ]).catch((e) => {
-              console.warn("Thumbnail generation failed", e);
-              return '';
-          });
-          console.log("Thumbnail generated");
+          thumbnail = await this.generateThumbnail(url).catch(() => '');
         }
         
         // Extract real waveform data with high fidelity (1000 samples)
-        // We wrap this in a separate try/catch to ensure it doesn't fail the whole import
-        try {
-           console.log("Extracting waveform...");
-           waveform = await this.extractWaveform(url, 1000);
-           console.log("Waveform extracted");
-        } catch (err) {
-           console.warn("Waveform extraction failed, using silence", err);
-           waveform = undefined;
-        }
+        waveform = await this.extractWaveform(url, 1000).catch(err => {
+          console.warn("Waveform extraction failed", err);
+          return undefined;
+        });
       } else if (type === MediaType.IMAGE) {
         duration = 5;
         thumbnail = url;
       }
     } catch (e) {
       console.error("Asset processing failed", e);
-      // Fallback values
-      duration = duration || 5;
     }
 
-    const asset = {
+    return {
       id: `asset-${Math.random().toString(36).substr(2, 9)}`,
       name: file.name,
       type,
@@ -79,8 +54,6 @@ export class AssetService {
       thumbnail,
       waveform
     };
-    console.log("Asset created:", asset);
-    return asset;
   }
 
   private static async extractWaveform(url: string, samples = 1000): Promise<number[]> {

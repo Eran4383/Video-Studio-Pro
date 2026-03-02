@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Project, Clip, Asset, Marker } from '../../types';
+import { Project, Clip, Asset } from '../../types';
 import { TrackHeader } from './TrackHeader';
 import { Link as LinkIcon } from 'lucide-react';
 import { Waveform } from './Waveform';
@@ -16,12 +16,10 @@ interface TimelineTracksProps {
   onContextMenu: (e: React.MouseEvent, clipId: string, assetType: string) => void;
   onClipMouseDown: (e: React.MouseEvent, clip: Clip, trackId: string) => void;
   onClipMouseMove: (e: React.MouseEvent, clip: Clip) => void;
-  onClipMarkerMouseDown?: (e: React.MouseEvent, marker: Marker, clip: Clip) => void;
-  onClipMarkerDoubleClick?: (e: React.MouseEvent, marker: Marker, clip: Clip) => void;
 }
 
 export const TimelineTracks = memo(({
-  project, assets, zoom, selectedClipId, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove, onClipMarkerMouseDown, onClipMarkerDoubleClick
+  project, assets, zoom, selectedClipId, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove
 }: TimelineTracksProps) => {
   const pxPerSec = zoom * 10;
 
@@ -65,23 +63,6 @@ export const TimelineTracks = memo(({
                   <span className="text-[8px] text-zinc-400 font-mono font-bold tracking-tighter z-10 pointer-events-none absolute bottom-0.5 right-1">{clip.duration.toFixed(2)}s</span>
                   <div className="absolute left-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
                   <div className="absolute right-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
-                  
-                  {/* Clip Markers */}
-                  {clip.markers?.map(marker => (
-                    <div
-                      key={marker.id}
-                      className="absolute top-0 bottom-0 w-px z-[60] cursor-ew-resize group/marker hover:w-1 hover:-ml-0.5 transition-all"
-                      style={{ left: (marker.time - clip.offset) * pxPerSec, backgroundColor: marker.color || '#00FF00' }}
-                      onMouseDown={(e) => onClipMarkerMouseDown?.(e, marker, clip)}
-                      onDoubleClick={(e) => onClipMarkerDoubleClick?.(e, marker, clip)}
-                    >
-                      <div 
-                        className="absolute top-0 -left-1 w-2 h-2 rounded-full shadow-sm shadow-black/50 transition-transform group-hover/marker:scale-150" 
-                        style={{ backgroundColor: marker.color || '#00FF00' }}
-                        title={marker.label || 'Marker'} 
-                      />
-                    </div>
-                  ))}
                 </div>
               );
             })}

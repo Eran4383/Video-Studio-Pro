@@ -11,14 +11,13 @@ interface TranscriptionModalProps {
   onMinimize: () => void;
   onAddTrack: (type: 'video' | 'audio' | 'subtitle', trackId?: string) => void;
   onAddClips: (trackId: string, clips: Clip[]) => void;
-  onUpdateClip: (clipId: string, updates: Partial<Clip>) => void;
   onStart: () => void;
   onUpdate: (status: string) => void;
   onComplete: () => void;
 }
 
 export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({ 
-  assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips, onUpdateClip,
+  assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips,
   onStart, onUpdate, onComplete
 }) => {
   const [selectedAssetId, setSelectedAssetId] = useState<string>(
@@ -73,31 +72,6 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
       const clips = TranscriptionService.convertToClips(results, asset.id, targetTrackId, timelineOffset);
       onAddClips(targetTrackId, clips);
       
-      // Add markers to the source audio clip
-      updateStatus('Adding markers to audio...');
-      const markers = TranscriptionService.convertToMarkers(results);
-      
-      // Find the clip to add markers to
-      let sourceClipId: string | null = null;
-      
-      // Check if the currently selected clip matches the asset we just transcribed
-      if (selectedClipId) {
-         const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId);
-         if (clip && clip.assetId === selectedAssetId) {
-            sourceClipId = clip.id;
-         }
-      }
-
-      if (!sourceClipId) {
-        // If not, find the first clip that uses this asset
-        const foundClip = project.tracks.flatMap(t => t.clips).find(c => c.assetId === selectedAssetId);
-        if (foundClip) sourceClipId = foundClip.id;
-      }
-
-      if (sourceClipId) {
-        onUpdateClip(sourceClipId, { markers });
-      }
-
       updateStatus('Complete');
       onComplete();
     } catch (e: any) {
