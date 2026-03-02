@@ -1,8 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Project, Clip, Track, Asset } from '../../types';
+import { Project, Clip, Track, Asset, Marker } from '../../types';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
 import { TimelineTracks } from './TimelineTracks';
+import { MarkerModal } from './MarkerModal';
 
 interface TimelineProps {
   project: Project;
@@ -30,24 +31,27 @@ interface TimelineProps {
   selectedClipId: string | null;
   onSelectClip: (id: string | null) => void;
   onAddAsset: (asset: Asset) => void;
+  onUpdateMarker: (markerId: string, updates: Partial<Marker>, clipId?: string) => void;
+  onDeleteMarker: (markerId: string, clipId?: string) => void;
 }
 
-type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R';
+type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R' | 'MARKER_GLOBAL' | 'MARKER_CLIP';
 
 interface DragState {
   id: string;
   startX: number;
   mode: DragMode;
-  trackId: string;
+  trackId?: string;
+  clipId?: string; // For clip markers
   originalState: {
     startTime: number;
-    duration: number;
-    offset: number;
+    duration?: number;
+    offset?: number;
   };
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipId, onSelectClip, onAddAsset
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipId, onSelectClip, onAddAsset, onUpdateMarker, onDeleteMarker
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -56,6 +60,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [middlePanning, setMiddlePanning] = useState<{ startX: number, scrollLeft: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, clipId: string, assetType: string } | null>(null);
   const [ghostTime, setGhostTime] = useState<number | null>(null);
+  const [editingMarker, setEditingMarker] = useState<{ marker: Marker, clipId?: string, position: { x: number, y: number } } | null>(null);
 
   const pxPerSec = zoom * 10;
   const HEADER_WIDTH = 150;
@@ -102,7 +107,25 @@ export const Timeline: React.FC<TimelineProps> = ({
 
       if (dragging) {
         const deltaSeconds = (e.clientX - dragging.startX) / pxPerSec;
+        
+        if (dragging.mode === 'MARKER_GLOBAL') {
+          const newTime = Math.max(0, dragging.originalState.startTime + deltaSeconds);
+          onUpdateMarker(dragging.id, { time: newTime });
+          return;
+        }
+
+        if (dragging.mode === 'MARKER_CLIP' && dragging.clipId) {
+           // Clip marker time is relative to asset start (offset + relative_time)
+           // But visually it's relative to clip start on timeline.
+           // Actually, marker.time stored is relative to asset start (offset included).
+           // So if we drag it visually, we are changing its time relative to asset.
+           const newTime = Math.max(0, dragging.originalState.startTime + deltaSeconds);
+           onUpdateMarker(dragging.id, { time: newTime }, dragging.clipId);
+           return;
+        }
+
         const { originalState, id, trackId } = dragging;
+        if (!trackId) return; // Should not happen for clip moves
         const track = project.tracks.find(t => t.id === trackId);
         if (!track) return;
         const clip = track.clips.find(c => c.id === id);
@@ -127,17 +150,17 @@ export const Timeline: React.FC<TimelineProps> = ({
         } else if (dragging.mode === 'RESIZE_R') {
             // New duration = original duration + delta
             // Max duration = asset length - offset
-            let newDur = Math.max(0.1, originalState.duration + deltaSeconds);
-            if (originalState.offset + newDur > assetDuration) {
-                newDur = assetDuration - originalState.offset;
+            let newDur = Math.max(0.1, (originalState.duration || 0) + deltaSeconds);
+            if ((originalState.offset || 0) + newDur > assetDuration) {
+                newDur = assetDuration - (originalState.offset || 0);
             }
-            onClipResize(id, originalState.startTime, newDur, originalState.offset);
+            onClipResize(id, originalState.startTime, newDur, originalState.offset || 0);
 
         } else if (dragging.mode === 'RESIZE_L') {
             // Start time changes, duration changes inverse, offset changes
             let newStart = originalState.startTime + deltaSeconds;
-            let newDur = originalState.duration - deltaSeconds;
-            let newOffset = originalState.offset + deltaSeconds;
+            let newDur = (originalState.duration || 0) - deltaSeconds;
+            let newOffset = (originalState.offset || 0) + deltaSeconds;
 
             // Constraints
             if (newOffset < 0) {
@@ -149,9 +172,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
             if (newDur < 0.1) {
                 // Min duration
-                newStart = originalState.startTime + originalState.duration - 0.1;
+                newStart = originalState.startTime + (originalState.duration || 0) - 0.1;
                 newDur = 0.1;
-                newOffset = originalState.offset + originalState.duration - 0.1;
+                newOffset = (originalState.offset || 0) + (originalState.duration || 0) - 0.1;
             }
             
             onClipResize(id, Math.max(0, newStart), newDur, Math.max(0, newOffset));
@@ -161,7 +184,8 @@ export const Timeline: React.FC<TimelineProps> = ({
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1) setMiddlePanning(null);
-      if (dragging) onClipFinalize();
+      if (dragging && (dragging.mode === 'MOVE' || dragging.mode === 'RESIZE_L' || dragging.mode === 'RESIZE_R')) onClipFinalize();
+      if (dragging && (dragging.mode === 'MARKER_GLOBAL' || dragging.mode === 'MARKER_CLIP')) onClipFinalize(); // Push history for marker move
       setIsDraggingPlayhead(false);
       setDragging(null);
     };
@@ -211,6 +235,29 @@ export const Timeline: React.FC<TimelineProps> = ({
     setContextMenu({ x: e.clientX, y: e.clientY, clipId, assetType });
   };
 
+  const handleGlobalMarkerMouseDown = (e: React.MouseEvent, marker: Marker) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    setDragging({
+      id: marker.id,
+      startX: e.clientX,
+      mode: 'MARKER_GLOBAL',
+      originalState: { startTime: marker.time }
+    });
+  };
+
+  const handleClipMarkerMouseDown = (e: React.MouseEvent, marker: Marker, clip: Clip) => {
+    e.stopPropagation();
+    if (e.button !== 0) return;
+    setDragging({
+      id: marker.id,
+      startX: e.clientX,
+      mode: 'MARKER_CLIP',
+      clipId: clip.id,
+      originalState: { startTime: marker.time }
+    });
+  };
+
   return (
     <div className="flex-1 bg-[#0f0f0f] flex flex-col overflow-hidden border-t border-zinc-800 relative select-none" onWheel={handleWheel} onMouseDown={(e) => e.button === 1 && scrollRef.current && (e.preventDefault(), setMiddlePanning({ startX: e.clientX, scrollLeft: scrollRef.current.scrollLeft }))}>
       {contextMenu && (
@@ -219,6 +266,16 @@ export const Timeline: React.FC<TimelineProps> = ({
           {contextMenu.assetType === 'video' && <button onClick={() => { onDetachAudio(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold border-t border-zinc-800">Unlink Audio</button>}
           <button onClick={() => { onClipDelete(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-red-600 text-red-400 hover:text-white flex items-center gap-2 font-bold border-t border-zinc-800">Delete</button>
         </div>
+      )}
+
+      {editingMarker && (
+        <MarkerModal 
+          marker={editingMarker.marker}
+          onSave={(id, updates) => onUpdateMarker(id, updates, editingMarker.clipId)}
+          onDelete={(id) => onDeleteMarker(id, editingMarker.clipId)}
+          onClose={() => setEditingMarker(null)}
+          position={editingMarker.position}
+        />
       )}
 
       <TimelineToolbar 
@@ -249,12 +306,41 @@ export const Timeline: React.FC<TimelineProps> = ({
               onContextMenu={handleContextMenu}
               onClipMouseDown={handleClipMouseDown}
               onClipMouseMove={handleClipMouseMove}
+              onClipMarkerMouseDown={handleClipMarkerMouseDown}
+              onClipMarkerDoubleClick={(e, marker, clip) => {
+                e.stopPropagation();
+                setEditingMarker({ marker, clipId: clip.id, position: { x: e.clientX, y: e.clientY } });
+              }}
             />
           </div>
 
           <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: HEADER_WIDTH + (currentTime * pxPerSec) }}>
               <div className="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm rotate-45" />
           </div>
+
+          {project.markers?.map(marker => (
+            <div
+              key={marker.id}
+              className="absolute top-0 bottom-0 w-px z-30 border-l border-dashed group/marker hover:border-solid cursor-ew-resize"
+              style={{ left: HEADER_WIDTH + (marker.time * pxPerSec), borderColor: marker.color || 'yellow' }}
+              onMouseDown={(e) => handleGlobalMarkerMouseDown(e, marker)}
+              onDoubleClick={(e) => {
+                e.stopPropagation();
+                setEditingMarker({ marker, position: { x: e.clientX, y: e.clientY } });
+              }}
+            >
+              <div 
+                className="absolute top-0 -left-1.5 w-3 h-3 rounded-full flex items-center justify-center shadow-sm shadow-black/50 transition-transform group-hover/marker:scale-125" 
+                style={{ backgroundColor: marker.color || 'yellow' }}
+                title={marker.label || 'Marker'}
+              >
+                <div className="w-1 h-1 bg-black rounded-full" />
+              </div>
+              <div className="absolute top-4 left-1 text-[9px] font-mono bg-black/80 px-1 rounded opacity-0 group-hover/marker:opacity-100 transition-opacity whitespace-nowrap" style={{ color: marker.color || 'yellow' }}>
+                {marker.label || 'Marker'}
+              </div>
+            </div>
+          ))}
 
           {ghostTime !== null && (
               <div className="absolute top-8 bottom-0 w-px bg-white/20 z-40 pointer-events-none" style={{ left: HEADER_WIDTH + (ghostTime * pxPerSec) }}>

@@ -232,7 +232,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
       videoRef.current.muted = !!isVideoSilenceNeeded;
       videoRef.current.volume = 1.0;
       const targetTime = (currentTime - activeVideoClip.startTime) + activeVideoClip.offset;
-      if (Math.abs(videoRef.current.currentTime - targetTime) > 0.2) videoRef.current.currentTime = targetTime;
+      if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) videoRef.current.currentTime = targetTime;
       if (isPlaying) videoRef.current.play().catch(() => {}); else videoRef.current.pause();
     } else {
       videoRef.current.pause();
@@ -275,7 +275,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
       }
       
       const targetTime = (currentTime - clip.startTime) + clip.offset;
-      if (Math.abs(el.currentTime - targetTime) > 0.2) el.currentTime = targetTime;
+      if (Math.abs(el.currentTime - targetTime) > 0.1) el.currentTime = targetTime;
       
       if (isPlaying) {
         if (el.paused) el.play().catch(() => {});

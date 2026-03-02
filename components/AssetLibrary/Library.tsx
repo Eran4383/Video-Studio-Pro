@@ -13,14 +13,19 @@ interface LibraryProps {
 
 export const Library: React.FC<LibraryProps> = ({ assets, onAddAsset, onGenerateAI, onDragAssetToTimeline }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const wasFullscreenRef = useRef(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("File input changed");
     const files = e.target.files;
     if (!files) return;
+    
     for (const file of Array.from(files) as File[]) {
       try {
+        console.log("Processing file in Library:", file.name);
         const asset = await AssetService.processFile(file);
+        console.log("Adding asset to store:", asset);
         onAddAsset(asset);
       } catch (err) {
         console.error("Failed to import file", file.name, err);
@@ -28,6 +33,15 @@ export const Library: React.FC<LibraryProps> = ({ assets, onAddAsset, onGenerate
     }
     // Reset input so the same file can be selected again
     if (fileInputRef.current) fileInputRef.current.value = '';
+
+    // Attempt to restore fullscreen if it was active before import
+    if (wasFullscreenRef.current && !document.fullscreenElement) {
+        try {
+            await document.documentElement.requestFullscreen();
+        } catch (e) {
+            console.warn("Failed to restore fullscreen", e);
+        }
+    }
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -77,7 +91,10 @@ export const Library: React.FC<LibraryProps> = ({ assets, onAddAsset, onGenerate
         <div className="flex gap-2 mb-4">
           <Tooltip text="Import Local Media" position="bottom">
             <button 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                wasFullscreenRef.current = !!document.fullscreenElement;
+                fileInputRef.current?.click();
+              }}
               className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg px-3 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all border border-zinc-700 active:scale-95 shadow-sm"
             >
               <Upload size={14} /> IMPORT

@@ -16,6 +16,13 @@ export interface Asset {
   waveform?: number[]; // Normalized amplitude data (0 to 1)
 }
 
+export interface Marker {
+  id: string;
+  time: number; // For global: timeline time. For clip: relative to asset start (offset + relative_time)
+  color?: string;
+  label?: string;
+}
+
 export interface Clip {
   id: string;
   assetId: string;
@@ -27,6 +34,7 @@ export interface Clip {
   isSilent?: boolean; // If true, this clip's source audio is disabled
   linkedClipId?: string; // ID of the linked audio or video clip
   content?: string; // Text content for subtitle clips
+  markers?: Marker[];
 }
 
 export interface Effect {
@@ -42,6 +50,7 @@ export interface Project {
   resolution: { width: number; height: number };
   fps: number;
   tracks: Track[];
+  markers?: Marker[];
 }
 
 export interface Track {
