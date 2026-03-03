@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Project, Asset, Clip, Track, MediaType } from '../types';
+import { MagneticAnchorService } from '../services/MagneticAnchorService';
 
 const INITIAL_PROJECT: Project = {
   id: 'proj-1',
@@ -19,9 +20,10 @@ export const useProjectStore = () => {
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
-  const [selectedClipId, setSelectedClipId] = useState<string | null>(null);
+  const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const [zoom, setZoom] = useState(10);
   const [isMagnetEnabled, setIsMagnetEnabled] = useState(true);
+  const [applyToAll, setApplyToAll] = useState(false);
 
   const historyRef = useRef<Project[]>([INITIAL_PROJECT]);
   const historyIndexRef = useRef<number>(0);
@@ -152,7 +154,7 @@ export const useProjectStore = () => {
     }));
   }, []);
 
-  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number) => {
+  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, forceDisableMagnet: boolean = false) => {
     setProject(prev => {
       let targetClip: Clip | null = null;
       for (const track of prev.tracks) {
@@ -161,7 +163,7 @@ export const useProjectStore = () => {
       }
       if (!targetClip) return prev;
       let finalX = Math.max(0, xPos);
-      if (isMagnetEnabled) {
+      if (isMagnetEnabled && !forceDisableMagnet) {
          const allClips = prev.tracks.flatMap(t => t.clips).filter(c => c.id !== clipId && c.id !== targetClip?.linkedClipId);
          for (const c of allClips) {
             if (Math.abs(finalX - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration; break; }
@@ -192,14 +194,181 @@ export const useProjectStore = () => {
   const detachAudio = useCallback((clipId: string) => { /* Same as before, omitted for brevity but assumed present */ setProject(p => p); }, []);
   const deleteClip = useCallback((clipId: string) => { 
       setProject(prev => ({...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))}));
-      setSelectedClipId(null);
+      setSelectedClipIds(prev => prev.filter(id => id !== clipId));
   }, []);
   const splitClip = useCallback((targetId: string | null, time: number) => { /* Same as before */ }, []);
 
+  const syncClipsToAnchors = useCallback((onlySelected: boolean = false) => {
+    setProject(prev => {
+      // 1. Collect all anchors from Audio tracks, sorted by time
+      const allAnchors: number[] = [];
+      prev.tracks.forEach(t => {
+        if (t.type === 'audio' && !t.isMuted) {
+          t.clips.forEach(c => {
+            const a = assets.find(asset => asset.id === c.assetId);
+            if (a && a.anchors) {
+              a.anchors.forEach(anchorTime => {
+                const timelineAnchorTime = c.startTime + (anchorTime - c.offset);
+                allAnchors.push(timelineAnchorTime);
+              });
+            }
+          });
+        }
+      });
+
+      allAnchors.sort((a, b) => a - b);
+
+      if (allAnchors.length === 0) return prev;
+
+      // 2. Update subtitle tracks
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => {
+          if (track.type !== 'subtitle') return track;
+
+          // Get clips to sync
+          const clipsToSync = track.clips.filter(c => !onlySelected || selectedClipIds.includes(c.id));
+          if (clipsToSync.length === 0) return track;
+
+          // Sort clips by start time to match anchors sequentially
+          const sortedClips = [...clipsToSync].sort((a, b) => a.startTime - b.startTime);
+          
+          // Map clips to anchors and adjust duration
+          // Strategy: Find the first anchor that is after the previous clip's end (or start) 
+          // and relatively close to the current clip's start.
+          
+          const newClipsMap = new Map<string, { startTime: number, duration: number }>();
+          let anchorIndex = 0;
+
+          for (let i = 0; i < sortedClips.length; i++) {
+            const clip = sortedClips[i];
+            
+            // Find the best matching anchor starting from current anchorIndex
+            let bestAnchor = -1;
+            let minDiff = Infinity;
+            
+            // Look ahead in anchors to find the best fit
+            for (let j = anchorIndex; j < allAnchors.length; j++) {
+              const diff = Math.abs(allAnchors[j] - clip.startTime);
+              
+              // If we found a closer anchor, update
+              if (diff < minDiff && diff < 5.0) { // 5s threshold
+                 minDiff = diff;
+                 bestAnchor = j;
+              } else if (diff > minDiff && diff > 5.0) {
+                 // If diff starts increasing and we are far, stop searching
+                 break;
+              }
+            }
+
+            if (bestAnchor !== -1) {
+              const startTime = allAnchors[bestAnchor];
+              let duration = clip.duration;
+
+              // Calculate duration based on next anchor or next clip
+              // If there is a next anchor available, extend to it (minus gap)
+              // But only if it corresponds to the next clip?
+              // Or just use the next anchor in the list as the end point?
+              // The user wants "identical number of bookmarks... at the beginning of each word".
+              // This implies the duration of a word is until the next word starts.
+              
+              if (bestAnchor + 1 < allAnchors.length) {
+                  const nextAnchorTime = allAnchors[bestAnchor + 1];
+                  if (nextAnchorTime > startTime) {
+                      duration = Math.max(0.1, nextAnchorTime - startTime - 0.05); // 50ms gap
+                  }
+              }
+              
+              newClipsMap.set(clip.id, { startTime, duration });
+              anchorIndex = bestAnchor + 1; // Move to next anchor for next clip
+            }
+          }
+
+          return {
+            ...track,
+            clips: track.clips.map(clip => {
+              if (newClipsMap.has(clip.id)) {
+                const data = newClipsMap.get(clip.id)!;
+                return { ...clip, startTime: data.startTime, duration: data.duration };
+              }
+              return clip;
+            })
+          };
+        })
+      };
+
+      pushToHistory(next);
+      return next;
+    });
+  }, [assets, selectedClipIds]);
+
+  const updateSubtitle = useCallback((clipId: string | string[], content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, finalize: boolean = true) => {
+    setProject(prev => {
+      const targetIds = Array.isArray(clipId) ? clipId : [clipId];
+      
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => {
+          if (track.type !== 'subtitle') return track;
+          return {
+            ...track,
+            clips: track.clips.map(clip => {
+              const isTarget = targetIds.includes(clip.id);
+              
+              if (isTarget) {
+                return { 
+                  ...clip, 
+                  ...(content !== undefined ? { content } : {}),
+                  ...(position !== undefined ? { position } : {}),
+                  ...(color !== undefined ? { color } : {}),
+                  ...(font !== undefined ? { font } : {}),
+                  ...(scale !== undefined ? { scale } : {}),
+                  ...(rotation !== undefined ? { rotation } : {})
+                };
+              } else if (applyToAll) {
+                return { 
+                  ...clip, 
+                  ...(position !== undefined ? { position } : {}),
+                  ...(color !== undefined ? { color } : {}),
+                  ...(font !== undefined ? { font } : {}),
+                  ...(scale !== undefined ? { scale } : {}),
+                  ...(rotation !== undefined ? { rotation } : {})
+                };
+              }
+              return clip;
+            })
+          };
+        })
+      };
+      if (finalize) {
+        pushToHistory(next);
+      }
+      return next;
+    });
+  }, []);
+
+  const selectClip = useCallback((id: string | null, multi: boolean = false) => {
+    if (id === null) {
+      setSelectedClipIds([]);
+      return;
+    }
+    setSelectedClipIds(prev => {
+      if (multi) {
+        return prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id];
+      }
+      return [id];
+    });
+  }, []);
+
+  const selectClips = useCallback((ids: string[]) => {
+    setSelectedClipIds(ids);
+  }, []);
+
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipId, zoom, isMagnetEnabled,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setSelectedClipId, setIsMagnetEnabled,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
+    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

@@ -13,7 +13,9 @@ import { ErrorReportingService } from './services/ErrorReportingService';
 import { TranscriptionModal } from './components/Transcription/TranscriptionModal';
 import { TranscriptionProgress } from './components/Transcription/TranscriptionProgress';
 import { DiagnosticsModal } from './components/Diagnostics/DiagnosticsModal';
-import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize } from 'lucide-react';
+import { VERSION } from './config/version';
+import { PropertiesPanel } from './components/Properties/PropertiesPanel';
+import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2 } from 'lucide-react';
 import { MediaType, Asset } from './types';
 
 // Initialize Error Reporting on App Load
@@ -89,8 +91,8 @@ const App: React.FC = () => {
     e.preventDefault();
     switch (action) {
       case 'play_pause': store.setIsPlaying(!store.isPlaying); break;
-      case 'split': store.splitClip(store.selectedClipId, store.currentTime); break;
-      case 'delete': if (store.selectedClipId) store.deleteClip(store.selectedClipId); break;
+      case 'split': store.splitClip(store.selectedClipIds[0], store.currentTime); break;
+      case 'delete': if (store.selectedClipIds.length > 0) store.selectedClipIds.forEach(id => store.deleteClip(id)); break;
       case 'undo': store.undo(); break;
       case 'zoom_in': store.setZoom(Math.min(100, store.zoom + 5)); break;
       case 'zoom_out': store.setZoom(Math.max(1, store.zoom - 5)); break;
@@ -149,7 +151,7 @@ const App: React.FC = () => {
     }
   };
 
-  const selectedClip = store.project.tracks.flatMap(t => t.clips).find(c => c.id === store.selectedClipId);
+  const selectedClip = store.project.tracks.flatMap(t => t.clips).find(c => c.id === store.selectedClipIds[0]);
   const selectedAsset = selectedClip ? store.assets.find(a => a.id === selectedClip.assetId) : null;
 
   return (
@@ -166,7 +168,10 @@ const App: React.FC = () => {
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2.5 group cursor-pointer">
             <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-600/20 group-hover:scale-105 transition-transform">NX</div>
-            <h1 className="text-sm font-black tracking-tighter uppercase">Nexus <span className="text-zinc-600 font-medium">Studio</span></h1>
+            <h1 className="text-sm font-black tracking-tighter uppercase flex items-center gap-2">
+              Nexus <span className="text-zinc-600 font-medium">Studio</span>
+              <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-md font-mono border border-zinc-700/50">v{VERSION}</span>
+            </h1>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -175,9 +180,63 @@ const App: React.FC = () => {
                <Maximize size={18} />
              </button>
           </Tooltip>
+          <Tooltip text="Clear Memory Cache" position="bottom">
+            <button 
+              onClick={() => {
+                if (window.confirm("Clear memory cache? This will reload the page to free up memory.")) {
+                  window.location.reload();
+                }
+              }} 
+              className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-orange-400 transition-all flex items-center gap-2"
+            >
+              <Trash2 size={18} /> <span className="text-[10px] font-bold">CLEAR MEM</span>
+            </button>
+          </Tooltip>
           <Tooltip text="Generate Debug Report" position="bottom">
             <button onClick={handleGenerateReport} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-400 transition-all flex items-center gap-2">
               <Bug size={18} /> <span className="text-[10px] font-bold">REPORT ERROR</span>
+            </button>
+          </Tooltip>
+          <Tooltip text="Export Subtitles (SRT)" position="bottom">
+            <button 
+              onClick={() => {
+                const subtitleTrack = store.project.tracks.find(t => t.type === 'subtitle');
+                if (!subtitleTrack || subtitleTrack.clips.length === 0) {
+                  alert("No subtitles found to export.");
+                  return;
+                }
+                
+                // Sort clips by start time
+                const clips = [...subtitleTrack.clips].sort((a, b) => a.startTime - b.startTime);
+                
+                let srtContent = "";
+                clips.forEach((clip, index) => {
+                  const formatTime = (seconds: number) => {
+                    const h = Math.floor(seconds / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = Math.floor(seconds % 60);
+                    const ms = Math.floor((seconds % 1) * 1000);
+                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+                  };
+                  
+                  srtContent += `${index + 1}\n`;
+                  srtContent += `${formatTime(clip.startTime)} --> ${formatTime(clip.startTime + clip.duration)}\n`;
+                  srtContent += `${clip.content || ""}\n\n`;
+                });
+                
+                const blob = new Blob([srtContent], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `${store.project.name.toLowerCase().replace(/\s+/g, '_')}_subtitles.srt`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+              }} 
+              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all"
+            >
+              <FileText size={18} />
             </button>
           </Tooltip>
           <Tooltip text="Keyboard Mapping" position="bottom" shortcut="K">
@@ -197,7 +256,7 @@ const App: React.FC = () => {
           <Tooltip text="Color & Grading" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><Palette size={22} /></button></Tooltip>
           <Tooltip text="Titles & GFX" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
           <Tooltip text="AI Captions" position="right"><button onClick={() => setTranscriptionState(prev => ({ ...prev, isOpen: true, isMinimized: false }))} className="text-zinc-600 hover:text-indigo-400 transition-all"><Captions size={22} /></button></Tooltip>
-          <Tooltip text="Razor Tool" position="right" shortcut="S/B"><button className="text-zinc-600 hover:text-indigo-400 transition-all" onClick={() => store.splitClip(store.selectedClipId, store.currentTime)}><Scissors size={22} /></button></Tooltip>
+          <Tooltip text="Razor Tool" position="right" shortcut="S/B"><button className="text-zinc-600 hover:text-indigo-400 transition-all" onClick={() => store.splitClip(store.selectedClipIds[0], store.currentTime)}><Scissors size={22} /></button></Tooltip>
           
           <div className="flex-1" />
           <Tooltip text="Keyboard Shortcuts" position="right"><button onClick={() => setIsShortcutModalOpen(true)} className="text-zinc-600 hover:text-indigo-400 transition-all"><Keyboard size={22} /></button></Tooltip>
@@ -216,26 +275,8 @@ const App: React.FC = () => {
               onToggleLoop={() => store.setIsLooping(!store.isLooping)}
               currentTime={store.currentTime} 
               onTimeUpdate={store.setCurrentTime} 
+              updateSubtitle={store.updateSubtitle}
             />
-            <div className="w-[300px] bg-[#121212] border-l border-zinc-800/50 p-6 overflow-y-auto">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-8 flex items-center gap-2"><Settings size={12}/> Properties</h2>
-              {selectedClip ? (
-                <div className="space-y-6">
-                  <div className="p-4 bg-zinc-900/50 rounded-2xl border border-zinc-800">
-                    <span className="text-[9px] text-zinc-500 block mb-2 font-black uppercase tracking-widest">Selected Component</span>
-                    <p className="text-[11px] font-black text-indigo-400 truncate mb-1">{selectedAsset?.name || selectedClip.id}</p>
-                    <p className="text-[9px] text-zinc-500 font-mono">{(selectedClip.duration).toFixed(3)}s DURATION</p>
-                    {selectedClip.content && (
-                      <div className="mt-4 pt-4 border-t border-zinc-800">
-                         <span className="text-[9px] text-zinc-500 block mb-2 font-black uppercase tracking-widest">Caption Text</span>
-                         <p className="text-sm text-white font-serif italic">"{selectedClip.content}"</p>
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => store.deleteClip(selectedClip.id)} className="w-full py-3.5 bg-red-500/10 hover:bg-red-500/20 text-red-500 text-[10px] font-black rounded-xl border border-red-500/20 transition-all">REMOVE FROM TIMELINE</button>
-                </div>
-              ) : <p className="text-[10px] text-zinc-600 font-black text-center opacity-40">Inspector Idle</p>}
-            </div>
           </div>
           <Timeline 
             project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
@@ -243,10 +284,13 @@ const App: React.FC = () => {
             onClipMove={store.moveClip} onClipResize={store.resizeClip} onClipFinalize={store.finalizeMove} onClipSplit={store.splitClip} onClipDelete={store.deleteClip}
             onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack}
             onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
-            selectedClipId={store.selectedClipId} onSelectClip={store.setSelectedClipId}
+            selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
             onAddAsset={store.addAsset}
+            onSyncToAnchors={store.syncClipsToAnchors}
           />
         </div>
+        
+        <PropertiesPanel store={store} />
       </main>
       
       {isShortcutModalOpen && <ShortcutModal shortcuts={shortcutStore.shortcuts} onUpdate={shortcutStore.updateShortcut} onClose={() => setIsShortcutModalOpen(false)} />}
@@ -257,7 +301,7 @@ const App: React.FC = () => {
         <TranscriptionModal 
           assets={store.assets} 
           project={store.project} 
-          selectedClipId={store.selectedClipId} 
+          selectedClipId={store.selectedClipIds[0]} 
           onClose={handleTranscriptionClose}
           onMinimize={() => setTranscriptionState(prev => ({ ...prev, isMinimized: true, isOpen: false }))}
           onAddTrack={store.addTrack}

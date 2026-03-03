@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Asset, Clip, Project } from '../../types';
 import { TranscriptionService } from '../../services/TranscriptionService';
 import { Type, Loader2, FileAudio, AlignLeft, Minimize2 } from 'lucide-react';
@@ -26,24 +26,52 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
   const [transcript, setTranscript] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [status, setStatus] = useState('');
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   const updateStatus = (msg: string) => {
     setStatus(msg);
     onUpdate(msg);
   };
 
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsProcessing(false);
+    onClose();
+  };
+
   const process = async () => {
     const asset = assets.find(a => a.id === selectedAssetId);
     if (!asset) return;
+    
+    // Create new AbortController
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     
     setIsProcessing(true);
     onStart();
     updateStatus('Preparing audio...');
     
     try {
+      if (controller.signal.aborted) return;
+
       updateStatus('Analyzing audio with Gemini AI...');
-      const results = await TranscriptionService.processAsset(asset, transcript);
+      // Pass signal to service
+      const results = await TranscriptionService.processAsset(asset, transcript, controller.signal);
       
+      if (controller.signal.aborted) return;
+
       updateStatus('Creating subtitle track...');
       
       // Check if subtitle track exists in current project prop
@@ -58,6 +86,8 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
         await new Promise(r => setTimeout(r, 50));
       }
       
+      if (controller.signal.aborted) return;
+
       updateStatus('Generating clips...');
       
       // Calculate offset based on the selected clip on the timeline
@@ -70,16 +100,28 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
       }
 
       const clips = TranscriptionService.convertToClips(results, asset.id, targetTrackId, timelineOffset);
+      
+      if (controller.signal.aborted) return;
+
       onAddClips(targetTrackId, clips);
       
       updateStatus('Complete');
       onComplete();
     } catch (e: any) {
-      console.error(e);
-      alert(`Transcription failed: ${e.message}`);
+      if (e.name === 'AbortError' || controller.signal.aborted) {
+        console.log('Transcription cancelled by user');
+        updateStatus('Cancelled');
+      } else {
+        console.error(e);
+        alert(`Transcription failed: ${e.message}`);
+        updateStatus('Failed');
+        onUpdate('Failed');
+      }
+    } finally {
+      if (abortControllerRef.current === controller) {
+        abortControllerRef.current = null;
+      }
       setIsProcessing(false);
-      updateStatus('Failed');
-      onUpdate('Failed');
     }
   };
 
@@ -143,7 +185,7 @@ export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({
         <div className="p-4 bg-zinc-900/50 border-t border-zinc-800 flex items-center justify-between gap-3">
           <span className="text-[10px] font-mono text-indigo-400 animate-pulse">{status}</span>
           <div className="flex gap-3">
-            <button onClick={onClose} className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors">CANCEL</button>
+            <button onClick={handleCancel} className="px-4 py-2 text-xs font-bold text-zinc-400 hover:text-white transition-colors">CANCEL</button>
             <button 
               onClick={process} 
               disabled={!selectedAssetId || isProcessing}

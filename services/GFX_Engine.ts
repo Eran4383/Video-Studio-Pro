@@ -13,8 +13,37 @@ export interface GFXLayer {
 
 export class GFX_Engine {
   static render(ctx: CanvasRenderingContext2D, project: Project, currentTime: number) {
-    // Placeholder for future overlay rendering (Text, Shapes, etc.)
-    // Currently used to clear canvas and prepare for Gizmo drawing
+    // Render GFX clips (Text, Overlays) that are not handled by the subtitle system
+    // We iterate through video tracks and look for clips with content or GFX properties
+    project.tracks
+      .filter(t => t.type === 'video' && t.isVisible)
+      .forEach(track => {
+        track.clips.forEach(clip => {
+          if (currentTime >= clip.startTime && currentTime <= clip.startTime + clip.duration) {
+            // If it has content but isn't a subtitle clip (subtitles are handled separately in Preview)
+            // Actually, in ExportEngine, we want to render everything.
+            // For now, let's render GFX props if they exist.
+            const layer = this.getLayerForClip(clip, project.resolution);
+            if (layer && clip.content) {
+              ctx.save();
+              ctx.translate(layer.x, layer.y);
+              ctx.rotate(layer.rotation * Math.PI / 180);
+              ctx.scale(layer.scale, layer.scale);
+              ctx.globalAlpha = layer.opacity;
+
+              ctx.font = "bold 60px Arial, sans-serif";
+              ctx.fillStyle = clip.color || "white";
+              ctx.textAlign = "center";
+              ctx.textBaseline = "middle";
+              ctx.strokeStyle = "black";
+              ctx.lineWidth = 4;
+              ctx.strokeText(clip.content, 0, 0);
+              ctx.fillText(clip.content, 0, 0);
+              ctx.restore();
+            }
+          }
+        });
+      });
   }
 
   static getLayerForClip(clip: Clip, resolution: { width: number; height: number }): GFXLayer | null {

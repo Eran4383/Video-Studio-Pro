@@ -18,8 +18,13 @@ export class GeminiService {
    * Note: Veo models require a user-selected paid API key from a billing-enabled project.
    */
   async generateVideo(prompt: string, aspectRatio: '16:9' | '9:16' = '16:9') {
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing. Please check your environment variables.");
+    }
+
     // Create a new GoogleGenAI instance right before the call to ensure the latest selected API key is used.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     
     let operation = await ai.models.generateVideos({
       model: 'veo-3.1-fast-generate-preview',
@@ -55,8 +60,13 @@ export class GeminiService {
    * Uses Gemini 3 Pro to generate a script or analyze video content with reasoning capabilities.
    */
   async analyzeContent(prompt: string) {
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Gemini API Key is missing. Please check your environment variables.");
+    }
+
     // Create a new instance right before making an API call for up-to-date configuration.
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
@@ -73,10 +83,14 @@ export class GeminiService {
   /**
    * Transcribes audio and returns word-level timestamps.
    */
-  async transcribeAudio(audioBase64: string, mimeType: string, context?: string) {
-    const apiKey = process.env.API_KEY;
+  async transcribeAudio(audioBase64: string, mimeType: string, context?: string, signal?: AbortSignal) {
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new Error("Gemini API Key is missing. Please check your environment variables.");
+    }
+
+    if (signal?.aborted) {
+      throw new DOMException('Aborted', 'AbortError');
     }
 
     const ai = new GoogleGenAI({ apiKey });
@@ -96,13 +110,13 @@ export class GeminiService {
          - Your goal is to align this text to the audio.
          - If the audio deviates (ad-libs, different words), transcribe what is actually heard, but prefer the script's spelling.
          - Handle singing or spoken dubbing by finding the precise start/end times for each syllable/word.
-         - If there are background vocals/backing singers, include them if they are distinct words, but mark them with '(bg)' prefix, e.g., '(bg) hello'.` 
-         : 'PURE TRANSCRIPTION MODE: Transcribe every spoken word accurately. If there are background vocals, include them with a "(bg)" prefix.'}
+         - If there are background vocals/backing singers, include them if they are distinct words, but DO NOT add any prefixes or markers.` 
+         : 'PURE TRANSCRIPTION MODE: Transcribe every spoken word accurately. Do not include background markers or non-verbal cues.'}
       6. Output ONLY valid JSON. No markdown formatting.
     `;
 
     try {
-      const response = await ai.models.generateContent({
+      const generatePromise = ai.models.generateContent({
         model: 'gemini-3.1-pro-preview',
         contents: {
           parts: [
@@ -115,6 +129,16 @@ export class GeminiService {
         }
       });
 
+      let response;
+      if (signal) {
+        const abortPromise = new Promise<never>((_, reject) => {
+          signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+        });
+        response = await Promise.race([generatePromise, abortPromise]);
+      } else {
+        response = await generatePromise;
+      }
+
       if (!response.text) {
         throw new Error("No response text received from Gemini.");
       }
@@ -126,6 +150,7 @@ export class GeminiService {
         throw new Error("Invalid JSON response from AI. See console for details.");
       }
     } catch (error: any) {
+      if (error.name === 'AbortError') throw error;
       console.error("Gemini API Error:", error);
       throw new Error(error.message || "Unknown Gemini API error");
     }

@@ -13,11 +13,16 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
     const rawData = asset?.waveform || [];
     if (rawData.length === 0) {
       const seed = clip.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      return Array.from({ length: 300 }, (_, i) => Math.max(0.01, Math.abs(Math.sin(seed + i * 0.1)) * 0.4));
+      const fakeData: number[] = [];
+      for (let i = 0; i < 300; i++) {
+        const val = Math.max(0.01, Math.abs(Math.sin(seed + i * 0.1)) * 0.4);
+        fakeData.push(-val, val);
+      }
+      return fakeData;
     }
-    const sampleCount = rawData.length;
-    const startIdx = Math.floor((clip.offset / asset!.duration) * sampleCount);
-    const endIdx = Math.floor(((clip.offset + clip.duration) / asset!.duration) * sampleCount);
+    const sampleCount = rawData.length / 2;
+    const startIdx = Math.floor((clip.offset / asset!.duration) * sampleCount) * 2;
+    const endIdx = Math.floor(((clip.offset + clip.duration) / asset!.duration) * sampleCount) * 2;
     return rawData.slice(startIdx, endIdx);
   }, [asset, clip.id, clip.offset, clip.duration]);
 
@@ -26,20 +31,22 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
     const width = 1000;
     const height = 100;
     const mid = height / 2;
-    const step = width / (pathData.length - 1);
+    const step = width / ((pathData.length / 2) - 1);
     
     // Aggressive vertical scaling for "surgical" visibility
-    const gain = isExpanded ? 2.5 : 1.2;
+    const gain = isExpanded ? 1.5 : 1.0;
 
     let upper = `M 0 ${mid}`;
-    let lower = `L ${width} ${mid}`;
-    pathData.forEach((val, i) => {
-      const x = i * step;
-      const amp = val * (height / 2) * gain;
-      const cappedAmp = Math.min(mid - 1, amp);
-      upper += ` L ${x} ${mid - cappedAmp}`;
-      lower = ` L ${x} ${mid + cappedAmp}` + lower;
-    });
+    let lower = ``;
+    for (let i = 0; i < pathData.length; i += 2) {
+      const minVal = pathData[i];
+      const maxVal = pathData[i+1];
+      const x = (i / 2) * step;
+      const yMin = mid - (maxVal * (height / 2) * gain);
+      const yMax = mid - (minVal * (height / 2) * gain);
+      upper += ` L ${x} ${Math.max(0, yMin)}`;
+      lower = ` L ${x} ${Math.min(height, yMax)}` + lower;
+    }
     return upper + lower + " Z";
   }, [pathData, isExpanded]);
 

@@ -8,24 +8,41 @@ export interface TranscriptionResult {
 }
 
 export class TranscriptionService {
-  static async processAsset(asset: Asset, context?: string): Promise<TranscriptionResult[]> {
+  static async processAsset(asset: Asset, context?: string, signal?: AbortSignal): Promise<TranscriptionResult[]> {
     try {
       // Fetch the asset data (assuming it's a blob URL or accessible URL)
-      const response = await fetch(asset.url);
+      const response = await fetch(asset.url, { signal });
       const blob = await response.blob();
       
+      if (signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
       // Convert to Base64
-      const base64 = await new Promise<string>((resolve) => {
+      const base64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
+        
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            reader.abort();
+            reject(new DOMException('Aborted', 'AbortError'));
+          });
+        }
+
         reader.onloadend = () => {
           const result = reader.result as string;
           resolve(result.split(',')[1]);
         };
+        reader.onerror = reject;
         reader.readAsDataURL(blob);
       });
 
+      if (signal?.aborted) {
+        throw new DOMException('Aborted', 'AbortError');
+      }
+
       // Call Gemini
-      return await GeminiService.getInstance().transcribeAudio(base64, blob.type, context);
+      return await GeminiService.getInstance().transcribeAudio(base64, blob.type, context, signal);
     } catch (error) {
       console.error("Transcription failed:", error);
       throw error;

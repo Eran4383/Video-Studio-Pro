@@ -1,6 +1,7 @@
 
 import { Project, Asset } from '../types';
 import { AssetValidator } from './AssetValidator';
+import { GFX_Engine } from './GFX_Engine';
 
 export class ExportEngine {
   private canvas: HTMLCanvasElement;
@@ -27,6 +28,11 @@ export class ExportEngine {
     this.ctx = this.canvas.getContext('2d', { alpha: false, desynchronized: true })!;
     this.audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 44100 });
     this.audioDest = this.audioCtx.createMediaStreamDestination();
+    
+    // Prime the context to ensure it's "active" and "audible" for MediaRecorder
+    const silence = this.audioCtx.createGain();
+    silence.gain.value = 0;
+    silence.connect(this.audioCtx.destination);
   }
 
   private async prepareAssets(project: Project, assets: Asset[]) {
@@ -118,7 +124,12 @@ export class ExportEngine {
     console.log(`[ExportEngine] Final Mime Choice: ${selectedMime}`);
 
     const stream = this.canvas.captureStream(30); // 30 FPS
-    this.audioDest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+    const audioTracks = this.audioDest.stream.getAudioTracks();
+    console.log(`[ExportEngine] Found ${audioTracks.length} audio tracks to add.`);
+    audioTracks.forEach(t => {
+      console.log(`[ExportEngine] Adding audio track: ${t.label}`);
+      stream.addTrack(t);
+    });
 
     this.recorder = new MediaRecorder(stream, { 
       mimeType: selectedMime,
@@ -157,40 +168,12 @@ export class ExportEngine {
         this.ctx.fillStyle = '#000000';
         this.ctx.fillRect(0, 0, this.width, this.height);
 
-        // 2. Draw Active Clips
-        for (const track of project.tracks) {
-          if (!track.isVisible) continue;
-          if (track.isMuted) continue;
-          
-          // Subtitle Rendering
-          if (track.type === 'subtitle') {
-            for (const clip of track.clips) {
-              if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
-                if (clip.content) {
-                  this.ctx.save();
-                  this.ctx.font = "bold 48px Arial, sans-serif";
-                  this.ctx.textAlign = "center";
-                  this.ctx.textBaseline = "bottom";
-                  this.ctx.lineJoin = "round";
-                  this.ctx.lineWidth = 6;
-                  this.ctx.strokeStyle = "rgba(0,0,0,0.8)";
-                  this.ctx.fillStyle = "white";
-                  
-                  // Simple word wrap or just max width
-                  const x = this.width / 2;
-                  const y = this.height - 80;
-                  const maxWidth = this.width * 0.8;
-                  
-                  this.ctx.strokeText(clip.content, x, y, maxWidth);
-                  this.ctx.fillText(clip.content, x, y, maxWidth);
-                  this.ctx.restore();
-                }
-              }
-            }
-            continue; // Skip the rest of the loop for subtitle tracks
-          }
+        // 2. Draw Active Clips (Video/Audio first, then GFX, then Subtitles)
+        const mediaTracks = project.tracks.filter(t => (t.type === 'video' || t.type === 'audio') && t.isVisible && !t.isMuted);
+        const subtitleTracks = project.tracks.filter(t => t.type === 'subtitle' && t.isVisible && !t.isMuted);
 
-          // Video/Audio Rendering
+        // Draw/Sync Media
+        for (const track of mediaTracks) {
           for (const clip of track.clips) {
             const el = this.videoElements.get(clip.id);
             if (!el) continue;
@@ -207,8 +190,8 @@ export class ExportEngine {
                  el.play().catch(e => console.warn("Play failed", e));
               }
 
-              // Draw Video Frames
-              if (el.tagName === 'VIDEO') {
+              // Draw Video Frames (only if it's a video track and a video element)
+              if (track.type === 'video' && el.tagName === 'VIDEO') {
                 // Check if ready to draw
                 if ((el as HTMLVideoElement).readyState >= 2) {
                    this.ctx.drawImage(el as HTMLVideoElement, 0, 0, this.width, this.height);
@@ -217,6 +200,36 @@ export class ExportEngine {
             } else {
               // Pause clips that are not in view to save CPU/RAM
               if (!el.paused) el.pause();
+            }
+          }
+        }
+
+        // Draw GFX
+        GFX_Engine.render(this.ctx, project, elapsed);
+
+        // Draw Subtitles
+        for (const track of subtitleTracks) {
+          for (const clip of track.clips) {
+            if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
+              if (clip.content) {
+                this.ctx.save();
+                this.ctx.font = "bold 48px Arial, sans-serif";
+                this.ctx.textAlign = "center";
+                this.ctx.textBaseline = "bottom";
+                this.ctx.lineJoin = "round";
+                this.ctx.lineWidth = 6;
+                this.ctx.strokeStyle = "rgba(0,0,0,0.8)";
+                this.ctx.fillStyle = clip.color || "white";
+                
+                // Simple word wrap or just max width
+                const x = (clip.position?.x ?? 0.5) * this.width;
+                const y = (clip.position?.y ?? 0.9) * this.height;
+                const maxWidth = this.width * 0.8;
+                
+                this.ctx.strokeText(clip.content, x, y, maxWidth);
+                this.ctx.fillText(clip.content, x, y, maxWidth);
+                this.ctx.restore();
+              }
             }
           }
         }

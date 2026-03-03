@@ -2,6 +2,8 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Project, Clip, Track, Asset } from '../../types';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
+import { MagneticAnchorService } from '../../services/MagneticAnchorService';
+import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
 
 interface TimelineProps {
@@ -13,7 +15,7 @@ interface TimelineProps {
   setZoom: (z: number) => void;
   setIsMagnetEnabled: (m: boolean) => void;
   onTimeChange: (time: number) => void;
-  onClipMove: (clipId: string, trackId: string, time: number) => void;
+  onClipMove: (clipId: string, trackId: string, time: number, forceDisableMagnet?: boolean) => void;
   onClipResize: (clipId: string, newStart: number, newDur: number, newOffset: number) => void;
   onClipFinalize: () => void;
   onClipSplit: (clipId: string | null, time: number) => void;
@@ -27,9 +29,11 @@ interface TimelineProps {
   onRedo: () => void;
   canUndo: boolean;
   canRedo: boolean;
-  selectedClipId: string | null;
-  onSelectClip: (id: string | null) => void;
+  selectedClipIds: string[];
+  onSelectClip: (id: string | null, multi?: boolean) => void;
+  onSelectClips: (ids: string[]) => void;
   onAddAsset: (asset: Asset) => void;
+  onSyncToAnchors: (onlySelected?: boolean) => void;
 }
 
 type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R';
@@ -47,7 +51,7 @@ interface DragState {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipId, onSelectClip, onAddAsset
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onAddAsset, onSyncToAnchors
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -56,10 +60,32 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [middlePanning, setMiddlePanning] = useState<{ startX: number, scrollLeft: number } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, clipId: string, assetType: string } | null>(null);
   const [ghostTime, setGhostTime] = useState<number | null>(null);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const { getSnappedStartTime } = useTimelineSnapping(project, assets, isMagnetEnabled);
+
+  // Box Selection State
+  const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
 
   const pxPerSec = zoom * 10;
   const HEADER_WIDTH = 150;
   const RESIZE_HANDLE_WIDTH = 10;
+
+  // Auto-scroll logic
+  useEffect(() => {
+    if (!scrollRef.current || !isAutoScrollEnabled) return;
+    
+    const scrollContainer = scrollRef.current;
+    const playheadX = HEADER_WIDTH + (currentTime * pxPerSec);
+    const scrollLeft = scrollContainer.scrollLeft;
+    const viewportWidth = scrollContainer.clientWidth;
+    
+    // Check if playhead is outside visible area (with some padding)
+    const padding = 100;
+    if (playheadX > scrollLeft + viewportWidth - padding || playheadX < scrollLeft + HEADER_WIDTH) {
+      // Center the playhead or just scroll it into view
+      scrollContainer.scrollLeft = playheadX - (viewportWidth / 2);
+    }
+  }, [currentTime, pxPerSec, isAutoScrollEnabled]);
 
   const getT = (clientX: number) => {
     if (!scrollRef.current) return 0;
@@ -86,8 +112,13 @@ export const Timeline: React.FC<TimelineProps> = ({
         onTimeChange(getT(e.clientX));
       }
 
+      // Box Selection Update
+      if (selectionBox) {
+        setSelectionBox(prev => prev ? { ...prev, currentX: e.clientX, currentY: e.clientY } : null);
+      }
+
       // Only update ghost time if we are hovering the tracks container and NOT dragging anything
-      if (!isDraggingPlayhead && !dragging && !middlePanning && tracksRef.current) {
+      if (!isDraggingPlayhead && !dragging && !middlePanning && !selectionBox && tracksRef.current) {
          const rect = tracksRef.current.getBoundingClientRect();
          // Check if mouse is strictly within the tracks area
          if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
@@ -122,7 +153,13 @@ export const Timeline: React.FC<TimelineProps> = ({
                 }
             }
             if (!targetTrack.isLocked) {
-                onClipMove(id, targetTrack.id, Math.max(0, originalState.startTime + deltaSeconds));
+                // Shift key disables snapping
+                const shouldSnap = isMagnetEnabled && !e.shiftKey;
+                const finalStartTime = shouldSnap 
+                    ? getSnappedStartTime(id, originalState.startTime, deltaSeconds, originalState.duration)
+                    : Math.max(0, originalState.startTime + deltaSeconds);
+                
+                onClipMove(id, targetTrack.id, finalStartTime, true);
             }
         } else if (dragging.mode === 'RESIZE_R') {
             // New duration = original duration + delta
@@ -140,8 +177,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             let newOffset = originalState.offset + deltaSeconds;
 
             // Constraints
-            if (newOffset < 0) {
-               // Cannot start before asset starts
+            const isSubtitle = track.type === 'subtitle';
+            if (newOffset < 0 && !isSubtitle) {
+               // Cannot start before asset starts (except for subtitles which have no fixed asset start)
                const correction = 0 - newOffset;
                newOffset = 0;
                newStart += correction; // Push start back
@@ -164,12 +202,63 @@ export const Timeline: React.FC<TimelineProps> = ({
       if (dragging) onClipFinalize();
       setIsDraggingPlayhead(false);
       setDragging(null);
+
+      // Finalize Box Selection
+      if (selectionBox && tracksRef.current) {
+        const rect = tracksRef.current.getBoundingClientRect();
+        const scrollLeft = scrollRef.current?.scrollLeft || 0;
+        
+        // Calculate selection box in timeline coordinates (time and track index)
+        const startX = Math.min(selectionBox.startX, selectionBox.currentX);
+        const endX = Math.max(selectionBox.startX, selectionBox.currentX);
+        const startY = Math.min(selectionBox.startY, selectionBox.currentY);
+        const endY = Math.max(selectionBox.startY, selectionBox.currentY);
+
+        // Convert X to Time
+        const startTime = Math.max(0, (startX - rect.left + scrollLeft) / pxPerSec);
+        const endTime = Math.max(0, (endX - rect.left + scrollLeft) / pxPerSec);
+
+        // Find intersecting clips
+        const newSelectedIds: string[] = [];
+        let currentY = rect.top;
+        
+        project.tracks.forEach(track => {
+          const trackHeight = track.height || 72;
+          const trackTop = currentY;
+          const trackBottom = currentY + trackHeight;
+          
+          // Check if track is within vertical selection range
+          if (trackBottom > startY && trackTop < endY) {
+             track.clips.forEach(clip => {
+               const clipStart = clip.startTime;
+               const clipEnd = clip.startTime + clip.duration;
+               
+               // Check if clip is within horizontal time range
+               // Box selection usually selects anything that touches the box or is fully inside.
+               // Let's go with "touches" for easier selection.
+               if (clipEnd > startTime && clipStart < endTime) {
+                 newSelectedIds.push(clip.id);
+               }
+             });
+          }
+          currentY += trackHeight;
+        });
+
+        if (e.ctrlKey || e.metaKey) {
+           // Add to existing selection
+           const combined = new Set([...selectedClipIds, ...newSelectedIds]);
+           onSelectClips(Array.from(combined));
+        } else {
+           onSelectClips(newSelectedIds);
+        }
+        setSelectionBox(null);
+      }
     };
 
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, project.tracks, ghostTime]);
+  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, project.tracks, ghostTime, selectionBox, selectedClipIds]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey) { e.preventDefault(); setZoom(Math.min(100, Math.max(1, zoom + (e.deltaY > 0 ? -2 : 2)))); }
@@ -199,7 +288,16 @@ export const Timeline: React.FC<TimelineProps> = ({
   const handleClipMouseDown = (e: React.MouseEvent, clip: Clip, trackId: string) => {
     if (e.button !== 0) return;
     e.stopPropagation();
-    onSelectClip(clip.id);
+    
+    // Multi-selection logic
+    if (e.ctrlKey || e.metaKey) {
+      onSelectClip(clip.id, true);
+    } else {
+       if (!selectedClipIds.includes(clip.id)) {
+         onSelectClip(clip.id, false);
+       }
+    }
+
     const mode = getResizeMode(e, clip);
     setDragging({ id: clip.id, startX: e.clientX, mode, trackId, originalState: { startTime: clip.startTime, duration: clip.duration, offset: clip.offset } });
   };
@@ -209,6 +307,16 @@ export const Timeline: React.FC<TimelineProps> = ({
     e.stopPropagation(); 
     onSelectClip(clipId); 
     setContextMenu({ x: e.clientX, y: e.clientY, clipId, assetType });
+  };
+
+  const handleTrackAreaMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0 && e.target === e.currentTarget) {
+       // Start Box Selection
+       setSelectionBox({ startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY });
+       if (!e.ctrlKey && !e.metaKey) {
+         onSelectClip(null);
+       }
+    }
   };
 
   return (
@@ -222,11 +330,13 @@ export const Timeline: React.FC<TimelineProps> = ({
       )}
 
       <TimelineToolbar 
-        canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onSplit={() => onClipSplit(selectedClipId, currentTime)}
-        onDelete={() => selectedClipId && onClipDelete(selectedClipId)} onAddTrack={onAddTrack}
+        canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onSplit={() => onClipSplit(selectedClipIds[0], currentTime)}
+        onDelete={() => selectedClipIds.length > 0 && selectedClipIds.forEach(id => onClipDelete(id))} onAddTrack={onAddTrack}
         isMagnet={isMagnetEnabled} onToggleMagnet={() => setIsMagnetEnabled(!isMagnetEnabled)}
-        zoom={zoom} setZoom={setZoom} selectedClipId={selectedClipId}
+        isAutoScroll={isAutoScrollEnabled} onToggleAutoScroll={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}
+        zoom={zoom} setZoom={setZoom} selectedClipCount={selectedClipIds.length}
         projectDuration={Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration))}
+        onSyncToAnchors={onSyncToAnchors}
       />
 
       <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>
@@ -236,12 +346,12 @@ export const Timeline: React.FC<TimelineProps> = ({
             <div className="flex-1 relative h-full" style={{ width: 10000 * pxPerSec }}>{Array.from({ length: 200 }).map((_, i) => i % 5 === 0 && (<div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>))}</div>
           </div>
 
-          <div className="flex flex-col" ref={tracksRef}>
+          <div className="flex flex-col relative" ref={tracksRef} onMouseDown={handleTrackAreaMouseDown}>
             <TimelineTracks 
               project={project}
               assets={assets}
               zoom={zoom}
-              selectedClipId={selectedClipId}
+              selectedClipIds={selectedClipIds}
               onToggleTrack={onToggleTrack}
               onSetTrackHeight={onSetTrackHeight}
               onDrop={handleDrop}
@@ -250,6 +360,19 @@ export const Timeline: React.FC<TimelineProps> = ({
               onClipMouseDown={handleClipMouseDown}
               onClipMouseMove={handleClipMouseMove}
             />
+            
+            {/* Box Selection Overlay */}
+            {selectionBox && (
+              <div 
+                className="absolute bg-indigo-500/20 border border-indigo-500 z-[60] pointer-events-none"
+                style={{
+                  left: Math.min(selectionBox.startX, selectionBox.currentX) - (tracksRef.current?.getBoundingClientRect().left || 0),
+                  top: Math.min(selectionBox.startY, selectionBox.currentY) - (tracksRef.current?.getBoundingClientRect().top || 0),
+                  width: Math.abs(selectionBox.currentX - selectionBox.startX),
+                  height: Math.abs(selectionBox.currentY - selectionBox.startY)
+                }}
+              />
+            )}
           </div>
 
           <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: HEADER_WIDTH + (currentTime * pxPerSec) }}>

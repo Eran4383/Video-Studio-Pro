@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2 } from 'lucide-react';
+import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 
 interface TimelineToolbarProps {
@@ -13,14 +13,17 @@ interface TimelineToolbarProps {
   onAddTrack: (type: 'video' | 'audio') => void;
   isMagnet: boolean;
   onToggleMagnet: () => void;
+  isAutoScroll: boolean;
+  onToggleAutoScroll: () => void;
   zoom: number;
   setZoom: (z: number) => void;
-  selectedClipId: string | null;
+  selectedClipCount: number;
   projectDuration: number;
+  onSyncToAnchors: (onlySelected?: boolean) => void;
 }
 
 export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({ 
-  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, zoom, setZoom, selectedClipId, projectDuration
+  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors
 }) => {
   const handleFit = () => {
     // Approx available width is screen width - library width - track header width
@@ -41,11 +44,11 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
           </Tooltip>
         </div>
         
-        <Tooltip text={selectedClipId ? "Split Selected Clip" : "Split All Tracks"} shortcut="S / B">
-          <button onClick={onSplit} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title={selectedClipId ? "Split Clip (S/B)" : "Split All Tracks (S/B)"}><Scissors size={14} /></button>
+        <Tooltip text={selectedClipCount > 0 ? `Split Selected Clip${selectedClipCount > 1 ? 's' : ''}` : "Split All Tracks"} shortcut="S / B">
+          <button onClick={onSplit} className="p-1.5 hover:bg-zinc-800 rounded text-zinc-400 hover:text-white" title={selectedClipCount > 0 ? "Split Clip (S/B)" : "Split All Tracks (S/B)"}><Scissors size={14} /></button>
         </Tooltip>
         
-        <Tooltip text="Delete Selected" shortcut="DEL">
+        <Tooltip text={`Delete Selected (${selectedClipCount})`} shortcut="DEL">
           <button onClick={onDelete} className="p-1.5 hover:bg-zinc-800 rounded text-red-500/70 hover:text-red-500"><Trash2 size={14} /></button>
         </Tooltip>
         
@@ -69,6 +72,35 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
             <Magnet size={12} /> {isMagnet ? 'MAGNET ON' : 'MAGNET OFF'}
           </button>
         </Tooltip>
+
+        <Tooltip text="Toggle Auto-Scroll during Playback">
+          <button 
+            onClick={onToggleAutoScroll} 
+            className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${isAutoScroll ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
+          >
+            <MousePointer2 size={12} className={isAutoScroll ? 'animate-pulse' : ''} /> {isAutoScroll ? 'AUTO-SCROLL ON' : 'AUTO-SCROLL OFF'}
+          </button>
+        </Tooltip>
+
+        <div className="flex items-center bg-yellow-500/10 border border-yellow-500/20 rounded overflow-hidden">
+          <Tooltip text="Sync All Subtitles to Audio Anchors">
+            <button 
+              onClick={() => onSyncToAnchors(false)} 
+              className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-yellow-500 hover:bg-yellow-500/20 transition-all border-r border-yellow-500/20"
+            >
+              <Anchor size={12} /> SYNC ALL
+            </button>
+          </Tooltip>
+          <Tooltip text="Sync Selected Subtitle to Nearest Anchor">
+            <button 
+              onClick={() => onSyncToAnchors(true)} 
+              disabled={selectedClipCount === 0}
+              className={`flex items-center gap-1 px-2 py-1 text-[10px] font-bold transition-all ${selectedClipCount > 0 ? 'text-yellow-500 hover:bg-yellow-500/20' : 'text-zinc-600 cursor-not-allowed'}`}
+            >
+              SEL.
+            </button>
+          </Tooltip>
+        </div>
       </div>
       
       <div className="flex items-center gap-3">

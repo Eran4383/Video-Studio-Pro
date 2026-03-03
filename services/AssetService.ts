@@ -1,5 +1,6 @@
 
 import { Asset, MediaType } from '../types';
+import { MagneticAnchorService } from './MagneticAnchorService';
 
 export class AssetService {
   static async processFile(file: File): Promise<Asset> {
@@ -37,6 +38,23 @@ export class AssetService {
           console.warn("Waveform extraction failed", err);
           return undefined;
         });
+
+        if (waveform) {
+          const anchors = MagneticAnchorService.detectAnchors({
+            id: '', name: '', type: type as MediaType, url: '', duration, waveform
+          });
+          // We'll return these in the final object
+          return {
+            id: `asset-${Math.random().toString(36).substr(2, 9)}`,
+            name: file.name,
+            type,
+            url,
+            duration: duration || 5,
+            thumbnail,
+            waveform,
+            anchors
+          };
+        }
       } else if (type === MediaType.IMAGE) {
         duration = 5;
         thumbnail = url;
@@ -73,13 +91,16 @@ export class AssetService {
         
         for (let i = 0; i < samples; i++) {
           let max = 0;
+          let min = 0;
           for (let j = 0; j < blockSize; j++) {
             if (i * blockSize + j < channelData.length) {
-              const val = Math.abs(channelData[i * blockSize + j]);
+              const val = channelData[i * blockSize + j];
               if (val > max) max = val;
+              if (val < min) min = val;
             }
           }
-          waveform.push(Math.min(1, max * 1.5)); 
+          waveform.push(min);
+          waveform.push(max);
         }
         return waveform;
       } finally {

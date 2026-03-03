@@ -1,11 +1,12 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan } from 'lucide-react';
 import { Project, Asset } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
 import { GFX_Engine } from '../../services/GFX_Engine';
 import { GFX_Gizmo } from '../../services/GFX_Gizmo';
 import { GFX_InteractionManager } from '../../services/GFX_InteractionManager';
 import { useProjectStore } from '../../store/useProjectStore';
+import { TransformOverlay } from './TransformOverlay';
 
 interface PreviewPlayerProps {
   project: Project;
@@ -16,12 +17,13 @@ interface PreviewPlayerProps {
   onToggleLoop: () => void;
   currentTime: number;
   onTimeUpdate: (t: number) => void;
+  updateSubtitle?: (clipId: string, content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, finalize?: boolean) => void;
 }
 
 const interactionManager = new GFX_InteractionManager();
 
 export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ 
-  project, assets, isPlaying, isLooping, onTogglePlay, onToggleLoop, currentTime, onTimeUpdate 
+  project, assets, isPlaying, isLooping, onTogglePlay, onToggleLoop, currentTime, onTimeUpdate, updateSubtitle 
 }) => {
   const store = useProjectStore();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -30,16 +32,26 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
   const requestRef = useRef<number>(null);
   const lastTimeRef = useRef<number>(performance.now());
+  const containerRef = useRef<HTMLDivElement>(null);
   
   // Zoom & Pan State
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const [showTransform, setShowTransform] = useState(true);
 
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
-  const selectedClip = project.tracks.flatMap(t => t.clips).find(c => c.id === store.selectedClipId);
+  // Use the first selected clip for GFX/Transform interactions for now
+  const selectedClip = project.tracks.flatMap(t => t.clips).find(c => store.selectedClipIds.includes(c.id));
+
+  // Subtitle State
+  const [isDraggingSub, setIsDraggingSub] = useState(false);
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
+  const subDragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
+  const lastSubPosRef = useRef<{x: number, y: number} | null>(null);
 
   const totalDuration = useMemo(() => {
     if (project.tracks.every(t => t.clips.length === 0)) return 0;
@@ -109,6 +121,10 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   };
 
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingSub) {
+      handleSubMouseMove(e);
+      return;
+    }
     if (isPanning) { handleMouseMove(e); return; }
 
     if (!isInteractingGFX || !gfxCanvasRef.current || !selectedClip) return;
@@ -147,55 +163,143 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   };
 
   const handleCanvasMouseUp = () => {
+    if (isDraggingSub) {
+      handleSubMouseUp();
+      return;
+    }
     if (isPanning) handleMouseUp();
+    if (isInteractingGFX) {
+      store.finalizeMove();
+    }
     setIsInteractingGFX(false);
     interactionManager.onMouseUp();
   };
 
+  const [localTime, setLocalTime] = useState(currentTime);
+  const localTimeRef = useRef(currentTime);
+  const currentTimeRef = useRef(currentTime);
+
+  useEffect(() => {
+    currentTimeRef.current = currentTime;
+  }, [currentTime]);
+
+  useEffect(() => {
+    if (!isPlaying) {
+      setLocalTime(currentTime);
+      localTimeRef.current = currentTime;
+    }
+  }, [currentTime, isPlaying]);
+
+  const renderTime = isPlaying ? localTime : currentTime;
+
   // --- Media Sync ---
-  const activeVideoClip = project.tracks.slice().reverse().filter(t => t.type === 'video' && t.isVisible).flatMap(t => t.clips).find(c => currentTime >= c.startTime && currentTime <= c.startTime + c.duration && assets.find(a => a.id === c.assetId)?.type === 'VIDEO');
+  const activeVideoClip = project.tracks.slice().reverse()
+    .filter(t => t.type === 'video' && t.isVisible)
+    .flatMap(t => t.clips)
+    .find(c => {
+      const asset = assets.find(a => a.id === c.assetId);
+      return renderTime >= c.startTime && renderTime <= c.startTime + c.duration && (asset?.type === 'VIDEO' || asset?.type === 'IMAGE');
+    });
   const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
   const isVideoSilenceNeeded = activeVideoClip?.isSilent || project.tracks.find(t => t.clips.some(c => c.id === activeVideoClip?.id))?.isMuted;
   
   // Note: Audio and Subtitle calculations moved to effects/refs for performance
 
-  // Subtitles Ref
-  const subtitleRef = useRef<HTMLDivElement>(null);
+  // --- Subtitles ---
+  const activeSubs = project.tracks
+    .filter(t => t.isVisible)
+    .flatMap(t => t.clips)
+    .filter(c => c.content && renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
+
+  const activeSub = activeSubs[0]; // For the editor panel
+
+  const handleSubMouseDown = (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => {
+    e.stopPropagation();
+    setIsDraggingSub(true);
+    setEditingSubId(subId);
+    store.selectClip(subId); // Select the clip when clicking on it
+    
+    subDragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      startX: currentPos.x,
+      startY: currentPos.y,
+    };
+  };
+
+  const handleSubMouseMove = (e: React.MouseEvent) => {
+    if (isDraggingSub && editingSubId && updateSubtitle) {
+      const containerRect = gfxCanvasRef.current?.parentElement?.getBoundingClientRect();
+      if (!containerRect) return;
+
+      const deltaX = (e.clientX - subDragStartRef.current.x) / containerRect.width;
+      const deltaY = (e.clientY - subDragStartRef.current.y) / containerRect.height;
+
+      const newX = Math.max(0, Math.min(1, subDragStartRef.current.startX + deltaX));
+      const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
+      lastSubPosRef.current = { x: newX, y: newY };
+
+      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, store.applyToAll, undefined, undefined, undefined, undefined, false);
+    }
+  };
+
+  const handleSubMouseUp = () => {
+    if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
+      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, store.applyToAll, undefined, undefined, undefined, undefined, true);
+      lastSubPosRef.current = null;
+    }
+    setIsDraggingSub(false);
+  };
+
+  const handleSubDoubleClick = (e: React.MouseEvent, subId: string, content: string) => {
+    e.stopPropagation();
+    setEditingSubId(subId);
+    setEditingText(content);
+  };
+
+  const handleSubTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEditingText(e.target.value);
+  };
+
+  const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
+    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
+    if (editingSubId && updateSubtitle) {
+      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, false);
+    }
+    setEditingSubId(null);
+  };
 
   // Performance Stats
   const [fps, setFps] = useState(0);
   const frameCountRef = useRef(0);
   const lastFpsTimeRef = useRef(performance.now());
+  const lastGlobalUpdateRef = useRef(performance.now());
 
   // --- Animation Loop ---
   const animate = (time: number) => {
     if (isPlaying) {
       const deltaTime = (time - lastTimeRef.current) / 1000;
-      const nextTime = currentTime + deltaTime;
+      const nextTime = localTimeRef.current + deltaTime;
+      localTimeRef.current = nextTime;
+      setLocalTime(nextTime);
 
       if (totalDuration > 0 && nextTime >= totalDuration) {
         if (isLooping) {
+          localTimeRef.current = 0;
+          setLocalTime(0);
           onTimeUpdate(0);
           lastTimeRef.current = performance.now();
         } else {
+          localTimeRef.current = totalDuration;
+          setLocalTime(totalDuration);
           onTimeUpdate(totalDuration);
           onTogglePlay();
         }
       } else {
-        onTimeUpdate(nextTime);
-      }
-    }
-
-    // Subtitle Update (Direct DOM manipulation for performance)
-    if (subtitleRef.current) {
-      const activeSub = project.tracks
-        .filter(t => t.type === 'subtitle' && t.isVisible)
-        .flatMap(t => t.clips)
-        .find(c => currentTime >= c.startTime && currentTime <= c.startTime + c.duration);
-      
-      if (subtitleRef.current.innerText !== (activeSub?.content || '')) {
-        subtitleRef.current.innerText = activeSub?.content || '';
-        subtitleRef.current.style.display = activeSub ? 'block' : 'none';
+        if (time - lastGlobalUpdateRef.current > 100) {
+          onTimeUpdate(nextTime);
+          lastGlobalUpdateRef.current = time;
+        }
       }
     }
 
@@ -205,8 +309,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        GFX_Engine.render(ctx, project, currentTime);
-        if (selectedClip && currentTime >= selectedClip.startTime && currentTime <= selectedClip.startTime + selectedClip.duration) {
+        const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
+        // Use the latest project state from the store if possible, or the closure one.
+        // Actually, project is in the dependency array of the useEffect, so it's updated when project changes.
+        GFX_Engine.render(ctx, project, currentRenderTime);
+        if (selectedClip && currentRenderTime >= selectedClip.startTime && currentRenderTime <= selectedClip.startTime + selectedClip.duration) {
           const layer = GFX_Engine.getLayerForClip(selectedClip, project.resolution);
           if (layer) GFX_Gizmo.draw(ctx, layer);
         }
@@ -223,7 +330,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, currentTime, isLooping, totalDuration, project, store.selectedClipId]);
+  }, [isPlaying, isLooping, totalDuration, project, store.selectedClipIds]);
 
   // 2. Video Sync
   useEffect(() => {
@@ -231,7 +338,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
     if (activeVideoAsset && activeVideoClip) {
       videoRef.current.muted = !!isVideoSilenceNeeded;
       videoRef.current.volume = 1.0;
-      const targetTime = (currentTime - activeVideoClip.startTime) + activeVideoClip.offset;
+      const targetTime = (renderTime - activeVideoClip.startTime) + activeVideoClip.offset;
       if (Math.abs(videoRef.current.currentTime - targetTime) > 0.2) videoRef.current.currentTime = targetTime;
       if (isPlaying) videoRef.current.play().catch(() => {}); else videoRef.current.pause();
     } else {
@@ -252,7 +359,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
         if (item.clip.isSilent) return false;
         if (item.clip.content) return false; // Extra safeguard: Subtitles should never play audio
         if (activeVideoClip && item.clip.id === activeVideoClip.id) return false;
-        return currentTime >= item.clip.startTime && currentTime <= item.clip.startTime + item.clip.duration;
+        return renderTime >= item.clip.startTime && renderTime <= item.clip.startTime + item.clip.duration;
       });
 
     const currentActiveIds = new Set(currentActiveSources.map(s => s.clip.id));
@@ -274,7 +381,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
         audioElementsRef.current.set(clip.id, el); 
       }
       
-      const targetTime = (currentTime - clip.startTime) + clip.offset;
+      const targetTime = (renderTime - clip.startTime) + clip.offset;
       if (Math.abs(el.currentTime - targetTime) > 0.2) el.currentTime = targetTime;
       
       if (isPlaying) {
@@ -297,13 +404,32 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
         onMouseLeave={handleCanvasMouseUp}
       >
         <div 
+          ref={containerRef}
           className="aspect-video w-full max-w-4xl bg-black rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
           style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)` }}
         >
           {activeVideoAsset ? (
-            <video ref={videoRef} src={activeVideoAsset.url} className="w-full h-full object-contain pointer-events-none" />
+            activeVideoAsset.type === 'VIDEO' ? (
+              <video 
+                key={activeVideoAsset.id}
+                ref={videoRef} 
+                src={activeVideoAsset.url} 
+                className="w-full h-full object-contain pointer-events-none" 
+                playsInline
+                muted={isVideoSilenceNeeded}
+              />
+            ) : (
+              <img 
+                key={activeVideoAsset.id}
+                src={activeVideoAsset.url} 
+                className="w-full h-full object-contain pointer-events-none" 
+                referrerPolicy="no-referrer" 
+              />
+            )
           ) : (
-            <div className="text-zinc-800 text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">Monitor Standby...</div>
+            project.tracks.length === 0 && (
+              <div className="text-zinc-800 text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">Monitor Standby...</div>
+            )
           )}
           
           <canvas 
@@ -313,23 +439,71 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
             style={{ imageRendering: 'auto' }}
           />
 
-          {/* Subtitles Overlay (Ref-based for performance) */}
-          <div className="absolute inset-0 pointer-events-none flex flex-col justify-end items-center pb-10 z-20">
-             <div ref={subtitleRef} className="bg-black/50 px-4 py-2 rounded text-white text-xl font-bold text-center max-w-[80%] mb-2 backdrop-blur-sm hidden"></div>
-          </div>
+          {/* Subtitles Overlay */}
+          {activeSubs.map(sub => (
+            <div 
+              key={sub.id}
+              className="absolute z-50"
+              style={{
+                left: `${(sub.position?.x ?? 0.5) * 100}%`,
+                top: `${(sub.position?.y ?? 0.9) * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${sub.rotation || 0}deg)`,
+                cursor: isDraggingSub ? 'grabbing' : 'grab',
+                pointerEvents: 'auto'
+              }}
+              onMouseDown={(e) => handleSubMouseDown(e, sub.id, sub.position || {x: 0.5, y: 0.9})}
+              onDoubleClick={(e) => handleSubDoubleClick(e, sub.id, sub.content || "")}
+            >
+              <div 
+                className="bg-black/60 px-4 py-2 rounded text-center max-w-[80%] backdrop-blur-md select-none shadow-lg border border-white/10"
+                style={{ 
+                  color: sub.color || '#ffffff', 
+                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                  fontFamily: sub.font || 'Inter, sans-serif',
+                  fontSize: `${(sub.scale || 1) * 1.25}rem`,
+                  fontWeight: 'bold'
+                }}
+              >
+                {sub.content}
+              </div>
+            </div>
+          ))}
+
+          {/* Transform Overlay for Selected Subtitle */}
+          {showTransform && selectedClip && selectedClip.content && activeSubs.find(s => s.id === selectedClip.id) && (
+            <TransformOverlay 
+              clip={selectedClip}
+              containerRef={containerRef}
+              onUpdate={(pos, scale, rot) => {
+                if (updateSubtitle) {
+                  updateSubtitle(selectedClip.id, undefined, pos, store.applyToAll, undefined, undefined, scale, rot, false);
+                }
+              }}
+              onFinalize={() => {
+                 if (updateSubtitle) {
+                   // Trigger finalize
+                   updateSubtitle(selectedClip.id, undefined, undefined, store.applyToAll, undefined, undefined, undefined, undefined, true);
+                 }
+              }}
+            />
+          )}
         </div>
 
-        <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none">
-          <div className="px-2 py-1 bg-black/60 backdrop-blur rounded text-[9px] font-mono border border-white/10 uppercase text-zinc-400">
-            Preview {Math.round(scale * 100)}%
-          </div>
-          <div className="px-2 py-1 bg-black/60 backdrop-blur rounded text-[9px] font-mono border border-white/10 uppercase text-zinc-400">
-            FPS: {fps}
-          </div>
-          <div className="px-2 py-1 bg-black/60 backdrop-blur rounded text-[9px] font-mono border border-white/10 uppercase text-zinc-400">
-            Mem: {(performance as any).memory ? Math.round((performance as any).memory.usedJSHeapSize / 1024 / 1024) + 'MB' : 'N/A'}
-          </div>
+        <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none z-40">
+           {/* Toggle Transform Overlay */}
+           <div className="pointer-events-auto">
+             <Tooltip text="Toggle Transform Controls" position="right">
+               <button 
+                 onClick={() => setShowTransform(!showTransform)} 
+                 className={`p-2 rounded-lg transition-all ${showTransform ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
+               >
+                 <Scan size={16} />
+               </button>
+             </Tooltip>
+           </div>
         </div>
+
+        {/* Subtitle Editing Panel moved to dedicated PropertiesPanel */}
       </div>
 
       <div className="h-14 bg-[#121212] border-t border-zinc-800 flex items-center justify-between px-6 z-20">

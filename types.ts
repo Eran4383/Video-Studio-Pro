@@ -14,6 +14,7 @@ export interface Asset {
   duration: number; // in seconds
   thumbnail?: string;
   waveform?: number[]; // Normalized amplitude data (0 to 1)
+  anchors?: number[]; // Timestamps (in seconds) where audio onsets are detected
 }
 
 export interface Clip {
@@ -27,6 +28,11 @@ export interface Clip {
   isSilent?: boolean; // If true, this clip's source audio is disabled
   linkedClipId?: string; // ID of the linked audio or video clip
   content?: string; // Text content for subtitle clips
+  position?: { x: number; y: number }; // Relative position (0-1) for text/subtitles
+  color?: string; // Text color for subtitle clips
+  font?: string; // Font family for subtitle clips
+  scale?: number; // Scale factor for subtitle clips
+  rotation?: number; // Rotation in degrees
 }
 
 export interface Effect {
@@ -58,7 +64,7 @@ export interface Track {
 export interface ProjectState {
   currentProject: Project;
   assets: Asset[];
-  selectedClipId: string | null;
+  selectedClipIds: string[];
   currentTime: number;
   isPlaying: boolean;
   isLooping: boolean;

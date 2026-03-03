@@ -3,12 +3,13 @@ import { Project, Clip, Asset } from '../../types';
 import { TrackHeader } from './TrackHeader';
 import { Link as LinkIcon } from 'lucide-react';
 import { Waveform } from './Waveform';
+import { MagneticMarkers } from './MagneticMarkers';
 
 interface TimelineTracksProps {
   project: Project;
   assets: Asset[];
   zoom: number;
-  selectedClipId: string | null;
+  selectedClipIds: string[];
   onToggleTrack: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
   onSetTrackHeight: (trackId: string, height: number) => void;
   onDrop: (e: React.DragEvent, trackId: string) => void;
@@ -19,7 +20,7 @@ interface TimelineTracksProps {
 }
 
 export const TimelineTracks = memo(({
-  project, assets, zoom, selectedClipId, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove
+  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove
 }: TimelineTracksProps) => {
   const pxPerSec = zoom * 10;
 
@@ -36,8 +37,8 @@ export const TimelineTracks = memo(({
           <TrackHeader track={track} onToggle={onToggleTrack} onSetHeight={onSetTrackHeight} />
           <div className="flex-1 relative bg-[#0a0a0a] min-w-[5000px]" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
             {track.clips.map(clip => {
-              const isSelected = selectedClipId === clip.id;
-              const isLinked = selectedClipId && (project.tracks.flatMap(t=>t.clips).find(c=>c.id === selectedClipId)?.linkedClipId === clip.id);
+              const isSelected = selectedClipIds.includes(clip.id);
+              const isLinked = selectedClipIds.length > 0 && selectedClipIds.some(id => project.tracks.flatMap(t=>t.clips).find(c=>c.id === id)?.linkedClipId === clip.id);
               const asset = assets.find(a => a.id === clip.assetId);
               return (
                 <div
@@ -48,7 +49,12 @@ export const TimelineTracks = memo(({
                   className={`absolute top-2 bottom-2 rounded-lg border-2 flex flex-col justify-center px-3 overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 border-indigo-500/50 z-20 border-dashed' : track.type === 'audio' ? 'bg-indigo-950/40 border-indigo-800/40 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 border-yellow-600/40 z-20' : 'bg-zinc-800/80 border-zinc-700 hover:border-zinc-500 z-10'}`}
                   style={{ left: clip.startTime * pxPerSec, width: clip.duration * pxPerSec }}
                 >
-                  {track.type === 'audio' && <Waveform asset={asset} clip={clip} />}
+                  {track.type === 'audio' && (
+                    <>
+                      <Waveform asset={asset} clip={clip} />
+                      <MagneticMarkers asset={asset} clip={clip} pxPerSec={pxPerSec} />
+                    </>
+                  )}
                   {track.type === 'subtitle' && (
                     <div className="w-full h-full flex items-center justify-center text-center">
                       <span className="text-[10px] font-black text-yellow-200 leading-tight truncate px-1">{clip.content}</span>
@@ -78,6 +84,6 @@ export const TimelineTracks = memo(({
     prev.project === next.project &&
     prev.assets === next.assets &&
     prev.zoom === next.zoom &&
-    prev.selectedClipId === next.selectedClipId
+    prev.selectedClipIds === next.selectedClipIds
   );
 });
