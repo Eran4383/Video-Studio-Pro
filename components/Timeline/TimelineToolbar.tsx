@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor } from 'lucide-react';
+import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor, Upload } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 
 interface TimelineToolbarProps {
@@ -20,11 +20,14 @@ interface TimelineToolbarProps {
   selectedClipCount: number;
   projectDuration: number;
   onSyncToAnchors: (onlySelected?: boolean) => void;
+  onImportSubtitles: (file: File) => void;
 }
 
 export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({ 
-  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors
+  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles
 }) => {
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleFit = () => {
     // Approx available width is screen width - library width - track header width
     const availableWidth = window.innerWidth - 300 - 150;
@@ -32,8 +35,25 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
     setZoom(Math.max(1, Math.min(100, requiredPxPerSec / 10)));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      onImportSubtitles(file);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   return (
     <div className="h-10 bg-[#161616] border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange} 
+        accept=".srt" 
+        className="hidden" 
+      />
       <div className="flex items-center gap-2">
         <div className="flex items-center gap-1 mr-2">
           <Tooltip text="Undo Action" shortcut="CTRL+Z">
@@ -60,6 +80,10 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
         
         <Tooltip text="Add Audio Track">
           <button onClick={() => onAddTrack('audio')} className="flex items-center gap-1.5 px-2 py-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-400 font-bold transition-all"><Plus size={12}/><Music size={12}/></button>
+        </Tooltip>
+
+        <Tooltip text="Import Subtitles (SRT)">
+          <button onClick={() => fileInputRef.current?.click()} className="flex items-center gap-1.5 px-2 py-1 hover:bg-zinc-800 rounded text-[10px] text-zinc-400 font-bold transition-all"><Upload size={12}/> SRT</button>
         </Tooltip>
         
         <div className="w-px h-4 bg-zinc-800 mx-2" />

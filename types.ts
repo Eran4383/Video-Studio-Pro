@@ -48,6 +48,7 @@ export interface Project {
   resolution: { width: number; height: number };
   fps: number;
   tracks: Track[];
+  backgroundColor?: string;
 }
 
 export interface Track {

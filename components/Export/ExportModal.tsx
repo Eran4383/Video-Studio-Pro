@@ -23,7 +23,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, project, asse
     setError(null);
 
     try {
-      const engine = new ExportEngine(1280, 720);
+      const engine = new ExportEngine(project.resolution.width, project.resolution.height);
       const blob = await engine.render(project, assets, p => setProgress(p));
       
       if (blob.size < 1000) {

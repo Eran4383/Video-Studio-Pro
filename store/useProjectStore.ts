@@ -11,7 +11,8 @@ const INITIAL_PROJECT: Project = {
   tracks: [
     { id: 'track-v1', name: 'Video 1', type: 'video', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 72 },
     { id: 'track-a1', name: 'Audio 1', type: 'audio', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 72 }
-  ]
+  ],
+  backgroundColor: '#000000'
 };
 
 export const useProjectStore = () => {
@@ -35,6 +36,14 @@ export const useProjectStore = () => {
     historyRef.current = updatedHistory;
     historyIndexRef.current = updatedHistory.length - 1;
   };
+
+  const setBackgroundColor = useCallback((color: string) => {
+    setProject(prev => {
+      const next = { ...prev, backgroundColor: color };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
 
   const undo = useCallback(() => {
     if (historyIndexRef.current > 0) {
@@ -306,6 +315,16 @@ export const useProjectStore = () => {
     setProject(prev => {
       const targetIds = Array.isArray(clipId) ? clipId : [clipId];
       
+      // Calculate delta for position if applying to all
+      let posDelta = { x: 0, y: 0 };
+      if (applyToAll && position && targetIds.length > 0) {
+        const primaryTarget = prev.tracks.flatMap(t => t.clips).find(c => c.id === targetIds[0]);
+        if (primaryTarget) {
+          const currentPos = primaryTarget.position || { x: 0.5, y: 0.9 };
+          posDelta = { x: position.x - currentPos.x, y: position.y - currentPos.y };
+        }
+      }
+
       const next = {
         ...prev,
         tracks: prev.tracks.map(track => {
@@ -326,9 +345,16 @@ export const useProjectStore = () => {
                   ...(rotation !== undefined ? { rotation } : {})
                 };
               } else if (applyToAll) {
+                // For position, apply delta. For others, apply absolute value.
+                let newPos = clip.position;
+                if (position !== undefined) {
+                    const current = clip.position || { x: 0.5, y: 0.9 };
+                    newPos = { x: current.x + posDelta.x, y: current.y + posDelta.y };
+                }
+
                 return { 
                   ...clip, 
-                  ...(position !== undefined ? { position } : {}),
+                  ...(position !== undefined ? { position: newPos } : {}),
                   ...(color !== undefined ? { color } : {}),
                   ...(font !== undefined ? { font } : {}),
                   ...(scale !== undefined ? { scale } : {}),
@@ -343,6 +369,53 @@ export const useProjectStore = () => {
       if (finalize) {
         pushToHistory(next);
       }
+      return next;
+    });
+  }, []);
+
+  const importSubtitles = useCallback((items: { id: string, startTime: number, endTime: number, text: string }[]) => {
+    setProject(prev => {
+      let subTrack = prev.tracks.find(t => t.type === 'subtitle');
+      let newTracks = [...prev.tracks];
+      
+      if (!subTrack) {
+        subTrack = {
+          id: `track-s-${Date.now()}`,
+          name: 'Subtitles',
+          type: 'subtitle',
+          clips: [],
+          isVisible: true,
+          isMuted: false,
+          isLocked: false,
+          height: 40
+        };
+        newTracks.push(subTrack);
+      }
+
+      const newClips: Clip[] = items.map(item => ({
+        id: item.id,
+        assetId: 'subtitle-asset',
+        startTime: item.startTime,
+        duration: item.endTime - item.startTime,
+        offset: 0,
+        layer: 10,
+        effects: [],
+        content: item.text,
+        position: { x: 0.5, y: 0.9 },
+        color: '#ffffff',
+        scale: 1,
+        font: 'Arial'
+      }));
+
+      newTracks = newTracks.map(t => {
+        if (t.id === subTrack!.id) {
+          return { ...t, clips: [...t.clips, ...newClips] };
+        }
+        return t;
+      });
+
+      const next = { ...prev, tracks: newTracks };
+      pushToHistory(next);
       return next;
     });
   }, []);
@@ -368,7 +441,7 @@ export const useProjectStore = () => {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll,
+    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

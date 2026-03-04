@@ -9,23 +9,19 @@ import { useProjectStore } from '../../store/useProjectStore';
 import { TransformOverlay } from './TransformOverlay';
 
 interface PreviewPlayerProps {
-  project: Project;
-  assets: Asset[];
-  isPlaying: boolean;
-  isLooping: boolean;
-  onTogglePlay: () => void;
-  onToggleLoop: () => void;
-  currentTime: number;
-  onTimeUpdate: (t: number) => void;
-  updateSubtitle?: (clipId: string, content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, finalize?: boolean) => void;
+  store: any; // Using any to avoid circular type issues with the hook return type, or we could define a Store interface
 }
 
 const interactionManager = new GFX_InteractionManager();
 
-export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ 
-  project, assets, isPlaying, isLooping, onTogglePlay, onToggleLoop, currentTime, onTimeUpdate, updateSubtitle 
-}) => {
-  const store = useProjectStore();
+export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
+  // Destructure what we need from the store prop
+  const { 
+    project, assets, isPlaying, isLooping, currentTime, 
+    setIsPlaying, setIsLooping, setCurrentTime, updateSubtitle, 
+    selectedClipIds, selectClip, setProject, finalizeMove, applyToAll 
+  } = store;
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
   const audioContainerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +40,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
   // Use the first selected clip for GFX/Transform interactions for now
-  const selectedClip = project.tracks.flatMap(t => t.clips).find(c => store.selectedClipIds.includes(c.id));
+  const selectedClip = project.tracks.flatMap(t => t.clips).find(c => selectedClipIds.includes(c.id));
 
   // Subtitle State
   const [isDraggingSub, setIsDraggingSub] = useState(false);
@@ -169,7 +165,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
     }
     if (isPanning) handleMouseUp();
     if (isInteractingGFX) {
-      store.finalizeMove();
+      finalizeMove();
     }
     setIsInteractingGFX(false);
     interactionManager.onMouseUp();
@@ -217,7 +213,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
     e.stopPropagation();
     setIsDraggingSub(true);
     setEditingSubId(subId);
-    store.selectClip(subId); // Select the clip when clicking on it
+    selectClip(subId); // Select the clip when clicking on it
     
     subDragStartRef.current = {
       x: e.clientX,
@@ -239,13 +235,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
       const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
       lastSubPosRef.current = { x: newX, y: newY };
 
-      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, store.applyToAll, undefined, undefined, undefined, undefined, false);
+      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, false);
     }
   };
 
   const handleSubMouseUp = () => {
     if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
-      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, store.applyToAll, undefined, undefined, undefined, undefined, true);
+      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, true);
       lastSubPosRef.current = null;
     }
     setIsDraggingSub(false);
@@ -287,17 +283,17 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
         if (isLooping) {
           localTimeRef.current = 0;
           setLocalTime(0);
-          onTimeUpdate(0);
+          setCurrentTime(0);
           lastTimeRef.current = performance.now();
         } else {
           localTimeRef.current = totalDuration;
           setLocalTime(totalDuration);
-          onTimeUpdate(totalDuration);
-          onTogglePlay();
+          setCurrentTime(totalDuration);
+          setIsPlaying(false);
         }
       } else {
         if (time - lastGlobalUpdateRef.current > 100) {
-          onTimeUpdate(nextTime);
+          setCurrentTime(nextTime);
           lastGlobalUpdateRef.current = time;
         }
       }
@@ -330,7 +326,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   useEffect(() => {
     requestRef.current = requestAnimationFrame(animate);
     return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, isLooping, totalDuration, project, store.selectedClipIds]);
+  }, [isPlaying, isLooping, totalDuration, project, selectedClipIds]);
 
   // 2. Video Sync
   useEffect(() => {
@@ -393,11 +389,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
   }, [isPlaying, currentTime, project.tracks, assets]);
 
   return (
-    <div className="flex-1 bg-black flex flex-col relative group overflow-hidden border-x border-zinc-800/50">
+    <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50" style={{ backgroundColor: project.backgroundColor || '#000000' }}>
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        className="flex-1 flex items-center justify-center p-6 bg-[#0a0a0a] overflow-hidden cursor-crosshair relative"
+        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative"
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -406,7 +402,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
         <div 
           ref={containerRef}
           className="aspect-video w-full max-w-4xl bg-black rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
-          style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)` }}
+          style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, backgroundColor: project.backgroundColor || '#000000' }}
         >
           {activeVideoAsset ? (
             activeVideoAsset.type === 'VIDEO' ? (
@@ -455,10 +451,10 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
               onDoubleClick={(e) => handleSubDoubleClick(e, sub.id, sub.content || "")}
             >
               <div 
-                className="bg-black/60 px-4 py-2 rounded text-center max-w-[80%] backdrop-blur-md select-none shadow-lg border border-white/10"
+                className="text-center max-w-[80%] select-none"
                 style={{ 
                   color: sub.color || '#ffffff', 
-                  textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                  textShadow: '0 2px 4px rgba(0,0,0,0.8)',
                   fontFamily: sub.font || 'Inter, sans-serif',
                   fontSize: `${(sub.scale || 1) * 1.25}rem`,
                   fontWeight: 'bold'
@@ -476,13 +472,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
               containerRef={containerRef}
               onUpdate={(pos, scale, rot) => {
                 if (updateSubtitle) {
-                  updateSubtitle(selectedClip.id, undefined, pos, store.applyToAll, undefined, undefined, scale, rot, false);
+                  updateSubtitle(selectedClip.id, undefined, pos, applyToAll, undefined, undefined, scale, rot, false);
                 }
               }}
               onFinalize={() => {
                  if (updateSubtitle) {
                    // Trigger finalize
-                   updateSubtitle(selectedClip.id, undefined, undefined, store.applyToAll, undefined, undefined, undefined, undefined, true);
+                   updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, true);
                  }
               }}
             />
@@ -509,8 +505,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
       <div className="h-14 bg-[#121212] border-t border-zinc-800 flex items-center justify-between px-6 z-20">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4">
-            <button className="text-zinc-500 hover:text-white" onClick={() => onTimeUpdate(0)}><SkipBack size={16} /></button>
-            <button onClick={onTogglePlay} className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-all shadow-xl">
+            <button className="text-zinc-500 hover:text-white" onClick={() => setCurrentTime(0)}><SkipBack size={16} /></button>
+            <button onClick={() => setIsPlaying(!isPlaying)} className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-all shadow-xl">
               {isPlaying ? <Pause className="text-black fill-black" size={16} /> : <Play className="text-black fill-black translate-x-0.5" size={16} />}
             </button>
             <button className="text-zinc-500 hover:text-white"><SkipForward size={16} /></button>
@@ -529,7 +525,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({
            <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="hover:text-white"><ZoomIn size={14} /></button>
            <div className="w-px h-4 bg-zinc-800" />
            <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">
-             <button onClick={onToggleLoop} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
+             <button onClick={() => setIsLooping(!isLooping)} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
            </Tooltip>
         </div>
       </div>

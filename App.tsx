@@ -17,6 +17,7 @@ import { VERSION } from './config/version';
 import { PropertiesPanel } from './components/Properties/PropertiesPanel';
 import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2 } from 'lucide-react';
 import { MediaType, Asset } from './types';
+import { parseSRT } from './utils/srtParser';
 
 // Initialize Error Reporting on App Load
 ErrorReportingService.init();
@@ -139,6 +140,17 @@ const App: React.FC = () => {
       (store.project.tracks.find(t => t.type === 'audio')?.id || 'track-a1') : 
       (store.project.tracks.find(t => t.type === 'video')?.id || 'track-v1');
     store.addClipAtPosition(targetTrackId, asset, store.currentTime);
+  };
+
+  const handleImportSubtitles = async (file: File) => {
+    try {
+      const text = await file.text();
+      const items = parseSRT(text);
+      store.importSubtitles(items);
+    } catch (err) {
+      console.error("Failed to parse SRT", err);
+      alert("Failed to parse SRT file.");
+    }
   };
 
   const handleDoubleClick = () => {
@@ -266,17 +278,7 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col overflow-hidden">
           <div className="h-[55%] flex border-b border-zinc-800/50">
             <Library assets={store.assets} onAddAsset={store.addAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
-            <PreviewPlayer 
-              project={store.project} 
-              assets={store.assets} 
-              isPlaying={store.isPlaying} 
-              isLooping={store.isLooping}
-              onTogglePlay={() => store.setIsPlaying(!store.isPlaying)} 
-              onToggleLoop={() => store.setIsLooping(!store.isLooping)}
-              currentTime={store.currentTime} 
-              onTimeUpdate={store.setCurrentTime} 
-              updateSubtitle={store.updateSubtitle}
-            />
+            <PreviewPlayer store={store} />
           </div>
           <Timeline 
             project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
@@ -287,6 +289,7 @@ const App: React.FC = () => {
             selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
             onAddAsset={store.addAsset}
             onSyncToAnchors={store.syncClipsToAnchors}
+            onImportSubtitles={handleImportSubtitles}
           />
         </div>
         

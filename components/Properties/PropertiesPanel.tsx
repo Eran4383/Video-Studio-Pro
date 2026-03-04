@@ -21,9 +21,27 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   if (!selectedClip) {
     return (
-      <div className="w-64 bg-[#121212] border-l border-zinc-800/50 flex flex-col items-center justify-center text-zinc-500 p-4 text-center">
-        <Settings2 size={32} className="mb-4 opacity-50" />
-        <p className="text-xs font-mono uppercase tracking-widest">No Clip Selected</p>
+      <div className="w-64 bg-[#121212] border-l border-zinc-800/50 flex flex-col p-4">
+        <div className="flex flex-col items-center justify-center text-zinc-500 text-center mb-8 mt-4">
+          <Settings2 size={32} className="mb-4 opacity-50" />
+          <p className="text-xs font-mono uppercase tracking-widest">No Clip Selected</p>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-zinc-800 pt-4">
+           <h3 className="text-[9px] font-mono uppercase text-zinc-500">Project Settings</h3>
+           <div className="flex flex-col gap-1.5">
+              <label className="text-[9px] text-zinc-400 flex items-center gap-1"><Palette size={10}/> Background Color</label>
+              <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded p-1">
+                <input
+                  type="color"
+                  value={store.project.backgroundColor || '#000000'}
+                  onChange={(e) => store.setBackgroundColor(e.target.value)}
+                  className="w-6 h-6 rounded cursor-pointer border-0 p-0 bg-transparent"
+                />
+                <span className="text-[10px] font-mono text-zinc-400 uppercase">{store.project.backgroundColor || '#000000'}</span>
+              </div>
+           </div>
+        </div>
       </div>
     );
   }

@@ -34,6 +34,7 @@ interface TimelineProps {
   onSelectClips: (ids: string[]) => void;
   onAddAsset: (asset: Asset) => void;
   onSyncToAnchors: (onlySelected?: boolean) => void;
+  onImportSubtitles: (file: File) => void;
 }
 
 type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R';
@@ -51,7 +52,7 @@ interface DragState {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onAddAsset, onSyncToAnchors
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onAddAsset, onSyncToAnchors, onImportSubtitles
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -337,6 +338,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         zoom={zoom} setZoom={setZoom} selectedClipCount={selectedClipIds.length}
         projectDuration={Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration))}
         onSyncToAnchors={onSyncToAnchors}
+        onImportSubtitles={onImportSubtitles}
       />
 
       <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>

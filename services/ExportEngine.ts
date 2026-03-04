@@ -2,6 +2,7 @@
 import { Project, Asset } from '../types';
 import { AssetValidator } from './AssetValidator';
 import { GFX_Engine } from './GFX_Engine';
+import fixWebmDuration from 'fix-webm-duration';
 
 export class ExportEngine {
   private canvas: HTMLCanvasElement;
@@ -103,14 +104,37 @@ export class ExportEngine {
     this.isRendering = true;
     await this.prepareAssets(project, assets);
     
-    const duration = Math.max(...project.tracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 1);
+    // Calculate duration based only on active tracks (visible/unmuted OR subtitle)
+    // Subtitles are visual, so we include them even if "muted" (which might be default for text tracks)
+    const activeTracks = project.tracks.filter(t => t.isVisible && (!t.isMuted || t.type === 'subtitle'));
     
-    // Compatibility check for MP4
+    // Debug Duration Calculation
+    let maxDuration = 1;
+    let maxClipInfo = '';
+    
+    activeTracks.forEach(t => {
+        t.clips.forEach(c => {
+            const end = Number(c.startTime) + Number(c.duration);
+            if (end > maxDuration) {
+                maxDuration = end;
+                maxClipInfo = `Track: ${t.name}, Clip: ${c.id}, Start: ${c.startTime}, Dur: ${c.duration}`;
+            }
+        });
+    });
+    
+    console.log(`[ExportEngine] Calculated Duration: ${maxDuration}s`);
+    console.log(`[ExportEngine] Longest Clip: ${maxClipInfo}`);
+
+    const duration = maxDuration;
+    
+    // Compatibility check for MP4/WebM
+    // Prioritize WebM for better stability in Linux/Container environments, then MP4
     const mimeTypes = [
-      'video/mp4;codecs=avc1.42E01E,mp4a.40.2',
       'video/webm;codecs=vp9,opus',
       'video/webm;codecs=vp8,opus',
-      'video/webm'
+      'video/webm',
+      'video/mp4', // Let browser choose default codecs
+      'video/mp4;codecs=avc1.42E01E,mp4a.40.2'
     ];
     
     let selectedMime = '';
@@ -124,17 +148,40 @@ export class ExportEngine {
     console.log(`[ExportEngine] Final Mime Choice: ${selectedMime}`);
 
     const stream = this.canvas.captureStream(30); // 30 FPS
+    
+    // Ensure AudioContext is running
+    if (this.audioCtx.state === 'suspended') {
+      await this.audioCtx.resume();
+    }
+
     const audioTracks = this.audioDest.stream.getAudioTracks();
     console.log(`[ExportEngine] Found ${audioTracks.length} audio tracks to add.`);
-    audioTracks.forEach(t => {
-      console.log(`[ExportEngine] Adding audio track: ${t.label}`);
-      stream.addTrack(t);
-    });
+    if (audioTracks.length > 0) {
+        audioTracks.forEach(t => {
+            console.log(`[ExportEngine] Adding audio track: ${t.label}`);
+            stream.addTrack(t);
+        });
+    } else {
+        console.warn("[ExportEngine] No audio tracks found in destination stream!");
+    }
 
-    this.recorder = new MediaRecorder(stream, { 
-      mimeType: selectedMime,
-      videoBitsPerSecond: 4000000 // 4Mbps for efficiency on 8GB RAM
-    });
+    try {
+      console.log(`[ExportEngine] Initializing MediaRecorder with mimeType: ${selectedMime}`);
+      this.recorder = new MediaRecorder(stream, { 
+        mimeType: selectedMime,
+        videoBitsPerSecond: 4000000 // 4Mbps
+      });
+    } catch (e) {
+      console.error("[ExportEngine] Failed to create MediaRecorder:", e);
+      // Fallback to default mimeType if specific one failed
+      try {
+        console.log("[ExportEngine] Retrying MediaRecorder without mimeType options...");
+        this.recorder = new MediaRecorder(stream);
+      } catch (e2) {
+        console.error("[ExportEngine] Failed to create MediaRecorder fallback:", e2);
+        throw new Error("Failed to initialize video recorder. Your browser may not support the required formats.");
+      }
+    }
 
     this.chunks = [];
     this.recorder.ondataavailable = (e) => {
@@ -142,103 +189,181 @@ export class ExportEngine {
     };
 
     return new Promise((resolve, reject) => {
-      this.recorder!.onstop = () => {
-        const finalBlob = new Blob(this.chunks, { type: selectedMime });
+      this.recorder!.onstop = async () => {
+        const finalBlob = new Blob(this.chunks, { type: selectedMime || 'video/webm' });
         console.log(`[ExportEngine] Render Finished. Blob size: ${finalBlob.size} bytes`);
         this.cleanup();
         this.isRendering = false;
-        resolve(finalBlob);
+
+        try {
+            // Fix WebM duration metadata so players show correct time
+            // fix-webm-duration uses a callback style
+            const fixedBlob = await new Promise<Blob>((resolveFixed) => {
+                fixWebmDuration(finalBlob, duration * 1000, (fixedBlob) => {
+                    resolveFixed(fixedBlob);
+                });
+            });
+            resolve(fixedBlob);
+        } catch (e) {
+            console.warn("[ExportEngine] Failed to fix WebM duration:", e);
+            resolve(finalBlob);
+        }
       };
 
-      this.recorder!.onerror = (err) => reject(err);
+      this.recorder!.onerror = (err) => {
+        console.error("[ExportEngine] Recorder Error:", err);
+        reject(err);
+      };
+      
+      let hasStarted = false;
+      
+      const startRenderLoop = () => {
+          if (hasStarted) return;
+          hasStarted = true;
+          
+          console.log("[ExportEngine] Starting Render Loop...");
+          let startTime = performance.now();
 
-      this.recorder!.start(1000); // Collect data every second
-      let startTime = performance.now();
+          const draw = async () => {
+            if (!this.isRendering) return;
 
-      const draw = async () => {
-        if (!this.isRendering) return;
+            const elapsed = (performance.now() - startTime) / 1000;
+            if (elapsed >= duration + 0.5) { // Add 0.5s buffer at end
+              setTimeout(() => this.recorder?.stop(), 500); 
+              return;
+            }
 
-        const elapsed = (performance.now() - startTime) / 1000;
-        if (elapsed >= duration) {
-          setTimeout(() => this.recorder?.stop(), 500); // Tiny buffer
-          return;
-        }
+            // 1. Clear Canvas
+            this.ctx.fillStyle = project.backgroundColor || '#000000';
+            this.ctx.fillRect(0, 0, this.width, this.height);
 
-        // 1. Clear Canvas
-        this.ctx.fillStyle = '#000000';
-        this.ctx.fillRect(0, 0, this.width, this.height);
+            // 2. Draw Active Clips (Video/Audio first, then GFX, then Subtitles)
+            const mediaTracks = project.tracks.filter(t => (t.type === 'video' || t.type === 'audio') && t.isVisible && !t.isMuted);
+            const subtitleTracks = project.tracks.filter(t => t.type === 'subtitle' && t.isVisible && !t.isMuted);
 
-        // 2. Draw Active Clips (Video/Audio first, then GFX, then Subtitles)
-        const mediaTracks = project.tracks.filter(t => (t.type === 'video' || t.type === 'audio') && t.isVisible && !t.isMuted);
-        const subtitleTracks = project.tracks.filter(t => t.type === 'subtitle' && t.isVisible && !t.isMuted);
+            // Draw/Sync Media
+            for (const track of mediaTracks) {
+              for (const clip of track.clips) {
+                const el = this.videoElements.get(clip.id);
+                if (!el) continue;
 
-        // Draw/Sync Media
-        for (const track of mediaTracks) {
-          for (const clip of track.clips) {
-            const el = this.videoElements.get(clip.id);
-            if (!el) continue;
+                if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
+                  const targetTime = (elapsed - clip.startTime) + clip.offset;
+                  
+                  // Sync Time
+                  if (Math.abs(el.currentTime - targetTime) > 0.15) {
+                    el.currentTime = targetTime;
+                  }
+                  
+                  if (el.paused) {
+                     el.play().catch(e => console.warn("Play failed", e));
+                  }
 
-            if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
-              const targetTime = (elapsed - clip.startTime) + clip.offset;
-              
-              // Sync Time
-              if (Math.abs(el.currentTime - targetTime) > 0.15) {
-                el.currentTime = targetTime;
-              }
-              
-              if (el.paused) {
-                 el.play().catch(e => console.warn("Play failed", e));
-              }
-
-              // Draw Video Frames (only if it's a video track and a video element)
-              if (track.type === 'video' && el.tagName === 'VIDEO') {
-                // Check if ready to draw
-                if ((el as HTMLVideoElement).readyState >= 2) {
-                   this.ctx.drawImage(el as HTMLVideoElement, 0, 0, this.width, this.height);
+                  // Draw Video Frames (only if it's a video track and a video element)
+                  if (track.type === 'video' && el.tagName === 'VIDEO') {
+                    // Check if ready to draw
+                    if ((el as HTMLVideoElement).readyState >= 2) {
+                       this.ctx.drawImage(el as HTMLVideoElement, 0, 0, this.width, this.height);
+                    }
+                  }
+                } else {
+                  // Pause clips that are not in view to save CPU/RAM
+                  if (!el.paused) el.pause();
                 }
               }
-            } else {
-              // Pause clips that are not in view to save CPU/RAM
-              if (!el.paused) el.pause();
             }
-          }
-        }
 
-        // Draw GFX
-        GFX_Engine.render(this.ctx, project, elapsed);
+            // Draw GFX
+            GFX_Engine.render(this.ctx, project, elapsed);
 
-        // Draw Subtitles
-        for (const track of subtitleTracks) {
-          for (const clip of track.clips) {
-            if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
-              if (clip.content) {
-                this.ctx.save();
-                this.ctx.font = "bold 48px Arial, sans-serif";
-                this.ctx.textAlign = "center";
-                this.ctx.textBaseline = "bottom";
-                this.ctx.lineJoin = "round";
-                this.ctx.lineWidth = 6;
-                this.ctx.strokeStyle = "rgba(0,0,0,0.8)";
-                this.ctx.fillStyle = clip.color || "white";
-                
-                // Simple word wrap or just max width
-                const x = (clip.position?.x ?? 0.5) * this.width;
-                const y = (clip.position?.y ?? 0.9) * this.height;
-                const maxWidth = this.width * 0.8;
-                
-                this.ctx.strokeText(clip.content, x, y, maxWidth);
-                this.ctx.fillText(clip.content, x, y, maxWidth);
-                this.ctx.restore();
+            // Draw Subtitles
+            for (const track of subtitleTracks) {
+              for (const clip of track.clips) {
+                if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
+                  if (clip.content) {
+                    try {
+                        this.ctx.save();
+                        
+                        // Scale font relative to video height (similar to PreviewPlayer's rem-based sizing)
+                        const baseFontSize = this.height * 0.04; 
+                        const fontSize = baseFontSize * (Number(clip.scale) || 1);
+                        
+                        this.ctx.font = `bold ${fontSize}px ${clip.font || 'Arial, sans-serif'}`;
+                        this.ctx.textAlign = "center";
+                        this.ctx.textBaseline = "middle";
+                        this.ctx.lineJoin = "round";
+                        this.ctx.lineWidth = fontSize * 0.1; // Scale stroke with font
+                        this.ctx.strokeStyle = "rgba(0,0,0,0.8)";
+                        this.ctx.fillStyle = clip.color || "white";
+                        
+                        const x = (Number(clip.position?.x) ?? 0.5) * this.width;
+                        const y = (Number(clip.position?.y) ?? 0.9) * this.height;
+                        const maxWidth = this.width * 0.8;
+
+                        if (clip.rotation) {
+                          this.ctx.translate(x, y);
+                          this.ctx.rotate((Number(clip.rotation) * Math.PI) / 180);
+                          this.ctx.translate(-x, -y);
+                        }
+                        
+                        // Word Wrap Logic
+                        const words = String(clip.content).split(' ');
+                        let line = '';
+                        const lines = [];
+                        
+                        for(let n = 0; n < words.length; n++) {
+                          const testLine = line + words[n] + ' ';
+                          const metrics = this.ctx.measureText(testLine);
+                          const testWidth = metrics.width;
+                          if (testWidth > maxWidth && n > 0) {
+                            lines.push(line);
+                            line = words[n] + ' ';
+                          } else {
+                            line = testLine;
+                          }
+                        }
+                        lines.push(line);
+
+                        const lineHeight = fontSize * 1.2;
+                        const totalHeight = lines.length * lineHeight;
+                        let startY = y - (totalHeight / 2) + (lineHeight / 2);
+
+                        lines.forEach((l, i) => {
+                            this.ctx.strokeText(l, x, startY + (i * lineHeight));
+                            this.ctx.fillText(l, x, startY + (i * lineHeight));
+                        });
+
+                        this.ctx.restore();
+                    } catch (err) {
+                        console.error(`[ExportEngine] Error rendering subtitle clip ${clip.id}:`, err);
+                        this.ctx.restore(); // Ensure restore happens
+                    }
+                  }
+                }
               }
             }
-          }
-        }
 
-        onProgress((elapsed / duration) * 100);
-        requestAnimationFrame(draw);
+            onProgress((elapsed / duration) * 100);
+            requestAnimationFrame(draw);
+          };
+          requestAnimationFrame(draw);
       };
 
-      requestAnimationFrame(draw);
+      this.recorder!.onstart = () => {
+          console.log("[ExportEngine] Recorder started event fired");
+          startRenderLoop();
+      };
+
+      console.log("[ExportEngine] Calling recorder.start()");
+      this.recorder!.start(1000); // Collect data every second
+      
+      // Safety fallback: If onstart doesn't fire within 1s, force start
+      setTimeout(() => {
+        if (!hasStarted) {
+            console.warn("[ExportEngine] Recorder onstart timed out, forcing render loop...");
+            startRenderLoop();
+        }
+      }, 1000);
     });
   }
 }
