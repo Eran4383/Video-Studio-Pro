@@ -25,7 +25,7 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
       ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
       const metrics = ctx.measureText(clip.content || 'Text');
       setDimensions({
-        width: metrics.width + 20, // Add padding
+        width: metrics.width + 20, //  Add padding
         height: fontSize * 1.2 // Line height approximation
       });
     }
