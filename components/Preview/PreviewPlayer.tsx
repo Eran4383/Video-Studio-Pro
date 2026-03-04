@@ -274,8 +274,60 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   // --- Animation Loop ---
   const animate = (time: number) => {
     if (isPlaying) {
-      const deltaTime = (time - lastTimeRef.current) / 1000;
-      const nextTime = localTimeRef.current + deltaTime;
+      let nextTime = localTimeRef.current;
+      let synced = false;
+
+      // 1. Audio-Slaved Timing (Priority: Audio -> Video -> Clock)
+      // Check active audio elements
+      for (const [clipId, audioEl] of audioElementsRef.current.entries()) {
+        if (!audioEl.paused && !audioEl.ended && audioEl.readyState >= 2) {
+           // Find clip info to map time back to timeline
+           // We iterate tracks to find the clip. This is fast enough for < 100 clips.
+           let foundClip: any = null;
+           for(const t of project.tracks) {
+               if(t.type === 'audio') {
+                   const c = t.clips.find(c => c.id === clipId);
+                   if(c) { foundClip = c; break; }
+               }
+           }
+           
+           if (foundClip) {
+               // Calculate timeline time: current = audioTime - offset + startTime
+               const calculatedTime = audioEl.currentTime - foundClip.offset + foundClip.startTime;
+               // Sanity check: don't jump if difference is huge (e.g. looping artifact), but generally trust audio
+               if (Math.abs(calculatedTime - localTimeRef.current) < 1.0) {
+                   nextTime = calculatedTime;
+                   synced = true;
+                   break; // Found master
+               }
+           }
+        }
+      }
+
+      // 2. Video-Slaved Timing (if no audio master)
+      if (!synced && videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
+          // Find active video clip for current time
+          const currentT = localTimeRef.current;
+          const vidClip = project.tracks
+            .filter(t => t.type === 'video' && t.isVisible)
+            .flatMap(t => t.clips)
+            .find(c => currentT >= c.startTime && currentT <= c.startTime + c.duration);
+            
+          if (vidClip) {
+              const calculatedTime = videoRef.current.currentTime - vidClip.offset + vidClip.startTime;
+               if (Math.abs(calculatedTime - localTimeRef.current) < 1.0) {
+                   nextTime = calculatedTime;
+                   synced = true;
+               }
+          }
+      }
+
+      // 3. Fallback to System Clock
+      if (!synced) {
+          const deltaTime = (time - lastTimeRef.current) / 1000;
+          nextTime = localTimeRef.current + deltaTime;
+      }
+
       localTimeRef.current = nextTime;
       setLocalTime(nextTime);
 

@@ -151,21 +151,17 @@ export class ExportController {
         if (el instanceof HTMLVideoElement) {
             const targetTime = (time - clip.startTime) + clip.offset;
             
-            // If we are close enough, don't seek (optimization)
-            // But for frame accuracy, we should be careful.
-            // HTMLVideoElement.currentTime is not always precise.
-            if (Math.abs(el.currentTime - targetTime) > 0.05) {
-                el.currentTime = targetTime;
-                return new Promise<void>(resolve => {
-                    const onSeeked = () => {
-                        resolve();
-                    };
-                    el.addEventListener('seeked', onSeeked, { once: true });
-                    
-                    // Timeout safety
-                    setTimeout(resolve, 500);
-                });
-            }
+            // Always seek for frame accuracy in offline export
+            el.currentTime = targetTime;
+            return new Promise<void>(resolve => {
+                const onSeeked = () => {
+                    resolve();
+                };
+                el.addEventListener('seeked', onSeeked, { once: true });
+                
+                // Timeout safety
+                setTimeout(resolve, 500);
+            });
         }
         return Promise.resolve();
     });
