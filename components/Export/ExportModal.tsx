@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { X, Download, CheckCircle2, AlertCircle, Activity } from 'lucide-react';
 import { Project, Asset } from '../../types';
-import { ExportEngine } from '../../services/ExportEngine';
+import { ExportController } from '../../services/export/ExportController';
 
 interface ExportModalProps {
   onClose: () => void;
@@ -23,11 +23,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, project, asse
     setError(null);
 
     try {
-      const engine = new ExportEngine(project.resolution.width, project.resolution.height);
-      const blob = await engine.render(project, assets, p => setProgress(p));
+      // Use the new ExportController (mp4-muxer based)
+      const controller = new ExportController(project.resolution.width, project.resolution.height);
+      const blob = await controller.export(project, assets, p => setProgress(p));
       
       if (blob.size < 1000) {
-        throw new Error("Rendered file is too small. The recording might have failed due to system load.");
+        throw new Error("Rendered file is too small. The recording might have failed.");
       }
       
       setExportBlob(blob);
