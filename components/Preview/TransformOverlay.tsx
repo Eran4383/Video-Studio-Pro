@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { Clip } from '../../types';
 
 interface TransformOverlayProps {
@@ -11,11 +11,36 @@ interface TransformOverlayProps {
 export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<'MOVE' | 'RESIZE' | 'ROTATE' | null>(null);
-  const startRef = useRef({ x: 0, y: 0, clipX: 0, clipY: 0, clipScale: 1, clipRotation: 0 });
+  const startRef = useRef({ x: 0, y: 0, clipX: 0, clipY: 0, clipScale: 1, clipRotation: 0, startDist: 0 });
+  const [dimensions, setDimensions] = useState({ width: 100, height: 50 });
+
+  // Measure text dimensions
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      const containerHeight = containerRef.current.clientHeight;
+      const fontSize = containerHeight * 0.05; // Base font size (5% of height)
+      ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
+      const metrics = ctx.measureText(clip.content || 'Text');
+      setDimensions({
+        width: metrics.width + 20, // Add padding
+        height: fontSize * 1.2 // Line height approximation
+      });
+    }
+  }, [clip.content, clip.font, containerRef.current?.clientHeight]);
 
   const handleMouseDown = (e: React.MouseEvent, mode: 'MOVE' | 'RESIZE' | 'ROTATE') => {
     e.stopPropagation();
     e.preventDefault();
+    if (!containerRef.current) return;
+    
+    const rect = containerRef.current.getBoundingClientRect();
+    const centerX = rect.left + (clip.position?.x ?? 0.5) * rect.width;
+    const centerY = rect.top + (clip.position?.y ?? 0.9) * rect.height;
+    const dist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+
     setIsDragging(true);
     setDragMode(mode);
     startRef.current = {
@@ -24,7 +49,8 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
       clipX: clip.position?.x ?? 0.5,
       clipY: clip.position?.y ?? 0.9,
       clipScale: clip.scale ?? 1,
-      clipRotation: clip.rotation ?? 0
+      clipRotation: clip.rotation ?? 0,
+      startDist: dist
     };
   };
 
@@ -41,17 +67,20 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
         const newY = Math.max(0, Math.min(1, startRef.current.clipY + (deltaY / containerRect.height)));
         onUpdate({ x: newX, y: newY }, startRef.current.clipScale, startRef.current.clipRotation);
       } else if (dragMode === 'RESIZE') {
-        // Simple scaling based on diagonal drag
-        const scaleDelta = deltaX / 200; // Sensitivity
-        const newScale = Math.max(0.1, startRef.current.clipScale + scaleDelta);
+        // Calculate new scale based on distance from center
+        const centerX = containerRect.left + (startRef.current.clipX * containerRect.width);
+        const centerY = containerRect.top + (startRef.current.clipY * containerRect.height);
+        const currentDist = Math.hypot(e.clientX - centerX, e.clientY - centerY);
+        
+        const scaleFactor = currentDist / startRef.current.startDist;
+        const newScale = Math.max(0.1, startRef.current.clipScale * scaleFactor);
+        
         onUpdate({ x: startRef.current.clipX, y: startRef.current.clipY }, newScale, startRef.current.clipRotation);
       } else if (dragMode === 'ROTATE') {
-        // Calculate rotation based on angle from center
         const centerX = containerRect.left + (startRef.current.clipX * containerRect.width);
         const centerY = containerRect.top + (startRef.current.clipY * containerRect.height);
         const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
-        // Snap to 45 degrees if shift held? (Not implemented yet)
-        const newRotation = (angle + 90) % 360; // +90 because handle is at top
+        const newRotation = (angle + 90) % 360;
         onUpdate({ x: startRef.current.clipX, y: startRef.current.clipY }, startRef.current.clipScale, newRotation);
       }
     };
@@ -72,39 +101,37 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     };
   }, [isDragging, dragMode, containerRef, onUpdate, onFinalize]);
 
-  // Calculate position in pixels for the overlay
-  const left = (clip.position?.x ?? 0.5) * 100;
-  const top = (clip.position?.y ?? 0.9) * 100;
-  const scale = clip.scale ?? 1;
-  const rotation = clip.rotation ?? 0;
+  const { left, top, width, height, transform } = useMemo(() => ({
+    left: `${(clip.position?.x ?? 0.5) * 100}%`,
+    top: `${(clip.position?.y ?? 0.9) * 100}%`,
+    width: `${dimensions.width * (clip.scale ?? 1)}px`,
+    height: `${dimensions.height * (clip.scale ?? 1)}px`,
+    transform: `translate(-50%, -50%) rotate(${clip.rotation ?? 0}deg)`
+  }), [clip.position, clip.scale, clip.rotation, dimensions]);
+
+  const Handle = ({ className, cursor }: { className: string, cursor: string }) => (
+    <div
+      className={`absolute w-3 h-3 bg-white border border-indigo-500 rounded-full pointer-events-auto shadow-sm ${className}`}
+      style={{ cursor }}
+      onMouseDown={(e) => handleMouseDown(e, 'RESIZE')}
+    />
+  );
 
   return (
-    <div
-      className="absolute border-2 border-indigo-500 pointer-events-none z-[60]"
-      style={{
-        left: `${left}%`,
-        top: `${top}%`,
-        width: `${scale * 300}px`, // Approximate width based on font size/content
-        height: `${scale * 60}px`, // Approximate height
-        transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
-      }}
-    >
-      {/* Resize Handle (Bottom Right) */}
-      <div
-        className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border border-indigo-500 rounded-full cursor-se-resize pointer-events-auto shadow-sm"
-        onMouseDown={(e) => handleMouseDown(e, 'RESIZE')}
-      />
+    <div className="absolute border border-indigo-500 pointer-events-none z-[60]" style={{ left, top, width, height, transform }}>
+      <Handle className="-top-1.5 -left-1.5" cursor="nw-resize" />
+      <Handle className="-top-1.5 -right-1.5" cursor="ne-resize" />
+      <Handle className="-bottom-1.5 -left-1.5" cursor="sw-resize" />
+      <Handle className="-bottom-1.5 -right-1.5" cursor="se-resize" />
       
-      {/* Rotation Handle (Top Center) */}
+      {/* Rotation Handle */}
       <div
-        className="absolute -top-6 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border border-indigo-500 rounded-full cursor-grab pointer-events-auto shadow-sm flex items-center justify-center"
+        className="absolute -top-8 left-1/2 -translate-x-1/2 w-4 h-4 bg-white border border-indigo-500 rounded-full cursor-grab pointer-events-auto flex items-center justify-center shadow-sm"
         onMouseDown={(e) => handleMouseDown(e, 'ROTATE')}
       >
-        <div className="w-px h-4 bg-indigo-500 absolute top-3" />
+        <div className="w-px h-2 bg-indigo-500" />
       </div>
-      
-      {/* Move Handle (Center - Invisible overlay for dragging) */}
-      {/* Actually, the user wants to drag the object itself, but this overlay provides the visual feedback */}
+      <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-px h-8 bg-indigo-500/50 -z-10" />
     </div>
   );
 };

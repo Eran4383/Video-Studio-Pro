@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay } from 'lucide-react';
-import { ScrubbableInput } from '../UI/ScrubbableInput';
+import { HybridSlider } from '../UI/HybridSlider';
 
 export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const { selectedClipIds, project, setProject, finalizeMove, updateSubtitle, applyToAll, setApplyToAll } = store;
@@ -29,8 +29,6 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   const updateClip = (updates: any, finalize: boolean = false) => {
     if (isSubtitle) {
-      // Use store method for subtitles to handle applyToAll logic if needed
-      // Note: mapping updates to arguments: content, position, applyToAll, color, font, scale, rotation, finalize
       updateSubtitle(
         primaryClipId, 
         updates.content, 
@@ -43,7 +41,6 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         finalize
       );
     } else {
-      // Manual update for Video/Image
       setProject((prev: any) => ({
         ...prev,
         tracks: prev.tracks.map((t: any) => ({
@@ -129,12 +126,12 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
              </div>
              <div className="flex flex-col gap-1">
                 <label className="text-[9px] text-zinc-500 font-mono uppercase">Color</label>
-                <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded p-1 h-[26px]">
+                <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded p-1 h-[26px] relative overflow-hidden">
                   <input
                     type="color"
                     value={selectedClip.color || '#ffffff'}
                     onChange={(e) => updateClip({ color: e.target.value }, true)}
-                    className="w-full h-full opacity-0 absolute cursor-pointer"
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                   />
                   <div className="w-4 h-4 rounded-sm border border-white/10" style={{ backgroundColor: selectedClip.color || '#ffffff' }} />
                   <span className="text-[9px] font-mono text-zinc-400">{selectedClip.color || '#fff'}</span>
@@ -149,39 +146,46 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         <Section id="transform" title="Transform" icon={Layers}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <ScrubbableInput 
+              <HybridSlider 
                 label="Position X" 
                 value={(selectedClip.position?.x ?? 0.5) * 100} 
                 onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } })}
                 onFinalize={() => updateClip({}, true)}
-                step={0.5}
+                min={0}
+                max={100}
+                step={0.1}
                 unit="%"
               />
-              <ScrubbableInput 
+              <HybridSlider 
                 label="Position Y" 
                 value={(selectedClip.position?.y ?? 0.9) * 100} 
                 onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } })}
                 onFinalize={() => updateClip({}, true)}
-                step={0.5}
+                min={0}
+                max={100}
+                step={0.1}
                 unit="%"
               />
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <ScrubbableInput 
+              <HybridSlider 
                 label="Scale" 
                 value={(selectedClip.scale ?? 1) * 100} 
                 onChange={(v) => updateClip({ scale: v / 100 })}
                 onFinalize={() => updateClip({}, true)}
-                step={1}
                 min={0}
+                max={300}
+                step={1}
                 unit="%"
               />
-              <ScrubbableInput 
+              <HybridSlider 
                 label="Rotation" 
                 value={selectedClip.rotation ?? 0} 
                 onChange={(v) => updateClip({ rotation: v })}
                 onFinalize={() => updateClip({}, true)}
+                min={-180}
+                max={180}
                 step={1}
                 unit="°"
               />
