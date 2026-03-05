@@ -27,7 +27,6 @@ export const HybridSlider: React.FC<HybridSliderProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const requestRef = useRef<number>();
   const lastValueRef = useRef(value);
-  const lastTimeRef = useRef(0);
 
   useEffect(() => {
     if (!isDragging) setLocalValue(value);
@@ -36,14 +35,9 @@ export const HybridSlider: React.FC<HybridSliderProps> = ({
   const updateParent = useCallback((newValue: number) => {
     if (requestRef.current) cancelAnimationFrame(requestRef.current);
     requestRef.current = requestAnimationFrame(() => {
-      const now = performance.now();
-      // Throttle updates to ~30fps (32ms) to prevent UI blocking on heavy renders
-      if (now - lastTimeRef.current < 32) return;
-
       if (newValue !== lastValueRef.current) {
         onChange(newValue);
         lastValueRef.current = newValue;
-        lastTimeRef.current = now;
       }
     });
   }, [onChange]);

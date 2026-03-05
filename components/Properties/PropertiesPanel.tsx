@@ -151,8 +151,8 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
               <HybridSlider 
                 label="Position X" 
                 value={(selectedClip.position?.x ?? 0.5) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, true)}
-                previewId="posX"
+                onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, false)}
+                onFinalize={() => updateClip({}, true)}
                 min={0}
                 max={100}
                 step={0.1}
@@ -161,8 +161,8 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
               <HybridSlider 
                 label="Position Y" 
                 value={(selectedClip.position?.y ?? 0.9) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, true)}
-                previewId="posY"
+                onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, false)}
+                onFinalize={() => updateClip({}, true)}
                 min={0}
                 max={100}
                 step={0.1}
@@ -174,8 +174,8 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
               <HybridSlider 
                 label="Scale" 
                 value={(selectedClip.scale ?? 1) * 100} 
-                onChange={(v) => updateClip({ scale: v / 100, scaleX: v / 100, scaleY: v / 100 }, true)}
-                previewId="scale"
+                onChange={(v) => updateClip({ scale: v / 100, scaleX: v / 100, scaleY: v / 100 }, false)}
+                onFinalize={() => updateClip({}, true)}
                 min={0}
                 max={300}
                 step={1}
@@ -184,8 +184,8 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
               <HybridSlider 
                 label="Rotation" 
                 value={selectedClip.rotation ?? 0} 
-                onChange={(v) => updateClip({ rotation: v }, true)}
-                previewId="rotation"
+                onChange={(v) => updateClip({ rotation: v }, false)}
+                onFinalize={() => updateClip({}, true)}
                 min={-180}
                 max={180}
                 step={1}
