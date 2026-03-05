@@ -56,19 +56,46 @@ export class SceneRenderer {
     const element = mediaElements.get(clip.id);
     if (!element) return;
 
-    // Calculate source time for video
-    // For images, source time doesn't matter, but we check type
+    let srcWidth = 0;
+    let srcHeight = 0;
+
     if (element instanceof HTMLVideoElement) {
-        // Video frame synchronization is handled by the Controller (seeking)
-        // We just draw the current state of the element
-        if (element.readyState >= 2) {
-            this.ctx.drawImage(element, 0, 0, this.width, this.height);
-        }
+        if (element.readyState < 2) return;
+        srcWidth = element.videoWidth;
+        srcHeight = element.videoHeight;
     } else if (element instanceof HTMLImageElement) {
-        if (element.complete) {
-            this.ctx.drawImage(element, 0, 0, this.width, this.height);
-        }
+        if (!element.complete) return;
+        srcWidth = element.naturalWidth;
+        srcHeight = element.naturalHeight;
     }
+
+    if (srcWidth === 0 || srcHeight === 0) return;
+
+    this.ctx.save();
+
+    // 1. Calculate Object-Fit: Contain dimensions
+    // Match PreviewPlayer behavior (object-contain)
+    const scaleFactor = Math.min(this.width / srcWidth, this.height / srcHeight);
+    const drawWidth = srcWidth * scaleFactor;
+    const drawHeight = srcHeight * scaleFactor;
+
+    // 2. Apply Clip Transformations
+    // Default position is center (0.5, 0.5)
+    const x = (Number(clip.position?.x) ?? 0.5) * this.width;
+    const y = (Number(clip.position?.y) ?? 0.5) * this.height;
+    const rotation = Number(clip.rotation) || 0;
+    const scale = Number(clip.scale) || 1;
+    const opacity = Number(clip.opacity) ?? 1;
+
+    this.ctx.translate(x, y);
+    this.ctx.rotate((rotation * Math.PI) / 180);
+    this.ctx.scale(scale, scale);
+    this.ctx.globalAlpha = opacity;
+
+    // 3. Draw Centered
+    this.ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+
+    this.ctx.restore();
   }
 
   private drawSubtitle(clip: Clip) {
@@ -83,14 +110,16 @@ export class SceneRenderer {
     const scaleY = Number(clip.scaleY ?? scale);
     
     const fontSize = baseFontSize;
+    const fontWeight = clip.fontWeight || 'bold';
     
-    this.ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
-    this.ctx.textAlign = "center";
+    this.ctx.font = `${fontWeight} ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
+    this.ctx.textAlign = (clip.textAlign as CanvasTextAlign) || "center";
     this.ctx.textBaseline = "middle";
     this.ctx.lineJoin = "round";
     this.ctx.lineWidth = fontSize * 0.1; // Stroke relative to font size
     this.ctx.strokeStyle = "rgba(0,0,0,0.8)";
     this.ctx.fillStyle = clip.color || "white";
+    this.ctx.globalAlpha = clip.opacity ?? 1;
     
     // Position (0-1 range -> pixels)
     const x = (Number(clip.position?.x) ?? 0.5) * this.width;
