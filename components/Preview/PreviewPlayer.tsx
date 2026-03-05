@@ -295,27 +295,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       const subText = document.getElementById(`sub-text-${clipId}`);
       
       if (subDom && subText) {
-         // Get current values or fallback to override or default
-         // Note: We need the base values from the clip if not overridden. 
-         // Since we don't have easy access to the specific clip inside this callback without traversing project,
-         // we rely on the fact that the override event sends the NEW value.
-         // However, for transform, we need ALL values (x, y, rotation) to construct the transform string.
-         // We'll use the liveOverrides ref which accumulates changes.
-         
-         // We need to fetch the initial state from the DOM if not present in overrides? 
-         // Actually, we can just read the current style, but that's messy.
-         // Better approach: The liveOverrides should hold the complete transform state if possible, 
-         // OR we assume the store updates are slow and we just patch what changed.
-         
-         // Let's try to get the current clip from the project ref if possible, or just use what we have.
-         // Since `project` is in scope (but might be stale in this closure if not careful, though useEffect dependency array is empty),
-         // we actually need to be careful. 
-         // BUT, for high perf, we can just set specific properties if we use independent transforms?
-         // CSS `left`/`top` are independent. `transform: rotate` is independent if we don't use translate there.
-         // The current JSX uses `transform: translate(-50%, -50%) rotate(...)`.
-         
-         const overrides = liveOverrides.current[clipId];
-         
          if (property === 'posX') {
              subDom.style.left = `${value}%`;
          }
@@ -328,6 +307,9 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
          if (property === 'scale') {
              // Base font size is 1.25rem * scale
              subText.style.fontSize = `${(value / 100) * 1.25}rem`;
+         }
+         if (property === 'opacity') {
+             subDom.style.opacity = `${value / 100}`;
          }
       }
     };

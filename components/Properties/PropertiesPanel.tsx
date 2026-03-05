@@ -157,13 +157,33 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
              <div className="flex items-center justify-between bg-zinc-900/30 p-1 rounded-lg border border-zinc-800/50">
                 <div className="flex gap-1">
-                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><AlignLeft size={12} /></button>
-                  <button className="p-1.5 rounded bg-zinc-800 text-white shadow-sm"><AlignCenter size={12} /></button>
-                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><AlignRight size={12} /></button>
+                  <button 
+                    onClick={() => updateClip({ textAlign: 'left' }, true)}
+                    className={`p-1.5 rounded transition-colors ${selectedClip.textAlign === 'left' ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <AlignLeft size={12} />
+                  </button>
+                  <button 
+                    onClick={() => updateClip({ textAlign: 'center' }, true)}
+                    className={`p-1.5 rounded transition-colors ${(!selectedClip.textAlign || selectedClip.textAlign === 'center') ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <AlignCenter size={12} />
+                  </button>
+                  <button 
+                    onClick={() => updateClip({ textAlign: 'right' }, true)}
+                    className={`p-1.5 rounded transition-colors ${selectedClip.textAlign === 'right' ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <AlignRight size={12} />
+                  </button>
                 </div>
                 <div className="w-px h-4 bg-zinc-800" />
                 <div className="flex gap-1">
-                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Bold size={12} /></button>
+                  <button 
+                    onClick={() => updateClip({ fontWeight: selectedClip.fontWeight === 'bold' ? 'normal' : 'bold' }, true)}
+                    className={`p-1.5 rounded transition-colors ${selectedClip.fontWeight === 'bold' ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <Bold size={12} />
+                  </button>
                   <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Italic size={12} /></button>
                   <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Underline size={12} /></button>
                 </div>
@@ -236,37 +256,36 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         </Section>
       )}
 
-      {/* Effects Section (Disabled / Placeholder) */}
+      {/* Effects Section */}
       {isVisual && (
         <Section id="effects" title="Effects" icon={Ghost} isOpen={sections.effects} onToggle={toggleSection}>
-          <div className="space-y-4 opacity-40 pointer-events-none grayscale select-none">
+          <div className="space-y-4">
              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between">
-                   <div className="flex items-center gap-2">
-                      <Sun size={12} />
-                      <span className="text-[10px] uppercase font-mono">Opacity</span>
-                   </div>
-                   <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">100%</span>
-                </div>
-                <div className="h-1 bg-zinc-800 rounded-full w-full overflow-hidden">
-                   <div className="h-full bg-zinc-600 w-full" />
-                </div>
+                <ProSlider 
+                  label="Opacity" 
+                  value={(selectedClip.opacity ?? 1) * 100} 
+                  onChange={(v) => updateClip({ opacity: v / 100 }, true)}
+                  previewId="opacity"
+                  clipId={selectedClip.id}
+                  min={0}
+                  max={100}
+                  step={1}
+                  unit="%"
+                />
              </div>
              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-2">
-                      <Ghost size={12} />
-                      <span className="text-[10px] uppercase font-mono">Drop Shadow</span>
+                      <Ghost size={12} className="text-zinc-500" />
+                      <span className="text-[10px] uppercase font-mono text-zinc-400">Drop Shadow</span>
                    </div>
-                   <div className="w-8 h-4 bg-zinc-800 rounded-full relative">
-                      <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-zinc-600 rounded-full" />
-                   </div>
+                   <button 
+                      onClick={() => updateClip({ shadow: !selectedClip.shadow }, true)}
+                      className={`w-8 h-4 rounded-full relative transition-colors ${selectedClip.shadow ? 'bg-indigo-500/20 border-indigo-500/50' : 'bg-zinc-800 border-zinc-700'}`}
+                   >
+                      <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${selectedClip.shadow ? 'left-4.5 bg-indigo-400' : 'left-0.5 bg-zinc-600'}`} />
+                   </button>
                 </div>
-             </div>
-             <div className="p-3 bg-zinc-900/30 rounded-lg border border-zinc-800/30 text-center">
-                <p className="text-[9px] text-zinc-600 italic">
-                   Advanced effects module locked.<br/>Upgrade to v2.1
-                </p>
              </div>
           </div>
         </Section>

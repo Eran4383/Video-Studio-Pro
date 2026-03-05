@@ -311,65 +311,111 @@ export const useProjectStore = () => {
     });
   }, [assets, selectedClipIds]);
 
-  const updateSubtitle = useCallback((clipId: string | string[], content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, scaleX?: number, scaleY?: number, finalize: boolean = true) => {
+  const setProjectResolution = useCallback((width: number, height: number) => {
+    setProject(prev => {
+      const next = { ...prev, resolution: { width, height } };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
+  const updateSubtitle = useCallback((
+    clipId: string | string[], 
+    content?: string, 
+    position?: {x: number, y: number}, 
+    applyToAll?: boolean, 
+    color?: string, 
+    font?: string, 
+    scale?: number, 
+    rotation?: number, 
+    scaleX?: number, 
+    scaleY?: number, 
+    opacity?: number,
+    shadow?: boolean,
+    fontWeight?: string,
+    textAlign?: 'left' | 'center' | 'right',
+    finalize: boolean = true
+  ) => {
     setProject(prev => {
       const targetIds = Array.isArray(clipId) ? clipId : [clipId];
+      const primaryId = targetIds[0];
       
-      // Calculate delta for position if applying to all
-      let posDelta = { x: 0, y: 0 };
-      if (applyToAll && position && targetIds.length > 0) {
-        const primaryTarget = prev.tracks.flatMap(t => t.clips).find(c => c.id === targetIds[0]);
-        if (primaryTarget) {
-          const currentPos = primaryTarget.position || { x: 0.5, y: 0.9 };
-          posDelta = { x: position.x - currentPos.x, y: position.y - currentPos.y };
-        }
-      }
+      // Find the track containing the primary clip to identify "same track"
+      const targetTrack = prev.tracks.find(t => t.clips.some(c => c.id === primaryId));
+      if (!targetTrack) return prev;
+
+      // Find the original target clip
+      const originalTarget = targetTrack.clips.find(c => c.id === primaryId);
+      if (!originalTarget) return prev;
+
+      // Calculate the NEW state of the target clip
+      const updatedTarget = {
+          ...originalTarget,
+          ...(content !== undefined ? { content } : {}),
+          ...(position !== undefined ? { position } : {}),
+          ...(color !== undefined ? { color } : {}),
+          ...(font !== undefined ? { font } : {}),
+          ...(scale !== undefined ? { scale } : {}),
+          ...(scaleX !== undefined ? { scaleX } : {}),
+          ...(scaleY !== undefined ? { scaleY } : {}),
+          ...(rotation !== undefined ? { rotation } : {}),
+          ...(opacity !== undefined ? { opacity } : {}),
+          ...(shadow !== undefined ? { shadow } : {}),
+          ...(fontWeight !== undefined ? { fontWeight } : {}),
+          ...(textAlign !== undefined ? { textAlign } : {})
+      };
 
       const next = {
         ...prev,
         tracks: prev.tracks.map(track => {
-          if (track.type !== 'subtitle') return track;
+          if (track.id !== targetTrack.id) return track; // Only apply to same track
+          
           return {
             ...track,
             clips: track.clips.map(clip => {
               const isTarget = targetIds.includes(clip.id);
               
+              // If it's the target clip, return the pre-calculated updatedTarget
               if (isTarget) {
-                return { 
-                  ...clip, 
-                  ...(content !== undefined ? { content } : {}),
-                  ...(position !== undefined ? { position } : {}),
-                  ...(color !== undefined ? { color } : {}),
-                  ...(font !== undefined ? { font } : {}),
-                  ...(scale !== undefined ? { scale } : {}),
-                  ...(scaleX !== undefined ? { scaleX } : {}),
-                  ...(scaleY !== undefined ? { scaleY } : {}),
-                  ...(rotation !== undefined ? { rotation } : {})
-                };
-              } else if (applyToAll) {
-                // For position, apply delta. For others, apply absolute value.
-                let newPos = clip.position;
-                if (position !== undefined) {
-                    const current = clip.position || { x: 0.5, y: 0.9 };
-                    newPos = { x: current.x + posDelta.x, y: current.y + posDelta.y };
-                }
-
-                return { 
-                  ...clip, 
-                  ...(position !== undefined ? { position: newPos } : {}),
-                  ...(color !== undefined ? { color } : {}),
-                  ...(font !== undefined ? { font } : {}),
-                  ...(scale !== undefined ? { scale } : {}),
-                  ...(scaleX !== undefined ? { scaleX } : {}),
-                  ...(scaleY !== undefined ? { scaleY } : {}),
-                  ...(rotation !== undefined ? { rotation } : {})
-                };
+                return updatedTarget;
+              } 
+              
+              // If Apply to All is active, copy ABSOLUTE values from the updatedTarget
+              // This ensures all clips become identical in style to the target
+              if (applyToAll) {
+                 return {
+                    ...clip,
+                    position: updatedTarget.position,
+                    color: updatedTarget.color,
+                    font: updatedTarget.font,
+                    scale: updatedTarget.scale,
+                    scaleX: updatedTarget.scaleX,
+                    scaleY: updatedTarget.scaleY,
+                    rotation: updatedTarget.rotation,
+                    opacity: updatedTarget.opacity,
+                    shadow: updatedTarget.shadow,
+                    fontWeight: updatedTarget.fontWeight,
+                    textAlign: updatedTarget.textAlign,
+                    // Preserve identity and content
+                    id: clip.id,
+                    content: clip.content,
+                    startTime: clip.startTime,
+                    duration: clip.duration,
+                    offset: clip.offset,
+                    layer: clip.layer,
+                    assetId: clip.assetId,
+                    effects: clip.effects,
+                    isSilent: clip.isSilent,
+                    linkedClipId: clip.linkedClipId
+                 };
               }
+
               return clip;
             })
           };
         })
       };
+      
       if (finalize) {
         pushToHistory(next);
       }
@@ -445,7 +491,7 @@ export const useProjectStore = () => {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles,
+    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

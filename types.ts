@@ -35,6 +35,12 @@ export interface Clip {
   scaleX?: number; // Scale factor X
   scaleY?: number; // Scale factor Y
   rotation?: number; // Rotation in degrees
+  
+  // New Effects & Styles
+  opacity?: number;
+  shadow?: boolean;
+  fontWeight?: string; // 'bold', 'normal', etc.
+  textAlign?: 'left' | 'center' | 'right';
 }
 
 export interface Effect {

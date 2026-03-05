@@ -18,6 +18,7 @@ import { PropertiesPanel } from './components/Properties/PropertiesPanel';
 import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2 } from 'lucide-react';
 import { MediaType, Asset } from './types';
 import { parseSRT } from './utils/srtParser';
+import { ResolutionSwitcher } from './components/ProjectSettings/ResolutionSwitcher';
 
 // Initialize Error Reporting on App Load
 ErrorReportingService.init();
@@ -185,6 +186,8 @@ const App: React.FC = () => {
               <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-md font-mono border border-zinc-700/50">v{VERSION}</span>
             </h1>
           </div>
+          <div className="h-6 w-px bg-zinc-800/50 mx-2" />
+          <ResolutionSwitcher store={store} />
         </div>
         <div className="flex items-center gap-2">
           <Tooltip text="Toggle Fullscreen" position="bottom" shortcut="F">

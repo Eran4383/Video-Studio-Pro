@@ -16,31 +16,53 @@ export class GFX_Engine {
     // Render GFX clips (Text, Overlays) that are not handled by the subtitle system
     // We iterate through video tracks and look for clips with content or GFX properties
     project.tracks
-      .filter(t => t.type === 'video' && t.isVisible)
+      .filter(t => t.isVisible)
       .forEach(track => {
         track.clips.forEach(clip => {
           if (currentTime >= clip.startTime && currentTime <= clip.startTime + clip.duration) {
-            // If it has content but isn't a subtitle clip (subtitles are handled separately in Preview)
-            // Actually, in ExportEngine, we want to render everything.
-            // For now, let's render GFX props if they exist.
-            const layer = this.getLayerForClip(clip, project.resolution);
-            if (layer && clip.content) {
-              ctx.save();
-              ctx.translate(layer.x, layer.y);
-              ctx.rotate(layer.rotation * Math.PI / 180);
-              ctx.scale(layer.scale, layer.scale);
-              ctx.globalAlpha = layer.opacity;
+             // Only render if it has content (text/subtitle)
+             if (clip.content) {
+                const resolution = project.resolution;
+                const x = (clip.position?.x ?? 0.5) * resolution.width;
+                const y = (clip.position?.y ?? 0.9) * resolution.height;
+                const scale = clip.scale ?? 1;
+                const rotation = clip.rotation ?? 0;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation * Math.PI / 180);
+                ctx.scale(scale, scale);
+                
+                // Opacity
+                ctx.globalAlpha = clip.opacity ?? 1;
 
-              ctx.font = "bold 60px Arial, sans-serif";
-              ctx.fillStyle = clip.color || "white";
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.strokeStyle = "black";
-              ctx.lineWidth = 4;
-              ctx.strokeText(clip.content, 0, 0);
-              ctx.fillText(clip.content, 0, 0);
-              ctx.restore();
-            }
+                // Shadow
+                if (clip.shadow) {
+                    ctx.shadowColor = "rgba(0,0,0,0.8)";
+                    ctx.shadowBlur = 4;
+                    ctx.shadowOffsetX = 2;
+                    ctx.shadowOffsetY = 2;
+                }
+
+                // Font Styling
+                const fontSize = resolution.height * 0.05; // 5% of height
+                const fontWeight = clip.fontWeight || 'bold';
+                const fontFamily = clip.font || 'Arial, sans-serif';
+                ctx.font = `${fontWeight} ${fontSize}px ${fontFamily}`;
+                
+                ctx.fillStyle = clip.color || "white";
+                ctx.textAlign = (clip.textAlign as CanvasTextAlign) || "center";
+                ctx.textBaseline = "middle";
+                
+                // Stroke (optional, could be added to Clip props later)
+                ctx.strokeStyle = "black";
+                ctx.lineWidth = fontSize * 0.05;
+                ctx.lineJoin = "round";
+                ctx.strokeText(clip.content, 0, 0);
+                
+                ctx.fillText(clip.content, 0, 0);
+                ctx.restore();
+             }
           }
         });
       });
