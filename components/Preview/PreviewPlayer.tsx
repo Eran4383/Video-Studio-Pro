@@ -521,11 +521,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   }, [isPlaying, currentTime, project.tracks, assets]);
 
   return (
-    <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50" style={{ backgroundColor: project.backgroundColor || '#000000' }}>
+    <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50">
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative"
+        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#0a0a0a]"
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -533,8 +533,12 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       >
         <div 
           ref={containerRef}
-          className="aspect-video w-full max-w-4xl bg-black rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
-          style={{ transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, backgroundColor: project.backgroundColor || '#000000' }}
+          className="w-full max-w-4xl rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
+          style={{ 
+            transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
+            backgroundColor: project.backgroundColor || '#000000',
+            aspectRatio: `${project.resolution.width} / ${project.resolution.height}`
+          }}
         >
           {activeVideoAsset ? (
             activeVideoAsset.type === 'VIDEO' ? (
@@ -656,6 +660,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            </Tooltip>
            <div className="w-px h-4 bg-zinc-800" />
            <button onClick={() => setScale(s => Math.max(0.1, s - 0.2))} className="hover:text-white"><ZoomOut size={14} /></button>
+           <span className="text-[10px] font-mono w-8 text-center">{Math.round(scale * 100)}%</span>
            <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="hover:text-white"><ZoomIn size={14} /></button>
            <div className="w-px h-4 bg-zinc-800" />
            <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">

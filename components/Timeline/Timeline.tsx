@@ -110,7 +110,36 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
       
       if (isDraggingPlayhead) {
-        onTimeChange(getT(e.clientX));
+        let t = getT(e.clientX);
+        
+        // Snap playhead to clip edges if magnet is enabled
+        if (isMagnetEnabled && !e.shiftKey) {
+            const snapThreshold = 10 / pxPerSec; // 10 pixels threshold
+            let closestDiff = Infinity;
+            let snapTarget = -1;
+
+            project.tracks.forEach(track => {
+                track.clips.forEach(clip => {
+                    const startDiff = Math.abs(t - clip.startTime);
+                    const endDiff = Math.abs(t - (clip.startTime + clip.duration));
+
+                    if (startDiff < snapThreshold && startDiff < closestDiff) {
+                        closestDiff = startDiff;
+                        snapTarget = clip.startTime;
+                    }
+                    if (endDiff < snapThreshold && endDiff < closestDiff) {
+                        closestDiff = endDiff;
+                        snapTarget = clip.startTime + clip.duration;
+                    }
+                });
+            });
+
+            if (snapTarget !== -1) {
+                t = snapTarget;
+            }
+        }
+        
+        onTimeChange(t);
       }
 
       // Box Selection Update

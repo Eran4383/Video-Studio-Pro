@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
+import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
 
 const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => (
   <div className="border-b border-zinc-800/50">
@@ -36,9 +37,37 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   if (!selectedClip) {
     return (
-      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col p-6 items-center justify-center text-zinc-600 h-full">
-        <Settings2 size={32} className="mb-4 opacity-20" />
-        <p className="text-[10px] font-mono uppercase tracking-widest opacity-50">No Selection</p>
+      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
+        <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10">
+          <div className="flex items-center gap-2 mb-1">
+            <Settings2 size={14} className="text-zinc-400" />
+            <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Project Settings</h2>
+          </div>
+          <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">Global Configuration</p>
+        </div>
+
+        <Section id="project" title="Canvas" icon={MonitorPlay} isOpen={true} onToggle={() => {}}>
+           <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                 <label className="text-[9px] text-zinc-500 font-mono uppercase">Resolution</label>
+                 <ResolutionSwitcher store={store} />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                 <label className="text-[9px] text-zinc-500 font-mono uppercase">Background Color</label>
+                 <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded-md p-1 relative overflow-hidden group hover:border-zinc-700 transition-colors">
+                   <input
+                     type="color"
+                     value={project.backgroundColor || '#000000'}
+                     onChange={(e) => store.setBackgroundColor(e.target.value)}
+                     className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                   />
+                   <div className="w-6 h-6 rounded border border-white/10 shadow-sm" style={{ backgroundColor: project.backgroundColor || '#000000' }} />
+                   <span className="text-[10px] font-mono text-zinc-400 group-hover:text-white transition-colors">{project.backgroundColor || '#000000'}</span>
+                 </div>
+              </div>
+           </div>
+        </Section>
       </div>
     );
   }

@@ -163,41 +163,7 @@ export const useProjectStore = () => {
     }));
   }, []);
 
-  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, forceDisableMagnet: boolean = false) => {
-    setProject(prev => {
-      let targetClip: Clip | null = null;
-      for (const track of prev.tracks) {
-        const found = track.clips.find(c => c.id === clipId);
-        if (found) { targetClip = found; break; }
-      }
-      if (!targetClip) return prev;
-      let finalX = Math.max(0, xPos);
-      if (isMagnetEnabled && !forceDisableMagnet) {
-         const allClips = prev.tracks.flatMap(t => t.clips).filter(c => c.id !== clipId && c.id !== targetClip?.linkedClipId);
-         for (const c of allClips) {
-            if (Math.abs(finalX - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration; break; }
-            if (Math.abs((finalX + targetClip.duration) - c.startTime) < 0.2) { finalX = c.startTime - targetClip.duration; break; }
-         }
-      }
-      const deltaX = finalX - targetClip.startTime;
-      return {
-        ...prev,
-        tracks: prev.tracks.map(track => {
-          const isTargetTrack = track.id === targetTrackId;
-          const hasMovingClip = track.clips.some(c => c.id === clipId || c.id === targetClip?.linkedClipId);
-          if (!isTargetTrack && !hasMovingClip) return track;
-          let newClips = track.clips.map(c => (c.id === clipId || c.id === targetClip?.linkedClipId) ? { ...c, startTime: c.startTime + deltaX } : c);
-          if (isTargetTrack && !track.clips.some(c => c.id === clipId)) {
-            const source = prev.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
-            if (source) newClips.push({ ...source, startTime: finalX });
-          } else if (!isTargetTrack && track.clips.some(c => c.id === clipId)) {
-            newClips = newClips.filter(c => c.id !== clipId);
-          }
-          return { ...track, clips: newClips };
-        })
-      };
-    });
-  }, [isMagnetEnabled]);
+
 
   // Keep existing helpers...
   const detachAudio = useCallback((clipId: string) => { /* Same as before, omitted for brevity but assumed present */ setProject(p => p); }, []);
@@ -470,6 +436,125 @@ export const useProjectStore = () => {
     });
   }, []);
 
+  const addSubtitleClip = useCallback((text: string = "New Text") => {
+    setProject(prev => {
+      // Find all subtitle tracks
+      const subTracks = prev.tracks.filter(t => t.type === 'subtitle');
+      let targetTrack: Track | null = null;
+      const defaultDuration = 3;
+
+      // Try to find a track where this time slot is free
+      for (const track of subTracks) {
+          const collision = track.clips.some(c => 
+              currentTime < c.startTime + c.duration && currentTime + defaultDuration > c.startTime
+          );
+          if (!collision) {
+              targetTrack = track;
+              break;
+          }
+      }
+
+      let newTracks = [...prev.tracks];
+
+      // If no free track, create a new one
+      if (!targetTrack) {
+          targetTrack = {
+              id: `track-s-${Date.now()}`,
+              name: `Subtitles ${subTracks.length + 1}`,
+              type: 'subtitle',
+              clips: [],
+              isVisible: true,
+              isMuted: false,
+              isLocked: false,
+              height: 40
+          };
+          newTracks.push(targetTrack);
+      }
+
+      const newClip: Clip = {
+        id: `sub-${Date.now()}`,
+        assetId: 'subtitle-asset',
+        startTime: currentTime,
+        duration: defaultDuration,
+        offset: 0,
+        layer: 10,
+        effects: [],
+        content: text,
+        position: { x: 0.5, y: 0.5 },
+        color: '#ffffff',
+        scale: 1,
+        font: 'Inter, sans-serif',
+        fontWeight: 'bold',
+        textAlign: 'center',
+        opacity: 1,
+        shadow: true
+      };
+
+      newTracks = newTracks.map(t => {
+        if (t.id === targetTrack!.id) {
+          return { ...t, clips: [...t.clips, newClip] };
+        }
+        return t;
+      });
+
+      const next = { ...prev, tracks: newTracks };
+      pushToHistory(next);
+      
+      // Select the new clip
+      setTimeout(() => setSelectedClipIds([newClip.id]), 0);
+      
+      return next;
+    });
+  }, [currentTime]);
+
+  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, forceDisableMagnet: boolean = false) => {
+    setProject(prev => {
+      let targetClip: Clip | null = null;
+      for (const track of prev.tracks) {
+        const found = track.clips.find(c => c.id === clipId);
+        if (found) { targetClip = found; break; }
+      }
+      if (!targetClip) return prev;
+      let finalX = Math.max(0, xPos);
+      
+      if (isMagnetEnabled && !forceDisableMagnet) {
+         const allClips = prev.tracks.flatMap(t => t.clips).filter(c => c.id !== clipId && c.id !== targetClip?.linkedClipId);
+         
+         // Snap to Clips
+         for (const c of allClips) {
+            if (Math.abs(finalX - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration; break; }
+            if (Math.abs((finalX + targetClip.duration) - c.startTime) < 0.2) { finalX = c.startTime - targetClip.duration; break; }
+            // Snap start-to-start
+            if (Math.abs(finalX - c.startTime) < 0.2) { finalX = c.startTime; break; }
+            // Snap end-to-end
+            if (Math.abs((finalX + targetClip.duration) - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration - targetClip.duration; break; }
+         }
+
+         // Snap to Playhead (currentTime)
+         if (Math.abs(finalX - currentTime) < 0.2) { finalX = currentTime; }
+         if (Math.abs((finalX + targetClip.duration) - currentTime) < 0.2) { finalX = currentTime - targetClip.duration; }
+      }
+
+      const deltaX = finalX - targetClip.startTime;
+      return {
+        ...prev,
+        tracks: prev.tracks.map(track => {
+          const isTargetTrack = track.id === targetTrackId;
+          const hasMovingClip = track.clips.some(c => c.id === clipId || c.id === targetClip?.linkedClipId);
+          if (!isTargetTrack && !hasMovingClip) return track;
+          let newClips = track.clips.map(c => (c.id === clipId || c.id === targetClip?.linkedClipId) ? { ...c, startTime: c.startTime + deltaX } : c);
+          if (isTargetTrack && !track.clips.some(c => c.id === clipId)) {
+            const source = prev.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
+            if (source) newClips.push({ ...source, startTime: finalX });
+          } else if (!isTargetTrack && track.clips.some(c => c.id === clipId)) {
+            newClips = newClips.filter(c => c.id !== clipId);
+          }
+          return { ...track, clips: newClips };
+        })
+      };
+    });
+  }, [isMagnetEnabled, currentTime]);
+
   const selectClip = useCallback((id: string | null, multi: boolean = false) => {
     if (id === null) {
       setSelectedClipIds([]);
@@ -491,7 +576,7 @@ export const useProjectStore = () => {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution,
+    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

@@ -269,7 +269,7 @@ const App: React.FC = () => {
         <aside className="w-14 bg-[#121212] border-r border-zinc-800/50 flex flex-col items-center py-6 gap-8">
           <Tooltip text="Asset Layers" position="right"><button className="text-indigo-500 p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"><Layers size={22} /></button></Tooltip>
           <Tooltip text="Color & Grading" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><Palette size={22} /></button></Tooltip>
-          <Tooltip text="Titles & GFX" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
+          <Tooltip text="Titles & GFX" position="right"><button onClick={() => store.addSubtitleClip()} className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
           <Tooltip text="AI Captions" position="right"><button onClick={() => setTranscriptionState(prev => ({ ...prev, isOpen: true, isMinimized: false }))} className="text-zinc-600 hover:text-indigo-400 transition-all"><Captions size={22} /></button></Tooltip>
           <Tooltip text="Razor Tool" position="right" shortcut="S/B"><button className="text-zinc-600 hover:text-indigo-400 transition-all" onClick={() => store.splitClip(store.selectedClipIds[0], store.currentTime)}><Scissors size={22} /></button></Tooltip>
           
