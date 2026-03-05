@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay } from 'lucide-react';
-import { HybridSlider } from '../UI/HybridSlider';
+import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun } from 'lucide-react';
+import { ProSlider } from '../UI/ProSlider';
 
 export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const { selectedClipIds, project, setProject, finalizeMove, updateSubtitle, applyToAll, setApplyToAll } = store;
@@ -11,7 +11,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const isSubtitle = track?.type === 'subtitle';
   const isVisual = track?.type === 'video' || track?.type === 'image' || isSubtitle;
 
-  const [sections, setSections] = useState({ transform: true, text: true, style: true });
+  const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true });
   const [editingText, setEditingText] = useState('');
 
   useEffect(() => {
@@ -148,21 +148,23 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         <Section id="transform" title="Transform" icon={Layers}>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <HybridSlider 
+              <ProSlider 
                 label="Position X" 
                 value={(selectedClip.position?.x ?? 0.5) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, false)}
-                onFinalize={() => updateClip({}, true)}
+                onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, true)}
+                previewId="posX"
+                clipId={selectedClip.id}
                 min={0}
                 max={100}
                 step={0.1}
                 unit="%"
               />
-              <HybridSlider 
+              <ProSlider 
                 label="Position Y" 
                 value={(selectedClip.position?.y ?? 0.9) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, false)}
-                onFinalize={() => updateClip({}, true)}
+                onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, true)}
+                previewId="posY"
+                clipId={selectedClip.id}
                 min={0}
                 max={100}
                 step={0.1}
@@ -171,27 +173,61 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
             </div>
             
             <div className="grid grid-cols-2 gap-4">
-              <HybridSlider 
+              <ProSlider 
                 label="Scale" 
                 value={(selectedClip.scale ?? 1) * 100} 
-                onChange={(v) => updateClip({ scale: v / 100, scaleX: v / 100, scaleY: v / 100 }, false)}
-                onFinalize={() => updateClip({}, true)}
+                onChange={(v) => updateClip({ scale: v / 100, scaleX: v / 100, scaleY: v / 100 }, true)}
+                previewId="scale"
+                clipId={selectedClip.id}
                 min={0}
                 max={300}
                 step={1}
                 unit="%"
               />
-              <HybridSlider 
+              <ProSlider 
                 label="Rotation" 
                 value={selectedClip.rotation ?? 0} 
-                onChange={(v) => updateClip({ rotation: v }, false)}
-                onFinalize={() => updateClip({}, true)}
+                onChange={(v) => updateClip({ rotation: v }, true)}
+                previewId="rotation"
+                clipId={selectedClip.id}
                 min={-180}
                 max={180}
                 step={1}
                 unit="°"
               />
             </div>
+          </div>
+        </Section>
+      )}
+
+      {/* Effects Section (Disabled / Placeholder) */}
+      {isVisual && (
+        <Section id="effects" title="Effects" icon={Ghost}>
+          <div className="space-y-4 opacity-50 pointer-events-none grayscale">
+             <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <Sun size={10} />
+                      <span className="text-[10px] uppercase font-mono">Opacity</span>
+                   </div>
+                   <span className="text-[9px] bg-zinc-800 px-1 rounded">100%</span>
+                </div>
+                <div className="h-1 bg-zinc-800 rounded-full w-full overflow-hidden">
+                   <div className="h-full bg-zinc-600 w-full" />
+                </div>
+             </div>
+             <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <Ghost size={10} />
+                      <span className="text-[10px] uppercase font-mono">Shadow</span>
+                   </div>
+                   <span className="text-[9px] bg-zinc-800 px-1 rounded">OFF</span>
+                </div>
+             </div>
+             <div className="text-[9px] text-zinc-600 text-center italic pt-2">
+                Advanced effects coming in v2.1
+             </div>
           </div>
         </Section>
       )}

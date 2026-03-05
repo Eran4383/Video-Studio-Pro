@@ -271,31 +271,36 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const lastFpsTimeRef = useRef(performance.now());
   const lastGlobalUpdateRef = useRef(performance.now());
 
-  // --- Preview Update Listener ---
+  // --- Live Overrides for Performance ---
+  const liveOverrides = useRef<Record<string, any>>({});
+
   useEffect(() => {
-    const handlePreviewUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      const { property, value } = customEvent.detail;
+    const handleOverride = (e: Event) => {
+      const { clipId, property, value } = (e as CustomEvent).detail;
+      const current = liveOverrides.current[clipId] || {};
       
-      if (!selectedClip || !updateSubtitle) return;
-
-      let pos = selectedClip.position || { x: 0.5, y: 0.9 };
-      let scale = selectedClip.scale || 1;
-      let rot = selectedClip.rotation || 0;
-      let sX = selectedClip.scaleX;
-      let sY = selectedClip.scaleY;
-
-      if (property === 'posX') pos = { ...pos, x: value / 100 };
-      if (property === 'posY') pos = { ...pos, y: value / 100 };
-      if (property === 'scale') { scale = value / 100; sX = value / 100; sY = value / 100; }
-      if (property === 'rotation') rot = value;
-
-      updateSubtitle(selectedClip.id, undefined, pos, false, undefined, undefined, scale, rot, sX, sY, false);
+      if (property === 'posX') {
+        liveOverrides.current[clipId] = { ...current, posX: value };
+      } else if (property === 'posY') {
+        liveOverrides.current[clipId] = { ...current, posY: value };
+      } else if (property === 'scale') {
+        liveOverrides.current[clipId] = { ...current, scale: value / 100, scaleX: value / 100, scaleY: value / 100 };
+      } else if (property === 'rotation') {
+        liveOverrides.current[clipId] = { ...current, rotation: value };
+      }
     };
 
-    window.addEventListener('preview-update', handlePreviewUpdate);
-    return () => window.removeEventListener('preview-update', handlePreviewUpdate);
-  }, [selectedClip, updateSubtitle]);
+    const handleClear = () => {
+      liveOverrides.current = {};
+    };
+
+    window.addEventListener('gfx-override', handleOverride);
+    window.addEventListener('gfx-override-clear', handleClear);
+    return () => {
+      window.removeEventListener('gfx-override', handleOverride);
+      window.removeEventListener('gfx-override-clear', handleClear);
+    };
+  }, []);
 
   // --- Animation Loop ---
   const animate = (time: number) => {
@@ -384,9 +389,34 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       if (ctx) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
-        // Use the latest project state from the store if possible, or the closure one.
-        // Actually, project is in the dependency array of the useEffect, so it's updated when project changes.
-        GFX_Engine.render(ctx, project, currentRenderTime);
+        
+        // Apply Live Overrides
+        let renderProject = project;
+        if (Object.keys(liveOverrides.current).length > 0) {
+            renderProject = {
+                ...project,
+                tracks: project.tracks.map(t => ({
+                    ...t,
+                    clips: t.clips.map(c => {
+                        const override = liveOverrides.current[c.id];
+                        if (override) {
+                            let merged = { ...c, ...override };
+                            // Handle position specially if posX/posY are present
+                            if (override.posX !== undefined || override.posY !== undefined) {
+                                merged.position = {
+                                    x: override.posX !== undefined ? override.posX / 100 : (c.position?.x ?? 0.5),
+                                    y: override.posY !== undefined ? override.posY / 100 : (c.position?.y ?? 0.9)
+                                };
+                            }
+                            return merged;
+                        }
+                        return c;
+                    })
+                }))
+            };
+        }
+
+        GFX_Engine.render(ctx, renderProject, currentRenderTime);
         if (selectedClip && currentRenderTime >= selectedClip.startTime && currentRenderTime <= selectedClip.startTime + selectedClip.duration) {
           const layer = GFX_Engine.getLayerForClip(selectedClip, project.resolution);
           if (layer) GFX_Gizmo.draw(ctx, layer);
