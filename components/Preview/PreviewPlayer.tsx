@@ -279,6 +279,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       const { clipId, property, value } = (e as CustomEvent).detail;
       const current = liveOverrides.current[clipId] || {};
       
+      // Update ref for canvas rendering
       if (property === 'posX') {
         liveOverrides.current[clipId] = { ...current, posX: value };
       } else if (property === 'posY') {
@@ -287,6 +288,47 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         liveOverrides.current[clipId] = { ...current, scale: value / 100, scaleX: value / 100, scaleY: value / 100 };
       } else if (property === 'rotation') {
         liveOverrides.current[clipId] = { ...current, rotation: value };
+      }
+
+      // Direct DOM Manipulation for Subtitles (60FPS)
+      const subDom = document.getElementById(`sub-dom-${clipId}`);
+      const subText = document.getElementById(`sub-text-${clipId}`);
+      
+      if (subDom && subText) {
+         // Get current values or fallback to override or default
+         // Note: We need the base values from the clip if not overridden. 
+         // Since we don't have easy access to the specific clip inside this callback without traversing project,
+         // we rely on the fact that the override event sends the NEW value.
+         // However, for transform, we need ALL values (x, y, rotation) to construct the transform string.
+         // We'll use the liveOverrides ref which accumulates changes.
+         
+         // We need to fetch the initial state from the DOM if not present in overrides? 
+         // Actually, we can just read the current style, but that's messy.
+         // Better approach: The liveOverrides should hold the complete transform state if possible, 
+         // OR we assume the store updates are slow and we just patch what changed.
+         
+         // Let's try to get the current clip from the project ref if possible, or just use what we have.
+         // Since `project` is in scope (but might be stale in this closure if not careful, though useEffect dependency array is empty),
+         // we actually need to be careful. 
+         // BUT, for high perf, we can just set specific properties if we use independent transforms?
+         // CSS `left`/`top` are independent. `transform: rotate` is independent if we don't use translate there.
+         // The current JSX uses `transform: translate(-50%, -50%) rotate(...)`.
+         
+         const overrides = liveOverrides.current[clipId];
+         
+         if (property === 'posX') {
+             subDom.style.left = `${value}%`;
+         }
+         if (property === 'posY') {
+             subDom.style.top = `${value}%`;
+         }
+         if (property === 'rotation') {
+             subDom.style.transform = `translate(-50%, -50%) rotate(${value}deg)`;
+         }
+         if (property === 'scale') {
+             // Base font size is 1.25rem * scale
+             subText.style.fontSize = `${(value / 100) * 1.25}rem`;
+         }
       }
     };
 
@@ -547,6 +589,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           {activeSubs.map(sub => (
             <div 
               key={sub.id}
+              id={`sub-dom-${sub.id}`}
               className="absolute z-50"
               style={{
                 left: `${(sub.position?.x ?? 0.5) * 100}%`,
@@ -559,6 +602,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
               onDoubleClick={(e) => handleSubDoubleClick(e, sub.id, sub.content || "")}
             >
               <div 
+                id={`sub-text-${sub.id}`}
                 className="text-center max-w-[80%] select-none"
                 style={{ 
                   color: sub.color || '#ffffff', 

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun } from 'lucide-react';
+import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 
 export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
@@ -20,7 +20,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   if (!selectedClip) {
     return (
-      <div className="w-72 bg-[#121212] border-l border-zinc-800/50 flex flex-col p-6 items-center justify-center text-zinc-600">
+      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col p-6 items-center justify-center text-zinc-600 h-full">
         <Settings2 size={32} className="mb-4 opacity-20" />
         <p className="text-[10px] font-mono uppercase tracking-widest opacity-50">No Selection</p>
       </div>
@@ -62,7 +62,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const Section = ({ id, title, icon: Icon, children }: any) => (
     <div className="border-b border-zinc-800/50">
       <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-zinc-900/50 transition-colors group"
+        className="flex items-center justify-between p-3 cursor-pointer hover:bg-zinc-900/50 transition-colors group select-none"
         onClick={() => toggleSection(id)}
       >
         <div className="flex items-center gap-2">
@@ -71,12 +71,12 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         </div>
         {(sections as any)[id] ? <ChevronDown size={12} className="text-zinc-600" /> : <ChevronRight size={12} className="text-zinc-600" />}
       </div>
-      {(sections as any)[id] && <div className="p-4 pt-0 flex flex-col gap-4">{children}</div>}
+      {(sections as any)[id] && <div className="p-4 pt-0 flex flex-col gap-4 animate-in slide-in-from-top-1 duration-200">{children}</div>}
     </div>
   );
 
   return (
-    <div className="w-72 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0">
+    <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
       <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10">
         <div className="flex items-center gap-2 mb-1">
           {isSubtitle ? <Type size={14} className="text-indigo-400" /> : <MonitorPlay size={14} className="text-emerald-400" />}
@@ -84,59 +84,88 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
             {isSubtitle ? 'Text' : 'Video'} Properties
           </h2>
         </div>
-        <p className="text-[9px] font-mono text-zinc-600 truncate">{selectedClip.id}</p>
+        <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedClip.id}</p>
       </div>
 
       {/* Text Section (Subtitles Only) */}
       {isSubtitle && (
         <Section id="text" title="Text Content" icon={Type}>
-          <textarea
-            value={editingText}
-            onChange={(e) => setEditingText(e.target.value)}
-            onBlur={() => updateClip({ content: editingText }, true)}
-            className="bg-[#080808] border border-zinc-800 rounded p-2 text-xs text-white resize-y min-h-[80px] focus:border-indigo-500 outline-none block w-full font-sans"
-            placeholder="Enter text..."
-          />
-          <div className="flex items-center gap-2">
-             <input 
-               type="checkbox" 
-               checked={applyToAll} 
-               onChange={(e) => setApplyToAll(e.target.checked)}
-               className="rounded bg-zinc-900 border-zinc-700 text-indigo-500 focus:ring-0"
-             />
-             <span className="text-[9px] uppercase font-bold text-zinc-500">Apply to Track</span>
+          <div className="flex flex-col gap-3">
+            <textarea
+              value={editingText}
+              onChange={(e) => {
+                setEditingText(e.target.value);
+                // Live update for text content
+                updateClip({ content: e.target.value }, false);
+              }}
+              onBlur={() => updateClip({ content: editingText }, true)}
+              className="bg-[#080808] border border-zinc-800 rounded-lg p-3 text-xs text-white resize-y min-h-[100px] focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none block w-full font-sans transition-all placeholder:text-zinc-700"
+              placeholder="Enter subtitle text..."
+            />
+            
+            <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/50">
+               <div className="flex items-center gap-2">
+                  <input 
+                    type="checkbox" 
+                    id="applyToAll"
+                    checked={applyToAll} 
+                    onChange={(e) => setApplyToAll(e.target.checked)}
+                    className="rounded bg-zinc-800 border-zinc-700 text-indigo-500 focus:ring-0 w-3 h-3 cursor-pointer"
+                  />
+                  <label htmlFor="applyToAll" className="text-[9px] uppercase font-bold text-zinc-500 cursor-pointer select-none hover:text-zinc-300 transition-colors">Apply Style to Track</label>
+               </div>
+            </div>
           </div>
         </Section>
       )}
 
       {/* Style Section (Subtitles Only) */}
       {isSubtitle && (
-        <Section id="style" title="Appearance" icon={Palette}>
-           <div className="grid grid-cols-2 gap-4">
-             <div className="flex flex-col gap-1">
-                <label className="text-[9px] text-zinc-500 font-mono uppercase">Font</label>
-                <select 
-                  value={selectedClip.font || 'Inter, sans-serif'}
-                  onChange={(e) => updateClip({ font: e.target.value }, true)}
-                  className="bg-[#080808] border border-zinc-800 rounded p-1 text-[10px] text-white outline-none"
-                >
-                  <option value="Inter, sans-serif">Inter</option>
-                  <option value="Arial, sans-serif">Arial</option>
-                  <option value="'Courier New', monospace">Courier</option>
-                  <option value="'Impact', sans-serif">Impact</option>
-                </select>
+        <Section id="style" title="Typography" icon={Palette}>
+           <div className="flex flex-col gap-4">
+             <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                   <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Family</label>
+                   <select 
+                     value={selectedClip.font || 'Inter, sans-serif'}
+                     onChange={(e) => updateClip({ font: e.target.value }, true)}
+                     className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none focus:border-indigo-500/50 transition-colors"
+                   >
+                     <option value="Inter, sans-serif">Inter</option>
+                     <option value="Arial, sans-serif">Arial</option>
+                     <option value="'Courier New', monospace">Courier New</option>
+                     <option value="'Georgia', serif">Georgia</option>
+                     <option value="'Impact', sans-serif">Impact</option>
+                     <option value="'Comic Sans MS', cursive">Comic Sans</option>
+                   </select>
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                   <label className="text-[9px] text-zinc-500 font-mono uppercase">Color</label>
+                   <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded-md p-1 relative overflow-hidden group hover:border-zinc-700 transition-colors">
+                     <input
+                       type="color"
+                       value={selectedClip.color || '#ffffff'}
+                       onChange={(e) => updateClip({ color: e.target.value }, true)}
+                       className="absolute inset-0 opacity-0 w-full h-full cursor-pointer z-10"
+                     />
+                     <div className="w-6 h-6 rounded border border-white/10 shadow-sm" style={{ backgroundColor: selectedClip.color || '#ffffff' }} />
+                     <span className="text-[10px] font-mono text-zinc-400 group-hover:text-white transition-colors">{selectedClip.color || '#ffffff'}</span>
+                   </div>
+                </div>
              </div>
-             <div className="flex flex-col gap-1">
-                <label className="text-[9px] text-zinc-500 font-mono uppercase">Color</label>
-                <div className="flex items-center gap-2 bg-[#080808] border border-zinc-800 rounded p-1 h-[26px] relative overflow-hidden">
-                  <input
-                    type="color"
-                    value={selectedClip.color || '#ffffff'}
-                    onChange={(e) => updateClip({ color: e.target.value }, true)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  />
-                  <div className="w-4 h-4 rounded-sm border border-white/10" style={{ backgroundColor: selectedClip.color || '#ffffff' }} />
-                  <span className="text-[9px] font-mono text-zinc-400">{selectedClip.color || '#fff'}</span>
+
+             <div className="flex items-center justify-between bg-zinc-900/30 p-1 rounded-lg border border-zinc-800/50">
+                <div className="flex gap-1">
+                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><AlignLeft size={12} /></button>
+                  <button className="p-1.5 rounded bg-zinc-800 text-white shadow-sm"><AlignCenter size={12} /></button>
+                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><AlignRight size={12} /></button>
+                </div>
+                <div className="w-px h-4 bg-zinc-800" />
+                <div className="flex gap-1">
+                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Bold size={12} /></button>
+                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Italic size={12} /></button>
+                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Underline size={12} /></button>
                 </div>
              </div>
            </div>
@@ -146,33 +175,40 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
       {/* Transform Section (All Visual Clips) */}
       {isVisual && (
         <Section id="transform" title="Transform" icon={Layers}>
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <ProSlider 
-                label="Position X" 
-                value={(selectedClip.position?.x ?? 0.5) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, true)}
-                previewId="posX"
-                clipId={selectedClip.id}
-                min={0}
-                max={100}
-                step={0.1}
-                unit="%"
-              />
-              <ProSlider 
-                label="Position Y" 
-                value={(selectedClip.position?.y ?? 0.9) * 100} 
-                onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, true)}
-                previewId="posY"
-                clipId={selectedClip.id}
-                min={0}
-                max={100}
-                step={0.1}
-                unit="%"
-              />
+          <div className="space-y-5">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] text-zinc-500 font-mono uppercase">Position</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <ProSlider 
+                  label="X" 
+                  value={(selectedClip.position?.x ?? 0.5) * 100} 
+                  onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, true)}
+                  previewId="posX"
+                  clipId={selectedClip.id}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  unit="%"
+                />
+                <ProSlider 
+                  label="Y" 
+                  value={(selectedClip.position?.y ?? 0.9) * 100} 
+                  onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, true)}
+                  previewId="posY"
+                  clipId={selectedClip.id}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  unit="%"
+                />
+              </div>
             </div>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="h-px bg-zinc-800/50" />
+
+            <div className="space-y-3">
               <ProSlider 
                 label="Scale" 
                 value={(selectedClip.scale ?? 1) * 100} 
@@ -203,30 +239,34 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
       {/* Effects Section (Disabled / Placeholder) */}
       {isVisual && (
         <Section id="effects" title="Effects" icon={Ghost}>
-          <div className="space-y-4 opacity-50 pointer-events-none grayscale">
-             <div className="flex flex-col gap-1.5">
+          <div className="space-y-4 opacity-40 pointer-events-none grayscale select-none">
+             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-2">
-                      <Sun size={10} />
+                      <Sun size={12} />
                       <span className="text-[10px] uppercase font-mono">Opacity</span>
                    </div>
-                   <span className="text-[9px] bg-zinc-800 px-1 rounded">100%</span>
+                   <span className="text-[9px] bg-zinc-800 px-1.5 py-0.5 rounded text-zinc-400">100%</span>
                 </div>
                 <div className="h-1 bg-zinc-800 rounded-full w-full overflow-hidden">
                    <div className="h-full bg-zinc-600 w-full" />
                 </div>
              </div>
-             <div className="flex flex-col gap-1.5">
+             <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">
                    <div className="flex items-center gap-2">
-                      <Ghost size={10} />
-                      <span className="text-[10px] uppercase font-mono">Shadow</span>
+                      <Ghost size={12} />
+                      <span className="text-[10px] uppercase font-mono">Drop Shadow</span>
                    </div>
-                   <span className="text-[9px] bg-zinc-800 px-1 rounded">OFF</span>
+                   <div className="w-8 h-4 bg-zinc-800 rounded-full relative">
+                      <div className="absolute left-0.5 top-0.5 w-3 h-3 bg-zinc-600 rounded-full" />
+                   </div>
                 </div>
              </div>
-             <div className="text-[9px] text-zinc-600 text-center italic pt-2">
-                Advanced effects coming in v2.1
+             <div className="p-3 bg-zinc-900/30 rounded-lg border border-zinc-800/30 text-center">
+                <p className="text-[9px] text-zinc-600 italic">
+                   Advanced effects module locked.<br/>Upgrade to v2.1
+                </p>
              </div>
           </div>
         </Section>

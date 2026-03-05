@@ -279,6 +279,7 @@ const App: React.FC = () => {
           <div className="h-[55%] flex border-b border-zinc-800/50">
             <Library assets={store.assets} onAddAsset={store.addAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
             <PreviewPlayer store={store} />
+            <PropertiesPanel store={store} />
           </div>
           <Timeline 
             project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
@@ -292,8 +293,6 @@ const App: React.FC = () => {
             onImportSubtitles={handleImportSubtitles}
           />
         </div>
-        
-        <PropertiesPanel store={store} />
       </main>
       
       {isShortcutModalOpen && <ShortcutModal shortcuts={shortcutStore.shortcuts} onUpdate={shortcutStore.updateShortcut} onClose={() => setIsShortcutModalOpen(false)} />}
