@@ -54,8 +54,12 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         updates.font, 
         updates.scale, 
         updates.rotation,
-        undefined, // scaleX
-        undefined, // scaleY
+        updates.scaleX, 
+        updates.scaleY, 
+        updates.opacity, 
+        updates.shadow, 
+        updates.fontWeight, 
+        updates.textAlign, 
         finalize
       );
     } else {

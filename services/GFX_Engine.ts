@@ -16,7 +16,7 @@ export class GFX_Engine {
     // Render GFX clips (Text, Overlays) that are not handled by the subtitle system
     // We iterate through video tracks and look for clips with content or GFX properties
     project.tracks
-      .filter(t => t.isVisible)
+      .filter(t => t.isVisible && t.type !== 'subtitle')
       .forEach(track => {
         track.clips.forEach(clip => {
           if (currentTime >= clip.startTime && currentTime <= clip.startTime + clip.duration) {
