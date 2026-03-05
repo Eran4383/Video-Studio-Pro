@@ -2,6 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 
+const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => (
+  <div className="border-b border-zinc-800/50">
+    <div 
+      className="flex items-center justify-between p-3 cursor-pointer hover:bg-zinc-900/50 transition-colors group select-none"
+      onClick={() => onToggle(id)}
+    >
+      <div className="flex items-center gap-2">
+        {Icon && <Icon size={12} className="text-zinc-500 group-hover:text-zinc-300" />}
+        <span className="text-[10px] font-black uppercase text-zinc-500 group-hover:text-zinc-300 tracking-wider">{title}</span>
+      </div>
+      {isOpen ? <ChevronDown size={12} className="text-zinc-600" /> : <ChevronRight size={12} className="text-zinc-600" />}
+    </div>
+    {isOpen && <div className="p-4 pt-0 flex flex-col gap-4 animate-in slide-in-from-top-1 duration-200">{children}</div>}
+  </div>
+);
+
 export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const { selectedClipIds, project, setProject, finalizeMove, updateSubtitle, applyToAll, setApplyToAll } = store;
   
@@ -59,22 +75,6 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   const toggleSection = (key: string) => setSections(p => ({ ...p, [key]: !p[key] } as any));
 
-  const Section = ({ id, title, icon: Icon, children }: any) => (
-    <div className="border-b border-zinc-800/50">
-      <div 
-        className="flex items-center justify-between p-3 cursor-pointer hover:bg-zinc-900/50 transition-colors group select-none"
-        onClick={() => toggleSection(id)}
-      >
-        <div className="flex items-center gap-2">
-          {Icon && <Icon size={12} className="text-zinc-500 group-hover:text-zinc-300" />}
-          <span className="text-[10px] font-black uppercase text-zinc-500 group-hover:text-zinc-300 tracking-wider">{title}</span>
-        </div>
-        {(sections as any)[id] ? <ChevronDown size={12} className="text-zinc-600" /> : <ChevronRight size={12} className="text-zinc-600" />}
-      </div>
-      {(sections as any)[id] && <div className="p-4 pt-0 flex flex-col gap-4 animate-in slide-in-from-top-1 duration-200">{children}</div>}
-    </div>
-  );
-
   return (
     <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
       <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10">
@@ -89,7 +89,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
       {/* Text Section (Subtitles Only) */}
       {isSubtitle && (
-        <Section id="text" title="Text Content" icon={Type}>
+        <Section id="text" title="Text Content" icon={Type} isOpen={sections.text} onToggle={toggleSection}>
           <div className="flex flex-col gap-3">
             <textarea
               value={editingText}
@@ -121,7 +121,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
       {/* Style Section (Subtitles Only) */}
       {isSubtitle && (
-        <Section id="style" title="Typography" icon={Palette}>
+        <Section id="style" title="Typography" icon={Palette} isOpen={sections.style} onToggle={toggleSection}>
            <div className="flex flex-col gap-4">
              <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1.5">
@@ -174,7 +174,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
       {/* Transform Section (All Visual Clips) */}
       {isVisual && (
-        <Section id="transform" title="Transform" icon={Layers}>
+        <Section id="transform" title="Transform" icon={Layers} isOpen={sections.transform} onToggle={toggleSection}>
           <div className="space-y-5">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
@@ -238,7 +238,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
       {/* Effects Section (Disabled / Placeholder) */}
       {isVisual && (
-        <Section id="effects" title="Effects" icon={Ghost}>
+        <Section id="effects" title="Effects" icon={Ghost} isOpen={sections.effects} onToggle={toggleSection}>
           <div className="space-y-4 opacity-40 pointer-events-none grayscale select-none">
              <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between">

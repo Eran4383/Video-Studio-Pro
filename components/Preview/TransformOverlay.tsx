@@ -11,6 +11,8 @@ interface TransformOverlayProps {
 export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<string | null>(null);
+  const [liveOverrides, setLiveOverrides] = useState<Record<string, any>>({});
+  
   const startRef = useRef({ 
     x: 0, y: 0, 
     clipX: 0, clipY: 0, 
@@ -19,6 +21,38 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     startWidth: 0, startHeight: 0 
   });
   const [dimensions, setDimensions] = useState({ width: 100, height: 50 });
+
+  // Listen for Live Overrides (from Sliders)
+  useEffect(() => {
+    const handleOverride = (e: Event) => {
+      const { clipId, property, value } = (e as CustomEvent).detail;
+      if (clipId !== clip.id) return;
+
+      setLiveOverrides(prev => {
+        const next = { ...prev };
+        if (property === 'posX') next.x = value / 100;
+        if (property === 'posY') next.y = value / 100;
+        if (property === 'scale') {
+           next.scale = value / 100;
+           next.scaleX = value / 100;
+           next.scaleY = value / 100;
+        }
+        if (property === 'rotation') next.rotation = value;
+        return next;
+      });
+    };
+
+    const handleClear = () => {
+      setLiveOverrides({});
+    };
+
+    window.addEventListener('gfx-override', handleOverride);
+    window.addEventListener('gfx-override-clear', handleClear);
+    return () => {
+      window.removeEventListener('gfx-override', handleOverride);
+      window.removeEventListener('gfx-override-clear', handleClear);
+    };
+  }, [clip.id]);
 
   // Measure text dimensions
   useEffect(() => {
@@ -44,17 +78,26 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     
     setIsDragging(true);
     setDragMode(mode);
+
+    // Use active values (override or clip)
+    const activeX = liveOverrides.x ?? clip.position?.x ?? 0.5;
+    const activeY = liveOverrides.y ?? clip.position?.y ?? 0.9;
+    const activeScale = liveOverrides.scale ?? clip.scale ?? 1;
+    const activeRotation = liveOverrides.rotation ?? clip.rotation ?? 0;
+    const activeScaleX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
+    const activeScaleY = liveOverrides.scaleY ?? clip.scaleY ?? clip.scale ?? 1;
+
     startRef.current = {
       x: e.clientX,
       y: e.clientY,
-      clipX: clip.position?.x ?? 0.5,
-      clipY: clip.position?.y ?? 0.9,
-      clipScale: clip.scale ?? 1,
-      clipRotation: clip.rotation ?? 0,
-      clipScaleX: clip.scaleX ?? clip.scale ?? 1,
-      clipScaleY: clip.scaleY ?? clip.scale ?? 1,
-      startWidth: dimensions.width * (clip.scaleX ?? clip.scale ?? 1),
-      startHeight: dimensions.height * (clip.scaleY ?? clip.scale ?? 1)
+      clipX: activeX,
+      clipY: activeY,
+      clipScale: activeScale,
+      clipRotation: activeRotation,
+      clipScaleX: activeScaleX,
+      clipScaleY: activeScaleY,
+      startWidth: dimensions.width * activeScaleX,
+      startHeight: dimensions.height * activeScaleY
     };
   };
 
@@ -133,16 +176,21 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
   }, [isDragging, dragMode, containerRef, onUpdate, onFinalize, dimensions]);
 
   const { left, top, width, height, transform } = useMemo(() => {
-    const sX = clip.scaleX ?? clip.scale ?? 1;
-    const sY = clip.scaleY ?? clip.scale ?? 1;
+    // Use active values (override or clip)
+    const x = liveOverrides.x ?? clip.position?.x ?? 0.5;
+    const y = liveOverrides.y ?? clip.position?.y ?? 0.9;
+    const sX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
+    const sY = liveOverrides.scaleY ?? clip.scaleY ?? clip.scale ?? 1;
+    const rot = liveOverrides.rotation ?? clip.rotation ?? 0;
+
     return {
-        left: `${(clip.position?.x ?? 0.5) * 100}%`,
-        top: `${(clip.position?.y ?? 0.9) * 100}%`,
+        left: `${x * 100}%`,
+        top: `${y * 100}%`,
         width: `${dimensions.width * sX}px`,
         height: `${dimensions.height * sY}px`,
-        transform: `translate(-50%, -50%) rotate(${clip.rotation ?? 0}deg)`
+        transform: `translate(-50%, -50%) rotate(${rot}deg)`
     };
-  }, [clip.position, clip.scale, clip.scaleX, clip.scaleY, clip.rotation, dimensions]);
+  }, [clip.position, clip.scale, clip.scaleX, clip.scaleY, clip.rotation, dimensions, liveOverrides]);
 
   const Handle = ({ className, cursor, mode }: { className: string, cursor: string, mode: string }) => (
     <div
