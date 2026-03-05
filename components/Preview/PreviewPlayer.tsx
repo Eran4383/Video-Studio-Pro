@@ -293,6 +293,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       // Direct DOM Manipulation for Subtitles (60FPS)
       const subDom = document.getElementById(`sub-dom-${clipId}`);
       const subText = document.getElementById(`sub-text-${clipId}`);
+      const mediaDom = document.getElementById(`media-dom-${clipId}`);
       
       if (subDom && subText) {
          if (property === 'posX') {
@@ -310,6 +311,23 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
          }
          if (property === 'opacity') {
              subDom.style.opacity = `${value / 100}`;
+         }
+      }
+
+      if (mediaDom) {
+         if (property === 'posX') {
+             mediaDom.style.left = `${value}%`;
+         }
+         if (property === 'posY') {
+             mediaDom.style.top = `${value}%`;
+         }
+         
+         // We need to combine rotation and scale
+         const currentRot = liveOverrides.current[clipId]?.rotation ?? project.tracks.flatMap(t => t.clips).find(c => c.id === clipId)?.rotation ?? 0;
+         const currentScale = liveOverrides.current[clipId]?.scale ?? project.tracks.flatMap(t => t.clips).find(c => c.id === clipId)?.scale ?? 1;
+
+         if (property === 'rotation' || property === 'scale') {
+             mediaDom.style.transform = `translate(-50%, -50%) rotate(${currentRot}deg) scale(${currentScale})`;
          }
       }
     };
@@ -541,23 +559,33 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           }}
         >
           {activeVideoAsset ? (
-            activeVideoAsset.type === 'VIDEO' ? (
-              <video 
-                key={activeVideoAsset.id}
-                ref={videoRef} 
-                src={activeVideoAsset.url} 
-                className="w-full h-full object-contain pointer-events-none" 
-                playsInline
-                muted={isVideoSilenceNeeded}
-              />
-            ) : (
-              <img 
-                key={activeVideoAsset.id}
-                src={activeVideoAsset.url} 
-                className="w-full h-full object-contain pointer-events-none" 
-                referrerPolicy="no-referrer" 
-              />
-            )
+            <div 
+              id={`media-dom-${activeVideoClip?.id}`}
+              className="absolute w-full h-full pointer-events-none"
+              style={{
+                left: `${(activeVideoClip?.position?.x ?? 0.5) * 100}%`,
+                top: `${(activeVideoClip?.position?.y ?? 0.5) * 100}%`,
+                transform: `translate(-50%, -50%) rotate(${activeVideoClip?.rotation || 0}deg) scale(${activeVideoClip?.scale || 1})`
+              }}
+            >
+              {activeVideoAsset.type === 'VIDEO' ? (
+                <video 
+                  key={activeVideoAsset.id}
+                  ref={videoRef} 
+                  src={activeVideoAsset.url} 
+                  className="w-full h-full object-contain" 
+                  playsInline
+                  muted={isVideoSilenceNeeded}
+                />
+              ) : (
+                <img 
+                  key={activeVideoAsset.id}
+                  src={activeVideoAsset.url} 
+                  className="w-full h-full object-contain" 
+                  referrerPolicy="no-referrer" 
+                />
+              )}
+            </div>
           ) : (
             project.tracks.length === 0 && (
               <div className="text-zinc-800 text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">Monitor Standby...</div>

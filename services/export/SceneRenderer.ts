@@ -103,8 +103,8 @@ export class SceneRenderer {
 
     this.ctx.save();
     
-    // Dynamic font sizing based on video height (5% of height to match Overlay)
-    const baseFontSize = this.height * 0.05; 
+    // Dynamic font sizing based on video width (2.2% of width to match 1.25rem on 1920px)
+    const baseFontSize = this.width * 0.022; 
     const scale = Number(clip.scale) || 1;
     const scaleX = Number(clip.scaleX ?? scale);
     const scaleY = Number(clip.scaleY ?? scale);
@@ -155,10 +155,23 @@ export class SceneRenderer {
     // Draw centered at (0,0) relative to transform
     const startY = -(totalHeight / 2) + (lineHeight / 2);
 
+    // Calculate max block width for alignment offsets
+    let blockWidth = 0;
+    lines.forEach(l => {
+        const w = this.ctx.measureText(l).width;
+        if (w > blockWidth) blockWidth = w;
+    });
+
     lines.forEach((l, i) => {
         const lineY = startY + (i * lineHeight);
-        this.ctx.strokeText(l, 0, lineY);
-        this.ctx.fillText(l, 0, lineY);
+        let lineX = 0;
+        
+        // Adjust X based on alignment relative to the center anchor
+        if (clip.textAlign === 'left') lineX = -blockWidth / 2;
+        if (clip.textAlign === 'right') lineX = blockWidth / 2;
+        
+        this.ctx.strokeText(l, lineX, lineY);
+        this.ctx.fillText(l, lineX, lineY);
     });
 
     this.ctx.restore();
