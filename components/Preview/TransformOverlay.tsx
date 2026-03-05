@@ -10,7 +10,7 @@ interface TransformOverlayProps {
 
 export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [dragMode, setDragMode] = useState<'MOVE' | 'RESIZE_TL' | 'RESIZE_TR' | 'RESIZE_BL' | 'RESIZE_BR' | 'RESIZE_T' | 'RESIZE_B' | 'RESIZE_L' | 'RESIZE_R' | 'ROTATE' | null>(null);
+  const [dragMode, setDragMode] = useState<string | null>(null);
   const startRef = useRef({ 
     x: 0, y: 0, 
     clipX: 0, clipY: 0, 
@@ -37,12 +37,10 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     }
   }, [clip.content, clip.font, containerRef.current?.clientHeight]);
 
-  const handleMouseDown = (e: React.MouseEvent, mode: any) => {
+  const handleMouseDown = (e: React.MouseEvent, mode: string) => {
     e.stopPropagation();
     e.preventDefault();
     if (!containerRef.current) return;
-    
-    const rect = containerRef.current.getBoundingClientRect();
     
     setIsDragging(true);
     setDragMode(mode);
@@ -81,10 +79,6 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
         onUpdate({ x: startRef.current.clipX, y: startRef.current.clipY }, startRef.current.clipScale, newRotation, startRef.current.clipScaleX, startRef.current.clipScaleY);
       } else {
         // Resizing logic
-        // We need to calculate new scaleX and scaleY based on handle movement
-        // This is simplified: we assume center anchor for now, but usually handles anchor opposite side.
-        // For simplicity in this iteration, we'll implement center-based scaling which is easier with current data model (position is center).
-        
         // Rotate delta back to local space
         const rad = -(startRef.current.clipRotation * Math.PI) / 180;
         const localDeltaX = deltaX * Math.cos(rad) - deltaY * Math.sin(rad);
@@ -105,16 +99,16 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
         if (shiftKey) {
            // Lock aspect ratio
            const ratio = startRef.current.clipScaleX / startRef.current.clipScaleY;
-           if (dragMode.includes('L') || dragMode.includes('R')) {
-               newScaleY = newScaleX / ratio;
-           } else {
+           if (dragMode.includes('T') || dragMode.includes('B')) {
                newScaleX = newScaleY * ratio;
+           } else {
+               newScaleY = newScaleX / ratio;
            }
         }
 
         onUpdate(
             { x: startRef.current.clipX, y: startRef.current.clipY }, 
-            Math.max(newScaleX, newScaleY), // Update master scale to max of both? Or keep it as is?
+            Math.max(newScaleX, newScaleY), // Update master scale to max of both
             startRef.current.clipRotation,
             newScaleX,
             newScaleY

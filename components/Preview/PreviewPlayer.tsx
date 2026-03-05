@@ -271,6 +271,32 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const lastFpsTimeRef = useRef(performance.now());
   const lastGlobalUpdateRef = useRef(performance.now());
 
+  // --- Preview Update Listener ---
+  useEffect(() => {
+    const handlePreviewUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      const { property, value } = customEvent.detail;
+      
+      if (!selectedClip || !updateSubtitle) return;
+
+      let pos = selectedClip.position || { x: 0.5, y: 0.9 };
+      let scale = selectedClip.scale || 1;
+      let rot = selectedClip.rotation || 0;
+      let sX = selectedClip.scaleX;
+      let sY = selectedClip.scaleY;
+
+      if (property === 'posX') pos = { ...pos, x: value / 100 };
+      if (property === 'posY') pos = { ...pos, y: value / 100 };
+      if (property === 'scale') { scale = value / 100; sX = value / 100; sY = value / 100; }
+      if (property === 'rotation') rot = value;
+
+      updateSubtitle(selectedClip.id, undefined, pos, false, undefined, undefined, scale, rot, sX, sY, false);
+    };
+
+    window.addEventListener('preview-update', handlePreviewUpdate);
+    return () => window.removeEventListener('preview-update', handlePreviewUpdate);
+  }, [selectedClip, updateSubtitle]);
+
   // --- Animation Loop ---
   const animate = (time: number) => {
     if (isPlaying) {
