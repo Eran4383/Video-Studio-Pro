@@ -76,12 +76,15 @@ export class SceneRenderer {
 
     this.ctx.save();
     
-    // Dynamic font sizing based on video height (4% of height)
-    const baseFontSize = this.height * 0.04; 
+    // Dynamic font sizing based on video height (5% of height to match Overlay)
+    const baseFontSize = this.height * 0.05; 
     const scale = Number(clip.scale) || 1;
-    const fontSize = baseFontSize * scale;
+    const scaleX = Number(clip.scaleX ?? scale);
+    const scaleY = Number(clip.scaleY ?? scale);
     
-    this.ctx.font = `bold ${fontSize}px ${clip.font || 'Arial, sans-serif'}`;
+    const fontSize = baseFontSize;
+    
+    this.ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
     this.ctx.lineJoin = "round";
@@ -93,15 +96,14 @@ export class SceneRenderer {
     const x = (Number(clip.position?.x) ?? 0.5) * this.width;
     const y = (Number(clip.position?.y) ?? 0.9) * this.height;
     
-    // Rotation
+    this.ctx.translate(x, y);
     if (clip.rotation) {
-      this.ctx.translate(x, y);
       this.ctx.rotate((Number(clip.rotation) * Math.PI) / 180);
-      this.ctx.translate(-x, -y);
     }
+    this.ctx.scale(scaleX, scaleY);
     
     // Word Wrap
-    const maxWidth = this.width * 0.8;
+    const maxWidth = (this.width * 0.8) / scaleX;
     const words = String(clip.content).split(' ');
     let line = '';
     const lines: string[] = [];
@@ -121,12 +123,13 @@ export class SceneRenderer {
     // Draw Lines
     const lineHeight = fontSize * 1.2;
     const totalHeight = lines.length * lineHeight;
-    const startY = y - (totalHeight / 2) + (lineHeight / 2);
+    // Draw centered at (0,0) relative to transform
+    const startY = -(totalHeight / 2) + (lineHeight / 2);
 
     lines.forEach((l, i) => {
         const lineY = startY + (i * lineHeight);
-        this.ctx.strokeText(l, x, lineY);
-        this.ctx.fillText(l, x, lineY);
+        this.ctx.strokeText(l, 0, lineY);
+        this.ctx.fillText(l, 0, lineY);
     });
 
     this.ctx.restore();

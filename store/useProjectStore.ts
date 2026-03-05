@@ -311,7 +311,7 @@ export const useProjectStore = () => {
     });
   }, [assets, selectedClipIds]);
 
-  const updateSubtitle = useCallback((clipId: string | string[], content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, finalize: boolean = true) => {
+  const updateSubtitle = useCallback((clipId: string | string[], content?: string, position?: {x: number, y: number}, applyToAll?: boolean, color?: string, font?: string, scale?: number, rotation?: number, scaleX?: number, scaleY?: number, finalize: boolean = true) => {
     setProject(prev => {
       const targetIds = Array.isArray(clipId) ? clipId : [clipId];
       
@@ -342,6 +342,8 @@ export const useProjectStore = () => {
                   ...(color !== undefined ? { color } : {}),
                   ...(font !== undefined ? { font } : {}),
                   ...(scale !== undefined ? { scale } : {}),
+                  ...(scaleX !== undefined ? { scaleX } : {}),
+                  ...(scaleY !== undefined ? { scaleY } : {}),
                   ...(rotation !== undefined ? { rotation } : {})
                 };
               } else if (applyToAll) {
@@ -358,6 +360,8 @@ export const useProjectStore = () => {
                   ...(color !== undefined ? { color } : {}),
                   ...(font !== undefined ? { font } : {}),
                   ...(scale !== undefined ? { scale } : {}),
+                  ...(scaleX !== undefined ? { scaleX } : {}),
+                  ...(scaleY !== undefined ? { scaleY } : {}),
                   ...(rotation !== undefined ? { rotation } : {})
                 };
               }

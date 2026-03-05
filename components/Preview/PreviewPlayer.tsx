@@ -235,13 +235,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
       lastSubPosRef.current = { x: newX, y: newY };
 
-      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, false);
+      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, false);
     }
   };
 
   const handleSubMouseUp = () => {
     if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
-      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, true);
+      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
       lastSubPosRef.current = null;
     }
     setIsDraggingSub(false);
@@ -260,7 +260,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
     if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
     if (editingSubId && updateSubtitle) {
-      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, false);
+      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, false);
     }
     setEditingSubId(null);
   };
@@ -522,15 +522,15 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
             <TransformOverlay 
               clip={selectedClip}
               containerRef={containerRef}
-              onUpdate={(pos, scale, rot) => {
+              onUpdate={(pos, scale, rot, scaleX, scaleY) => {
                 if (updateSubtitle) {
-                  updateSubtitle(selectedClip.id, undefined, pos, applyToAll, undefined, undefined, scale, rot, false);
+                  updateSubtitle(selectedClip.id, undefined, pos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
                 }
               }}
               onFinalize={() => {
                  if (updateSubtitle) {
                    // Trigger finalize
-                   updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, true);
+                   updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
                  }
               }}
             />

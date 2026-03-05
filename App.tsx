@@ -275,7 +275,7 @@ const App: React.FC = () => {
           <Tooltip text="System Diagnostics" position="right"><button onClick={() => setIsDiagnosticsModalOpen(true)} className="text-zinc-600 hover:text-indigo-400 transition-all"><Bug size={22} /></button></Tooltip>
         </aside>
 
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="h-[55%] flex border-b border-zinc-800/50">
             <Library assets={store.assets} onAddAsset={store.addAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
             <PreviewPlayer store={store} />

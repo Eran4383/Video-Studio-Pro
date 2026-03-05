@@ -37,7 +37,9 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         updates.color, 
         updates.font, 
         updates.scale, 
-        updates.rotation, 
+        updates.rotation,
+        undefined, // scaleX
+        undefined, // scaleY
         finalize
       );
     } else {
@@ -74,7 +76,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   );
 
   return (
-    <div className="w-72 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar">
+    <div className="w-72 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0">
       <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10">
         <div className="flex items-center gap-2 mb-1">
           {isSubtitle ? <Type size={14} className="text-indigo-400" /> : <MonitorPlay size={14} className="text-emerald-400" />}

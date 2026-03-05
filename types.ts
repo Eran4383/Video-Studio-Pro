@@ -31,7 +31,9 @@ export interface Clip {
   position?: { x: number; y: number }; // Relative position (0-1) for text/subtitles
   color?: string; // Text color for subtitle clips
   font?: string; // Font family for subtitle clips
-  scale?: number; // Scale factor for subtitle clips
+  scale?: number; // Scale factor for subtitle clips (Uniform)
+  scaleX?: number; // Scale factor X
+  scaleY?: number; // Scale factor Y
   rotation?: number; // Rotation in degrees
 }
 
