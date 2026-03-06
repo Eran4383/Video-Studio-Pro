@@ -96,12 +96,12 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     setDragMode(mode);
 
     // Use active values (override or clip)
-    const activeX = liveOverrides.x ?? clip.position?.x ?? 0.5;
-    const activeY = liveOverrides.y ?? clip.position?.y ?? (clip.content ? 0.9 : 0.5);
-    const activeScale = liveOverrides.scale ?? clip.scale ?? 1;
-    const activeRotation = liveOverrides.rotation ?? clip.rotation ?? 0;
-    const activeScaleX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
-    const activeScaleY = liveOverrides.scaleY ?? clip.scaleY ?? clip.scale ?? 1;
+    const activeX = liveOverrides.posX !== undefined ? liveOverrides.posX / 100 : (clip.position?.x ?? 0.5);
+    const activeY = liveOverrides.posY !== undefined ? liveOverrides.posY / 100 : (clip.position?.y ?? (clip.content ? 0.9 : 0.5));
+    const activeScale = liveOverrides.scale !== undefined ? liveOverrides.scale / 100 : (clip.scale ?? 1);
+    const activeRotation = liveOverrides.rotation !== undefined ? liveOverrides.rotation : (clip.rotation ?? 0);
+    const activeScaleX = liveOverrides.scaleX !== undefined ? liveOverrides.scaleX / 100 : (clip.scaleX ?? clip.scale ?? 1);
+    const activeScaleY = liveOverrides.scaleY !== undefined ? liveOverrides.scaleY / 100 : (clip.scaleY ?? clip.scale ?? 1);
 
     startRef.current = {
       x: e.clientX,
@@ -193,11 +193,11 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
 
   const { left, top, width, height, transform } = useMemo(() => {
     // Use active values (override or clip)
-    const x = liveOverrides.x ?? clip.position?.x ?? 0.5;
-    const y = liveOverrides.y ?? clip.position?.y ?? (clip.content ? 0.9 : 0.5);
-    const sX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
-    const sY = liveOverrides.scaleY ?? clip.scaleY ?? clip.scale ?? 1;
-    const rot = liveOverrides.rotation ?? clip.rotation ?? 0;
+    const x = liveOverrides.posX !== undefined ? liveOverrides.posX / 100 : (clip.position?.x ?? 0.5);
+    const y = liveOverrides.posY !== undefined ? liveOverrides.posY / 100 : (clip.position?.y ?? (clip.content ? 0.9 : 0.5));
+    const sX = liveOverrides.scaleX !== undefined ? liveOverrides.scaleX / 100 : (clip.scaleX ?? clip.scale ?? 1);
+    const sY = liveOverrides.scaleY !== undefined ? liveOverrides.scaleY / 100 : (clip.scaleY ?? clip.scale ?? 1);
+    const rot = liveOverrides.rotation !== undefined ? liveOverrides.rotation : (clip.rotation ?? 0);
 
     return {
         left: `${x * 100}%`,

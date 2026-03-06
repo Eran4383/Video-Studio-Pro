@@ -295,7 +295,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       // Direct DOM Manipulation for Subtitles (60FPS)
       const subDom = document.getElementById(`sub-dom-${clipId}`);
       const subText = document.getElementById(`sub-text-${clipId}`);
-      const mediaDom = document.getElementById(`media-dom-${clipId}`);
       
       if (subDom && subText) {
          if (property === 'posX') {
@@ -315,23 +314,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
              subDom.style.opacity = `${value / 100}`;
          }
       }
-
-      if (mediaDom) {
-         if (property === 'posX') {
-             mediaDom.style.left = `${value}%`;
-         }
-         if (property === 'posY') {
-             mediaDom.style.top = `${value}%`;
-         }
-         
-         // We need to combine rotation and scale
-         const currentRot = liveOverrides.current[clipId]?.rotation ?? project.tracks.flatMap(t => t.clips).find(c => c.id === clipId)?.rotation ?? 0;
-         const currentScale = liveOverrides.current[clipId]?.scale ?? project.tracks.flatMap(t => t.clips).find(c => c.id === clipId)?.scale ?? 1;
-
-         if (property === 'rotation' || property === 'scale') {
-             mediaDom.style.transform = `translate(-50%, -50%) rotate(${currentRot}deg) scale(${currentScale})`;
-         }
-      }
     };
 
     const handleClear = () => {
@@ -345,6 +327,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       window.removeEventListener('gfx-override-clear', handleClear);
     };
   }, []);
+
+  const imageRef = useRef<HTMLImageElement>(null);
 
   // --- Animation Loop ---
   const animate = (time: number) => {
@@ -435,32 +419,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
         
         // Apply Live Overrides
-        let renderProject = project;
-        if (Object.keys(liveOverrides.current).length > 0) {
-            renderProject = {
-                ...project,
-                tracks: project.tracks.map(t => ({
-                    ...t,
-                    clips: t.clips.map(c => {
-                        const override = liveOverrides.current[c.id];
-                        if (override) {
-                            let merged = { ...c, ...override };
-                            // Handle position specially if posX/posY are present
-                            if (override.posX !== undefined || override.posY !== undefined) {
-                                merged.position = {
-                                    x: override.posX !== undefined ? override.posX / 100 : (c.position?.x ?? 0.5),
-                                    y: override.posY !== undefined ? override.posY / 100 : (c.position?.y ?? (c.content ? 0.9 : 0.5))
-                                };
-                            }
-                            return merged;
-                        }
-                        return c;
-                    })
-                }))
-            };
-        }
+        const activeMedia = activeVideoClip && (videoRef.current || imageRef.current) ? {
+            element: (activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current) as HTMLVideoElement | HTMLImageElement,
+            clipId: activeVideoClip.id,
+            asset: activeVideoAsset
+        } : undefined;
 
-        GFX_Engine.render(ctx, renderProject, currentRenderTime);
+        GFX_Engine.render(ctx, project, currentRenderTime, liveOverrides.current, activeMedia);
         // GFX_Gizmo.draw removed to prevent ghost box - we use TransformOverlay now
       }
     }
@@ -592,58 +557,34 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
             aspectRatio: `${project.resolution.width} / ${project.resolution.height}`
           }}
         >
-          {activeVideoAsset ? (
-            (() => {
-                // Calculate precise media dimensions for the DOM element to match TransformOverlay
-                let mediaW = '100%';
-                let mediaH = '100%';
-                if (activeVideoAsset && project.resolution) {
-                    const cAspect = project.resolution.width / project.resolution.height;
-                    const aAspect = (activeVideoAsset.width || 1920) / (activeVideoAsset.height || 1080);
-                    if (aAspect > cAspect) {
-                        mediaH = `${(1 / aAspect) * cAspect * 100}%`;
-                    } else {
-                        mediaW = `${(aAspect / cAspect) * 100}%`;
-                    }
-                }
-
-                return (
-                    <div 
-                      id={`media-dom-${activeVideoClip?.id}`}
-                      className="absolute pointer-events-none"
-                      style={{
-                        width: mediaW,
-                        height: mediaH,
-                        left: `${(activeVideoClip?.position?.x ?? 0.5) * 100}%`,
-                        top: `${(activeVideoClip?.position?.y ?? 0.5) * 100}%`,
-                        transform: `translate(-50%, -50%) rotate(${activeVideoClip?.rotation || 0}deg) scale(${activeVideoClip?.scale || 1})`
+          {/* Hidden Media Container for Canvas Source */}
+          <div className="hidden">
+            {activeVideoAsset && activeVideoClip && (
+                activeVideoAsset.type === 'VIDEO' ? (
+                    <video 
+                      key={activeVideoAsset.id}
+                      ref={videoRef} 
+                      src={activeVideoAsset.url} 
+                      playsInline
+                      muted={isVideoSilenceNeeded}
+                      onLoadedMetadata={() => {
+                         // Force update to ensure dimensions are ready
+                         if (videoRef.current) setFps(f => f + 1); 
                       }}
-                    >
-                      {activeVideoAsset.type === 'VIDEO' ? (
-                        <video 
-                          key={activeVideoAsset.id}
-                          ref={videoRef} 
-                          src={activeVideoAsset.url} 
-                          className="w-full h-full object-contain" 
-                          playsInline
-                          muted={isVideoSilenceNeeded}
-                        />
-                      ) : (
-                        <img 
-                          key={activeVideoAsset.id}
-                          src={activeVideoAsset.url} 
-                          className="w-full h-full object-contain" 
-                          referrerPolicy="no-referrer" 
-                        />
-                      )}
-                    </div>
-                );
-            })()
-          ) : (
-            project.tracks.length === 0 && (
-              <div className="text-zinc-800 text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">Monitor Standby...</div>
-            )
-          )}
+                    />
+                ) : (
+                    <img 
+                      key={activeVideoAsset.id}
+                      ref={imageRef}
+                      src={activeVideoAsset.url} 
+                      referrerPolicy="no-referrer" 
+                      onLoad={() => {
+                         if (imageRef.current) setFps(f => f + 1);
+                      }}
+                    />
+                )
+            )}
+          </div>
           
           <canvas 
             ref={gfxCanvasRef} width={1920} height={1080} 

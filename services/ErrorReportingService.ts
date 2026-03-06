@@ -37,11 +37,12 @@ export class ErrorReportingService {
       },
       project: {
         name: project.name,
+        resolution: project.resolution,
         tracksCount: project.tracks.length,
         clipsCount: project.tracks.reduce((acc, t) => acc + t.clips.length, 0),
         duration: Math.max(...project.tracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 0),
       },
-      assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration })),
+      assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration, width: a.width, height: a.height })),
       logs: this.logs,
     };
 

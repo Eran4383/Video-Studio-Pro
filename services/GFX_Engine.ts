@@ -12,29 +12,65 @@ export interface GFXLayer {
 }
 
 export class GFX_Engine {
-  static render(ctx: CanvasRenderingContext2D, project: Project, currentTime: number) {
-    // Render GFX clips (Text, Overlays) that are not handled by the subtitle system
-    // We iterate through video tracks and look for clips with content or GFX properties
+  static render(
+    ctx: CanvasRenderingContext2D, 
+    project: Project, 
+    currentTime: number, 
+    liveOverrides: Record<string, any> = {}, 
+    activeMedia?: { element: HTMLVideoElement | HTMLImageElement, clipId: string, asset: any }
+  ) {
+    // Render GFX clips (Text, Overlays) and Video/Image
     project.tracks
-      .filter(t => t.isVisible && t.type !== 'subtitle')
+      .filter(t => t.isVisible)
       .forEach(track => {
         track.clips.forEach(clip => {
           if (currentTime >= clip.startTime && currentTime <= clip.startTime + clip.duration) {
-             // Only render if it has content (text/subtitle)
-             if (clip.content) {
+             const override = liveOverrides[clip.id] || {};
+             const posX = override.posX !== undefined ? override.posX / 100 : (clip.position?.x ?? 0.5);
+             const posY = override.posY !== undefined ? override.posY / 100 : (clip.position?.y ?? (clip.content ? 0.9 : 0.5));
+             const scale = override.scale !== undefined ? override.scale / 100 : (clip.scale || 1);
+             const rotation = override.rotation !== undefined ? override.rotation : (clip.rotation || 0);
+             const opacity = override.opacity !== undefined ? override.opacity / 100 : (clip.opacity ?? 1);
+
+             // Render Video/Image
+             if (activeMedia && clip.id === activeMedia.clipId) {
+                 const asset = activeMedia.asset;
+                 const element = activeMedia.element;
+                 
+                 const assetAspect = (asset.width || 1920) / (asset.height || 1080);
+                 const canvasAspect = ctx.canvas.width / ctx.canvas.height;
+                 let drawW = ctx.canvas.width;
+                 let drawH = ctx.canvas.height;
+                 
+                 // "object-contain" logic (as per user instruction "similar to object-fit: cover" but with provided logic that implements contain)
+                 if (assetAspect > canvasAspect) {
+                     drawH = drawW / assetAspect;
+                 } else {
+                     drawW = drawH * assetAspect;
+                 }
+
+                 ctx.save();
+                 ctx.globalAlpha = opacity;
+                 ctx.translate(posX * ctx.canvas.width, posY * ctx.canvas.height);
+                 ctx.rotate(rotation * Math.PI / 180);
+                 ctx.scale(scale, scale);
+                 ctx.drawImage(element, -drawW / 2, -drawH / 2, drawW, drawH);
+                 ctx.restore();
+             }
+
+             // Only render text if it has content AND it is NOT a subtitle track (since subtitles are DOM-based)
+             // Or if we want to move subtitles to canvas too? User didn't ask for that.
+             // The original code filtered out 'subtitle' tracks.
+             if (clip.content && track.type !== 'subtitle') {
                 const resolution = project.resolution;
-                const x = (clip.position?.x ?? 0.5) * resolution.width;
-                const y = (clip.position?.y ?? 0.9) * resolution.height;
-                const scale = clip.scale ?? 1;
-                const rotation = clip.rotation ?? 0;
                 
                 ctx.save();
-                ctx.translate(x, y);
+                ctx.translate(posX * resolution.width, posY * resolution.height);
                 ctx.rotate(rotation * Math.PI / 180);
                 ctx.scale(scale, scale);
                 
                 // Opacity
-                ctx.globalAlpha = clip.opacity ?? 1;
+                ctx.globalAlpha = opacity;
 
                 // Shadow
                 if (clip.shadow) {
@@ -54,7 +90,7 @@ export class GFX_Engine {
                 ctx.textAlign = (clip.textAlign as CanvasTextAlign) || "center";
                 ctx.textBaseline = "middle";
                 
-                // Stroke (optional, could be added to Clip props later)
+                // Stroke (optional)
                 ctx.strokeStyle = "black";
                 ctx.lineWidth = fontSize * 0.05;
                 ctx.lineJoin = "round";
