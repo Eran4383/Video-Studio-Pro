@@ -6,9 +6,11 @@ interface TransformOverlayProps {
   containerRef: React.RefObject<HTMLDivElement>;
   onUpdate: (position: { x: number, y: number }, scale: number, rotation: number, scaleX?: number, scaleY?: number) => void;
   onFinalize: () => void;
+  isVideo?: boolean;
+  mediaDimensions?: { width: number, height: number };
 }
 
-export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize }) => {
+export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize, isVideo, mediaDimensions }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<string | null>(null);
   const [liveOverrides, setLiveOverrides] = useState<Record<string, any>>({});
@@ -54,22 +56,36 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
     };
   }, [clip.id]);
 
-  // Measure text dimensions
+  // Update dimensions based on content type
   useEffect(() => {
     if (!containerRef.current) return;
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    if (ctx) {
-      const containerHeight = containerRef.current.clientHeight;
-      const fontSize = containerHeight * 0.05; // Base font size (5% of height)
-      ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
-      const metrics = ctx.measureText(clip.content || 'Text');
-      setDimensions({
-        width: metrics.width + 20, // Add padding
-        height: fontSize * 1.2 // Line height approximation
-      });
+
+    if (isVideo) {
+        // For video/image, use the provided media dimensions or fallback to container size
+        if (mediaDimensions) {
+            setDimensions(mediaDimensions);
+        } else {
+            setDimensions({
+                width: containerRef.current.clientWidth,
+                height: containerRef.current.clientHeight
+            });
+        }
+    } else {
+        // For text, measure it
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          const containerHeight = containerRef.current.clientHeight;
+          const fontSize = containerHeight * 0.05; // Base font size (5% of height)
+          ctx.font = `bold ${fontSize}px ${clip.font || 'Inter, sans-serif'}`;
+          const metrics = ctx.measureText(clip.content || 'Text');
+          setDimensions({
+            width: metrics.width + 20, // Add padding
+            height: fontSize * 1.2 // Line height approximation
+          });
+        }
     }
-  }, [clip.content, clip.font, containerRef.current?.clientHeight]);
+  }, [clip.content, clip.font, containerRef.current?.clientHeight, isVideo, mediaDimensions?.width, mediaDimensions?.height]);
 
   const handleMouseDown = (e: React.MouseEvent, mode: string) => {
     e.stopPropagation();

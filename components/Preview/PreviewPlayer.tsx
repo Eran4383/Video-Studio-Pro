@@ -461,10 +461,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         }
 
         GFX_Engine.render(ctx, renderProject, currentRenderTime);
-        if (selectedClip && currentRenderTime >= selectedClip.startTime && currentRenderTime <= selectedClip.startTime + selectedClip.duration) {
-          const layer = GFX_Engine.getLayerForClip(selectedClip, project.resolution);
-          if (layer) GFX_Gizmo.draw(ctx, layer);
-        }
+        // GFX_Gizmo.draw removed to prevent ghost box - we use TransformOverlay now
       }
     }
 
@@ -651,36 +648,70 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
               return isVisual && isVisible;
             })()
           ) && (
-            <TransformOverlay 
-              clip={selectedClip}
-              containerRef={containerRef}
-              onUpdate={(pos, scale, rot, scaleX, scaleY) => {
-                let newPos = { ...pos };
-                const snapThreshold = 0.02; // 2% threshold
-                const guides = { x: false, y: false };
+            (() => {
+                const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
+                const isVideo = track?.type === 'video' || track?.type === 'image';
+                
+                // Calculate media dimensions for TransformOverlay
+                let mediaDimensions = undefined;
+                if (isVideo && containerRef.current) {
+                    const asset = assets.find(a => a.id === selectedClip.assetId);
+                    if (asset && asset.width && asset.height) {
+                        const containerW = containerRef.current.clientWidth;
+                        const containerH = containerRef.current.clientHeight;
+                        const containerAspect = containerW / containerH;
+                        const assetAspect = asset.width / asset.height;
+                        
+                        let width = containerW;
+                        let height = containerH;
+                        
+                        // "object-contain" logic
+                        if (assetAspect > containerAspect) {
+                            // Asset is wider than container -> Width matches, Height reduced
+                            height = containerW / assetAspect;
+                        } else {
+                            // Asset is taller than container -> Height matches, Width reduced
+                            width = containerH * assetAspect;
+                        }
+                        mediaDimensions = { width, height };
+                    }
+                }
 
-                if (Math.abs(newPos.x - 0.5) < snapThreshold) {
-                  newPos.x = 0.5;
-                  guides.x = true;
-                }
-                if (Math.abs(newPos.y - 0.5) < snapThreshold) {
-                  newPos.y = 0.5;
-                  guides.y = true;
-                }
-                setSnapGuides(guides);
+                return (
+                    <TransformOverlay 
+                      clip={selectedClip}
+                      containerRef={containerRef}
+                      isVideo={isVideo}
+                      mediaDimensions={mediaDimensions}
+                      onUpdate={(pos, scale, rot, scaleX, scaleY) => {
+                        let newPos = { ...pos };
+                        const snapThreshold = 0.02; // 2% threshold
+                        const guides = { x: false, y: false };
 
-                if (updateSubtitle) {
-                  updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
-                }
-              }}
-              onFinalize={() => {
-                 setSnapGuides({ x: false, y: false });
-                 if (updateSubtitle) {
-                   // Trigger finalize
-                   updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
-                 }
-              }}
-            />
+                        if (Math.abs(newPos.x - 0.5) < snapThreshold) {
+                          newPos.x = 0.5;
+                          guides.x = true;
+                        }
+                        if (Math.abs(newPos.y - 0.5) < snapThreshold) {
+                          newPos.y = 0.5;
+                          guides.y = true;
+                        }
+                        setSnapGuides(guides);
+
+                        if (updateSubtitle) {
+                          updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
+                        }
+                      }}
+                      onFinalize={() => {
+                         setSnapGuides({ x: false, y: false });
+                         if (updateSubtitle) {
+                           // Trigger finalize
+                           updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
+                         }
+                      }}
+                    />
+                );
+            })()
           )}
         </div>
 

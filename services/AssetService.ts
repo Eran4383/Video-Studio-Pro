@@ -116,22 +116,51 @@ export class AssetService {
     return new Promise((resolve) => {
       const video = document.createElement('video');
       video.preload = 'metadata';
-      video.src = url;
-      video.onloadedmetadata = () => {
-        resolve({
-          duration: video.duration,
-          width: video.videoWidth,
-          height: video.videoHeight
-        });
+      video.muted = true;
+      video.playsInline = true;
+      
+      const onLoaded = () => {
+        // Ensure we have valid dimensions
+        if (video.videoWidth && video.videoHeight) {
+            resolve({
+              duration: video.duration || 0,
+              width: video.videoWidth,
+              height: video.videoHeight
+            });
+        } else {
+            // Retry once if dimensions are missing? Or just resolve with 0
+            // Sometimes seeking helps
+            video.currentTime = 0.1;
+        }
       };
+
+      video.onloadedmetadata = onLoaded;
+      
+      // Fallback for some browsers that need a seek to get dimensions
+      video.onseeked = () => {
+         if (video.videoWidth && video.videoHeight) {
+            resolve({
+              duration: video.duration || 0,
+              width: video.videoWidth,
+              height: video.videoHeight
+            });
+         } else {
+            resolve({ duration: video.duration || 0, width: 1920, height: 1080 }); // Default fallback
+         }
+      };
+
       video.onerror = () => resolve({ duration: 0, width: 0, height: 0 });
+      
+      // Timeout
+      setTimeout(() => resolve({ duration: 0, width: 0, height: 0 }), 3000);
+      
+      video.src = url;
     });
   }
 
   private static getImageMetadata(url: string): Promise<{ width: number, height: number }> {
     return new Promise((resolve) => {
       const img = new Image();
-      img.src = url;
       img.onload = () => {
         resolve({
           width: img.naturalWidth,
@@ -139,6 +168,7 @@ export class AssetService {
         });
       };
       img.onerror = () => resolve({ width: 0, height: 0 });
+      img.src = url;
     });
   }
 
