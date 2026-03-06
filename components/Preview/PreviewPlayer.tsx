@@ -54,6 +54,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     return Math.max(0, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
   }, [project.tracks]);
 
+  const [snapGuides, setSnapGuides] = useState({ x: false, y: false });
+
   // --- Animation Loop ---
   // (Moved to bottom to avoid ReferenceError)
 
@@ -543,7 +545,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#0a0a0a]"
+        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#18181b]"
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -631,17 +633,48 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
             </div>
           ))}
 
-          {/* Transform Overlay for Selected Subtitle */}
-          {showTransform && selectedClip && selectedClip.content && activeSubs.find(s => s.id === selectedClip.id) && (
+          {/* Snap Guides */}
+          {snapGuides.x && (
+            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-emerald-500 z-50 pointer-events-none shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+          )}
+          {snapGuides.y && (
+            <div className="absolute left-0 right-0 top-1/2 h-px bg-emerald-500 z-50 pointer-events-none shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+          )}
+
+          {/* Transform Overlay for Selected Clip (Video/Image/Subtitle) */}
+          {showTransform && selectedClip && (
+            // Check if clip is visual and visible at current time
+            (() => {
+              const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
+              const isVisual = track && (track.type === 'video' || track.type === 'image' || track.type === 'subtitle');
+              const isVisible = renderTime >= selectedClip.startTime && renderTime <= selectedClip.startTime + selectedClip.duration;
+              return isVisual && isVisible;
+            })()
+          ) && (
             <TransformOverlay 
               clip={selectedClip}
               containerRef={containerRef}
               onUpdate={(pos, scale, rot, scaleX, scaleY) => {
+                let newPos = { ...pos };
+                const snapThreshold = 0.02; // 2% threshold
+                const guides = { x: false, y: false };
+
+                if (Math.abs(newPos.x - 0.5) < snapThreshold) {
+                  newPos.x = 0.5;
+                  guides.x = true;
+                }
+                if (Math.abs(newPos.y - 0.5) < snapThreshold) {
+                  newPos.y = 0.5;
+                  guides.y = true;
+                }
+                setSnapGuides(guides);
+
                 if (updateSubtitle) {
-                  updateSubtitle(selectedClip.id, undefined, pos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
+                  updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
                 }
               }}
               onFinalize={() => {
+                 setSnapGuides({ x: false, y: false });
                  if (updateSubtitle) {
                    // Trigger finalize
                    updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);

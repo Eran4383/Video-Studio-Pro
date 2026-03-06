@@ -127,6 +127,17 @@ export const useProjectStore = () => {
     setProject(prev => {
       let targetTrack = prev.tracks.find(t => t.id === trackId);
       if (!targetTrack || targetTrack.isLocked) return prev;
+
+      // Auto-resize logic: If no visual clips exist, adopt the resolution of the first added visual asset
+      const hasVisualClips = prev.tracks.some(t => 
+        (t.type === 'video' || t.type === 'image') && t.clips.length > 0
+      );
+      
+      let resolution = prev.resolution;
+      if (!hasVisualClips && (asset.type === MediaType.VIDEO || asset.type === MediaType.IMAGE) && asset.width && asset.height) {
+         resolution = { width: asset.width, height: asset.height };
+      }
+
       const newClip: Clip = {
         id: `clip-${Math.random().toString(36).substr(2, 9)}`,
         assetId: asset.id,
@@ -135,10 +146,12 @@ export const useProjectStore = () => {
         duration: asset.duration || 5,
         layer: 0,
         effects: [],
+        position: { x: 0.5, y: 0.5 },
         isSilent: false
       };
       const next = {
         ...prev,
+        resolution,
         tracks: prev.tracks.map(t => t.id === targetTrack!.id ? { ...t, clips: [...t.clips, newClip] } : t)
       };
       pushToHistory(next);
@@ -285,7 +298,7 @@ export const useProjectStore = () => {
     });
   }, []);
 
-  const updateSubtitle = useCallback((
+  const updateClipProperties = useCallback((
     clipId: string | string[], 
     content?: string, 
     position?: {x: number, y: number}, 
@@ -507,53 +520,119 @@ export const useProjectStore = () => {
     });
   }, [currentTime]);
 
-  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, forceDisableMagnet: boolean = false) => {
+  const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, enableSnapping: boolean = true) => {
     setProject(prev => {
-      let targetClip: Clip | null = null;
-      for (const track of prev.tracks) {
+      // 1. Find the primary dragged clip and its track
+      let primaryClip: Clip | null = null;
+      let primaryTrackId: string | null = null;
+      let primaryTrackIndex: number = -1;
+      
+      for (let i = 0; i < prev.tracks.length; i++) {
+        const track = prev.tracks[i];
         const found = track.clips.find(c => c.id === clipId);
-        if (found) { targetClip = found; break; }
+        if (found) { primaryClip = found; primaryTrackId = track.id; primaryTrackIndex = i; break; }
       }
-      if (!targetClip) return prev;
+      if (!primaryClip || !primaryTrackId) return prev;
+
+      // 2. Determine moving group
+      const isMultiSelection = selectedClipIds.includes(clipId) && selectedClipIds.length > 1;
+      const movingClipIds = isMultiSelection 
+        ? selectedClipIds 
+        : [clipId, ...(primaryClip.linkedClipId ? [primaryClip.linkedClipId] : [])];
+
+      // 3. Calculate Snapped Position for Primary Clip
       let finalX = Math.max(0, xPos);
       
-      if (isMagnetEnabled && !forceDisableMagnet) {
-         const allClips = prev.tracks.flatMap(t => t.clips).filter(c => c.id !== clipId && c.id !== targetClip?.linkedClipId);
+      if (enableSnapping) {
+         // Get all static clips (not moving) to snap against
+         const staticClips = prev.tracks.flatMap(t => t.clips).filter(c => !movingClipIds.includes(c.id));
          
          // Snap to Clips
-         for (const c of allClips) {
+         for (const c of staticClips) {
             if (Math.abs(finalX - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration; break; }
-            if (Math.abs((finalX + targetClip.duration) - c.startTime) < 0.2) { finalX = c.startTime - targetClip.duration; break; }
+            if (Math.abs((finalX + primaryClip.duration) - c.startTime) < 0.2) { finalX = c.startTime - primaryClip.duration; break; }
             // Snap start-to-start
             if (Math.abs(finalX - c.startTime) < 0.2) { finalX = c.startTime; break; }
             // Snap end-to-end
-            if (Math.abs((finalX + targetClip.duration) - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration - targetClip.duration; break; }
+            if (Math.abs((finalX + primaryClip.duration) - (c.startTime + c.duration)) < 0.2) { finalX = c.startTime + c.duration - primaryClip.duration; break; }
          }
 
          // Snap to Playhead (currentTime)
          if (Math.abs(finalX - currentTime) < 0.2) { finalX = currentTime; }
-         if (Math.abs((finalX + targetClip.duration) - currentTime) < 0.2) { finalX = currentTime - targetClip.duration; }
+         if (Math.abs((finalX + primaryClip.duration) - currentTime) < 0.2) { finalX = currentTime - primaryClip.duration; }
       }
 
-      const deltaX = finalX - targetClip.startTime;
-      return {
-        ...prev,
-        tracks: prev.tracks.map(track => {
-          const isTargetTrack = track.id === targetTrackId;
-          const hasMovingClip = track.clips.some(c => c.id === clipId || c.id === targetClip?.linkedClipId);
-          if (!isTargetTrack && !hasMovingClip) return track;
-          let newClips = track.clips.map(c => (c.id === clipId || c.id === targetClip?.linkedClipId) ? { ...c, startTime: c.startTime + deltaX } : c);
-          if (isTargetTrack && !track.clips.some(c => c.id === clipId)) {
-            const source = prev.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
-            if (source) newClips.push({ ...source, startTime: finalX });
-          } else if (!isTargetTrack && track.clips.some(c => c.id === clipId)) {
-            newClips = newClips.filter(c => c.id !== clipId);
+      const deltaX = finalX - primaryClip.startTime;
+
+      // 4. Calculate Track Delta (Rigid Body Movement)
+      const targetTrackIndex = prev.tracks.findIndex(t => t.id === targetTrackId);
+      let trackDelta = 0;
+      
+      if (targetTrackIndex !== -1) {
+          const rawDelta = targetTrackIndex - primaryTrackIndex;
+          
+          // Find bounds of selection to prevent collapsing
+          let minTrackIdx = prev.tracks.length;
+          let maxTrackIdx = -1;
+          
+          prev.tracks.forEach((t, idx) => {
+              if (t.clips.some(c => movingClipIds.includes(c.id))) {
+                  if (idx < minTrackIdx) minTrackIdx = idx;
+                  if (idx > maxTrackIdx) maxTrackIdx = idx;
+              }
+          });
+          
+          // Clamp delta so the whole block stays within [0, tracks.length - 1]
+          if (minTrackIdx !== prev.tracks.length) { // Check if we found any clips
+              trackDelta = Math.max(-minTrackIdx, Math.min(prev.tracks.length - 1 - maxTrackIdx, rawDelta));
           }
-          return { ...track, clips: newClips };
-        })
-      };
+      }
+
+      // 5. Build Move Plan
+      const movePlan = new Map<string, { newStartTime: number, targetTrackId: string }>();
+      
+      movingClipIds.forEach(mId => {
+          let originalClip: Clip | null = null;
+          let originalTrackIndex = -1;
+          
+          for(let i=0; i<prev.tracks.length; i++) {
+              const c = prev.tracks[i].clips.find(cl => cl.id === mId);
+              if (c) { originalClip = c; originalTrackIndex = i; break; }
+          }
+          
+          if (originalClip && originalTrackIndex !== -1) {
+              const newStartTime = Math.max(0, originalClip.startTime + deltaX);
+              const newTrackIndex = originalTrackIndex + trackDelta;
+              
+              if (newTrackIndex >= 0 && newTrackIndex < prev.tracks.length) {
+                  movePlan.set(mId, { newStartTime, targetTrackId: prev.tracks[newTrackIndex].id });
+              }
+          }
+      });
+
+      // 6. Apply Move Plan
+      const newTracks = prev.tracks.map(track => {
+          // Keep clips that are NOT moving from this track
+          const remainingClips = track.clips.filter(c => !movingClipIds.includes(c.id));
+          
+          // Add clips that are moving TO this track
+          const incomingClips: Clip[] = [];
+          
+          movePlan.forEach((plan, mId) => {
+              if (plan.targetTrackId === track.id) {
+                  const originalClip = prev.tracks.flatMap(t => t.clips).find(c => c.id === mId);
+                  if (originalClip) {
+                      incomingClips.push({ ...originalClip, startTime: plan.newStartTime });
+                  }
+              }
+          });
+          
+          return { ...track, clips: [...remainingClips, ...incomingClips] };
+      });
+
+      return { ...prev, tracks: newTracks };
     });
-  }, [isMagnetEnabled, currentTime]);
+  }, [isMagnetEnabled, currentTime, selectedClipIds]);
 
   const selectClip = useCallback((id: string | null, multi: boolean = false) => {
     if (id === null) {
@@ -576,7 +655,7 @@ export const useProjectStore = () => {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateSubtitle, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
+    syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

@@ -13,6 +13,8 @@ export interface Asset {
   url: string;
   duration: number; // in seconds
   thumbnail?: string;
+  width?: number;
+  height?: number;
   waveform?: number[]; // Normalized amplitude data (0 to 1)
   anchors?: number[]; // Timestamps (in seconds) where audio onsets are detected
 }

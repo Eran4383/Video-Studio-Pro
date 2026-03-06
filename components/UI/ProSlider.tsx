@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { RotateCcw } from 'lucide-react';
 
 interface ProSliderProps {
   label: string;
@@ -11,6 +12,7 @@ interface ProSliderProps {
   step?: number;
   unit?: string;
   className?: string;
+  defaultValue?: number;
 }
 
 export const ProSlider: React.FC<ProSliderProps> = ({
@@ -23,7 +25,8 @@ export const ProSlider: React.FC<ProSliderProps> = ({
   max = 100,
   step = 1,
   unit = '',
-  className = ''
+  className = '',
+  defaultValue
 }) => {
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
@@ -57,6 +60,14 @@ export const ProSlider: React.FC<ProSliderProps> = ({
     window.dispatchEvent(new CustomEvent('gfx-override-clear'));
   };
 
+  const handleReset = () => {
+    if (defaultValue !== undefined) {
+        setLocalValue(defaultValue);
+        onChange(defaultValue);
+        window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+    }
+  };
+
   const handleMouseDown = () => {
     setIsDragging(true);
   };
@@ -84,9 +95,20 @@ export const ProSlider: React.FC<ProSliderProps> = ({
   };
 
   return (
-    <div className={`flex flex-col gap-1.5 ${className}`}>
+    <div className={`flex flex-col gap-1.5 group ${className}`}>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{label}</span>
+        <div className="flex items-center gap-2">
+            <span className="text-[10px] text-zinc-500 font-mono uppercase tracking-wider">{label}</span>
+            {defaultValue !== undefined && Math.abs(value - defaultValue) > 0.001 && (
+                <button 
+                    onClick={handleReset}
+                    className="text-zinc-600 hover:text-indigo-400 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Reset to Default"
+                >
+                    <RotateCcw size={10} />
+                </button>
+            )}
+        </div>
         <div className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded px-1.5 py-0.5 w-[4.5rem] focus-within:border-indigo-500/50 transition-colors">
             <input
                 type="number"

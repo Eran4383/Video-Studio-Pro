@@ -183,13 +183,15 @@ export const Timeline: React.FC<TimelineProps> = ({
                 }
             }
             if (!targetTrack.isLocked) {
-                // Shift key disables snapping
-                const shouldSnap = isMagnetEnabled && !e.shiftKey;
-                const finalStartTime = shouldSnap 
-                    ? getSnappedStartTime(id, originalState.startTime, deltaSeconds, originalState.duration)
-                    : Math.max(0, originalState.startTime + deltaSeconds);
+                // Magnet Logic:
+                // If Magnet is ON, Ctrl disables it (XOR: 1 ^ 1 = 0)
+                // If Magnet is OFF, Ctrl enables it (XOR: 0 ^ 1 = 1)
+                const isCtrl = e.ctrlKey || e.metaKey;
+                const shouldSnap = isMagnetEnabled ? !isCtrl : isCtrl;
                 
-                onClipMove(id, targetTrack.id, finalStartTime, true);
+                const rawStartTime = Math.max(0, originalState.startTime + deltaSeconds);
+                
+                onClipMove(id, targetTrack.id, rawStartTime, shouldSnap);
             }
         } else if (dragging.mode === 'RESIZE_R') {
             // New duration = original duration + delta
@@ -245,8 +247,8 @@ export const Timeline: React.FC<TimelineProps> = ({
         const endY = Math.max(selectionBox.startY, selectionBox.currentY);
 
         // Convert X to Time
-        const startTime = Math.max(0, (startX - rect.left + scrollLeft) / pxPerSec);
-        const endTime = Math.max(0, (endX - rect.left + scrollLeft) / pxPerSec);
+        const startTime = Math.max(0, (startX - rect.left + scrollLeft - HEADER_WIDTH) / pxPerSec);
+        const endTime = Math.max(0, (endX - rect.left + scrollLeft - HEADER_WIDTH) / pxPerSec);
 
         // Find intersecting clips
         const newSelectedIds: string[] = [];
@@ -340,8 +342,11 @@ export const Timeline: React.FC<TimelineProps> = ({
   };
 
   const handleTrackAreaMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 0 && e.target === e.currentTarget) {
+    if (e.button === 0) {
        // Start Box Selection
+       // We don't check e.target === e.currentTarget because we want to allow starting selection 
+       // even if clicking on empty space within a track row (which are children).
+       // Clips stop propagation, so this won't fire for clips.
        setSelectionBox({ startX: e.clientX, startY: e.clientY, currentX: e.clientX, currentY: e.clientY });
        if (!e.ctrlKey && !e.metaKey) {
          onSelectClip(null);

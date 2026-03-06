@@ -73,37 +73,23 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   }
 
   const updateClip = (updates: any, finalize: boolean = false) => {
-    if (isSubtitle) {
-      updateSubtitle(
-        primaryClipId, 
-        updates.content, 
-        updates.position, 
-        applyToAll, 
-        updates.color, 
-        updates.font, 
-        updates.scale, 
-        updates.rotation,
-        updates.scaleX, 
-        updates.scaleY, 
-        updates.opacity, 
-        updates.shadow, 
-        updates.fontWeight, 
-        updates.textAlign, 
-        finalize
-      );
-    } else {
-      setProject((prev: any) => ({
-        ...prev,
-        tracks: prev.tracks.map((t: any) => ({
-          ...t,
-          clips: t.clips.map((c: any) => {
-            if (c.id === primaryClipId) return { ...c, ...updates };
-            return c;
-          })
-        }))
-      }));
-      if (finalize) finalizeMove();
-    }
+    updateSubtitle(
+      primaryClipId, 
+      updates.content, 
+      updates.position, 
+      applyToAll, 
+      updates.color, 
+      updates.font, 
+      updates.scale, 
+      updates.rotation,
+      updates.scaleX, 
+      updates.scaleY, 
+      updates.opacity, 
+      updates.shadow, 
+      updates.fontWeight, 
+      updates.textAlign, 
+      finalize
+    );
   };
 
   const toggleSection = (key: string) => setSections(p => ({ ...p, [key]: !p[key] } as any));
@@ -240,21 +226,23 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                   onChange={(v) => updateClip({ position: { ...selectedClip.position, x: v / 100 } }, true)}
                   previewId="posX"
                   clipId={selectedClip.id}
-                  min={0}
-                  max={100}
+                  min={-500}
+                  max={600}
                   step={0.1}
                   unit="%"
+                  defaultValue={50}
                 />
                 <ProSlider 
                   label="Y" 
-                  value={(selectedClip.position?.y ?? 0.9) * 100} 
+                  value={(selectedClip.position?.y ?? (isSubtitle ? 0.9 : 0.5)) * 100} 
                   onChange={(v) => updateClip({ position: { ...selectedClip.position, y: v / 100 } }, true)}
                   previewId="posY"
                   clipId={selectedClip.id}
-                  min={0}
-                  max={100}
+                  min={-500}
+                  max={600}
                   step={0.1}
                   unit="%"
+                  defaultValue={isSubtitle ? 90 : 50}
                 />
               </div>
             </div>
@@ -269,9 +257,10 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                 previewId="scale"
                 clipId={selectedClip.id}
                 min={0}
-                max={300}
+                max={1000}
                 step={1}
                 unit="%"
+                defaultValue={100}
               />
               <ProSlider 
                 label="Rotation" 
@@ -279,10 +268,11 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                 onChange={(v) => updateClip({ rotation: v }, true)}
                 previewId="rotation"
                 clipId={selectedClip.id}
-                min={-180}
-                max={180}
+                min={-3600}
+                max={3600}
                 step={1}
                 unit="°"
+                defaultValue={0}
               />
             </div>
           </div>
@@ -304,6 +294,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                   max={100}
                   step={1}
                   unit="%"
+                  defaultValue={100}
                 />
              </div>
              <div className="flex flex-col gap-2">

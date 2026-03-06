@@ -81,7 +81,7 @@ const App: React.FC = () => {
         return;
     }
 
-    if (e.key.toLowerCase() === 'f') {
+    if (e.code === 'KeyF') {
         e.preventDefault();
         handleDoubleClick();
         return;
