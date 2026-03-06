@@ -38,9 +38,14 @@ export class ErrorReportingService {
       project: {
         name: project.name,
         resolution: project.resolution,
+        tracks: JSON.parse(JSON.stringify(project.tracks)),
         tracksCount: project.tracks.length,
         clipsCount: project.tracks.reduce((acc, t) => acc + t.clips.length, 0),
         duration: Math.max(...project.tracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 0),
+      },
+      environment: {
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
       },
       assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration, width: a.width, height: a.height })),
       logs: this.logs,
