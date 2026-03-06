@@ -537,6 +537,41 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     });
   }, [isPlaying, currentTime, project.tracks, assets]);
 
+  // --- Keyboard Controls for Clip Movement ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (!selectedClip || !updateSubtitle) return;
+
+      const step = e.shiftKey ? 0.05 : 0.005;
+      let dx = 0;
+      let dy = 0;
+
+      if (e.key === 'ArrowUp') dy = -step;
+      if (e.key === 'ArrowDown') dy = step;
+      if (e.key === 'ArrowLeft') dx = -step;
+      if (e.key === 'ArrowRight') dx = step;
+
+      if (dx !== 0 || dy !== 0) {
+        e.preventDefault();
+        const currentX = selectedClip.position?.x ?? 0.5;
+        const currentY = selectedClip.position?.y ?? (selectedClip.content ? 0.9 : 0.5);
+        
+        updateSubtitle(
+          selectedClip.id, 
+          undefined, 
+          { x: currentX + dx, y: currentY + dy }, 
+          applyToAll, 
+          undefined, undefined, undefined, undefined, undefined, undefined, 
+          true // finalize immediately for keyboard
+        );
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClip, updateSubtitle, applyToAll]);
+
   return (
     <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50">
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
@@ -558,33 +593,52 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           }}
         >
           {activeVideoAsset ? (
-            <div 
-              id={`media-dom-${activeVideoClip?.id}`}
-              className="absolute w-full h-full pointer-events-none"
-              style={{
-                left: `${(activeVideoClip?.position?.x ?? 0.5) * 100}%`,
-                top: `${(activeVideoClip?.position?.y ?? 0.5) * 100}%`,
-                transform: `translate(-50%, -50%) rotate(${activeVideoClip?.rotation || 0}deg) scale(${activeVideoClip?.scale || 1})`
-              }}
-            >
-              {activeVideoAsset.type === 'VIDEO' ? (
-                <video 
-                  key={activeVideoAsset.id}
-                  ref={videoRef} 
-                  src={activeVideoAsset.url} 
-                  className="w-full h-full object-contain" 
-                  playsInline
-                  muted={isVideoSilenceNeeded}
-                />
-              ) : (
-                <img 
-                  key={activeVideoAsset.id}
-                  src={activeVideoAsset.url} 
-                  className="w-full h-full object-contain" 
-                  referrerPolicy="no-referrer" 
-                />
-              )}
-            </div>
+            (() => {
+                // Calculate precise media dimensions for the DOM element to match TransformOverlay
+                let mediaW = '100%';
+                let mediaH = '100%';
+                if (activeVideoAsset && project.resolution) {
+                    const cAspect = project.resolution.width / project.resolution.height;
+                    const aAspect = (activeVideoAsset.width || 1920) / (activeVideoAsset.height || 1080);
+                    if (aAspect > cAspect) {
+                        mediaH = `${(1 / aAspect) * cAspect * 100}%`;
+                    } else {
+                        mediaW = `${(aAspect / cAspect) * 100}%`;
+                    }
+                }
+
+                return (
+                    <div 
+                      id={`media-dom-${activeVideoClip?.id}`}
+                      className="absolute pointer-events-none"
+                      style={{
+                        width: mediaW,
+                        height: mediaH,
+                        left: `${(activeVideoClip?.position?.x ?? 0.5) * 100}%`,
+                        top: `${(activeVideoClip?.position?.y ?? 0.5) * 100}%`,
+                        transform: `translate(-50%, -50%) rotate(${activeVideoClip?.rotation || 0}deg) scale(${activeVideoClip?.scale || 1})`
+                      }}
+                    >
+                      {activeVideoAsset.type === 'VIDEO' ? (
+                        <video 
+                          key={activeVideoAsset.id}
+                          ref={videoRef} 
+                          src={activeVideoAsset.url} 
+                          className="w-full h-full object-contain" 
+                          playsInline
+                          muted={isVideoSilenceNeeded}
+                        />
+                      ) : (
+                        <img 
+                          key={activeVideoAsset.id}
+                          src={activeVideoAsset.url} 
+                          className="w-full h-full object-contain" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      )}
+                    </div>
+                );
+            })()
           ) : (
             project.tracks.length === 0 && (
               <div className="text-zinc-800 text-[10px] font-black uppercase tracking-widest animate-pulse pointer-events-none">Monitor Standby...</div>
