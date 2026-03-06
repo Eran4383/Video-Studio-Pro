@@ -60,18 +60,8 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
   useEffect(() => {
     if (!containerRef.current) return;
 
-    if (isVideo) {
-        // For video/image, use the provided media dimensions or fallback to container size
-        if (mediaDimensions) {
-            setDimensions(mediaDimensions);
-        } else {
-            setDimensions({
-                width: containerRef.current.clientWidth,
-                height: containerRef.current.clientHeight
-            });
-        }
-    } else {
-        // For text, measure it
+    if (clip.content) {
+        // For text (subtitle), measure it
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         if (ctx) {
@@ -83,6 +73,16 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
             width: metrics.width + 20, // Add padding
             height: fontSize * 1.2 // Line height approximation
           });
+        }
+    } else {
+        // For video/image, use the provided media dimensions or fallback to container size
+        if (mediaDimensions) {
+            setDimensions(mediaDimensions);
+        } else {
+            setDimensions({
+                width: containerRef.current.clientWidth,
+                height: containerRef.current.clientHeight
+            });
         }
     }
   }, [clip.content, clip.font, containerRef.current?.clientHeight, isVideo, mediaDimensions?.width, mediaDimensions?.height]);
@@ -218,6 +218,12 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
 
   return (
     <div className="absolute border border-indigo-500 pointer-events-none z-[60]" style={{ left, top, width, height, transform }}>
+      {/* Drag to Move Handle (Transparent Fill) */}
+      <div 
+        className="absolute inset-0 cursor-move pointer-events-auto" 
+        onMouseDown={(e) => handleMouseDown(e, 'MOVE')} 
+      />
+
       {/* Corners */}
       <Handle className="-top-1.5 -left-1.5" cursor="nw-resize" mode="RESIZE_TL" />
       <Handle className="-top-1.5 -right-1.5" cursor="ne-resize" mode="RESIZE_TR" />
