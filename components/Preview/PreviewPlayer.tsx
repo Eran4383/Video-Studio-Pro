@@ -237,13 +237,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
       lastSubPosRef.current = { x: newX, y: newY };
 
-      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, false);
+      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
     }
   };
 
   const handleSubMouseUp = () => {
     if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
-      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
+      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
       lastSubPosRef.current = null;
     }
     setIsDraggingSub(false);
@@ -262,7 +262,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
     if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
     if (editingSubId && updateSubtitle) {
-      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, false);
+      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
     }
     setEditingSubId(null);
   };
@@ -449,7 +449,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                             if (override.posX !== undefined || override.posY !== undefined) {
                                 merged.position = {
                                     x: override.posX !== undefined ? override.posX / 100 : (c.position?.x ?? 0.5),
-                                    y: override.posY !== undefined ? override.posY / 100 : (c.position?.y ?? 0.9)
+                                    y: override.posY !== undefined ? override.posY / 100 : (c.position?.y ?? (c.content ? 0.9 : 0.5))
                                 };
                             }
                             return merged;
@@ -562,7 +562,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           undefined, 
           { x: currentX + dx, y: currentY + dy }, 
           applyToAll, 
-          undefined, undefined, undefined, undefined, undefined, undefined, 
+          undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 
           true // finalize immediately for keyboard
         );
       }
@@ -710,11 +710,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                 let mediaDimensions = undefined;
                 if (isVideo && containerRef.current) {
                     const asset = assets.find(a => a.id === selectedClip.assetId);
-                    if (asset && asset.width && asset.height) {
+                    if (asset) {
                         const containerW = containerRef.current.clientWidth;
                         const containerH = containerRef.current.clientHeight;
                         const containerAspect = containerW / containerH;
-                        const assetAspect = asset.width / asset.height;
+                        const assetAspect = (asset.width || 1920) / (asset.height || 1080);
                         
                         let width = containerW;
                         let height = containerH;
@@ -753,14 +753,14 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                         setSnapGuides(guides);
 
                         if (updateSubtitle) {
-                          updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, false);
+                          updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, undefined, undefined, undefined, undefined, false);
                         }
                       }}
                       onFinalize={() => {
                          setSnapGuides({ x: false, y: false });
                          if (updateSubtitle) {
                            // Trigger finalize
-                           updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, true);
+                           updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
                          }
                       }}
                     />

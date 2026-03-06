@@ -97,7 +97,7 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
 
     // Use active values (override or clip)
     const activeX = liveOverrides.x ?? clip.position?.x ?? 0.5;
-    const activeY = liveOverrides.y ?? clip.position?.y ?? 0.9;
+    const activeY = liveOverrides.y ?? clip.position?.y ?? (clip.content ? 0.9 : 0.5);
     const activeScale = liveOverrides.scale ?? clip.scale ?? 1;
     const activeRotation = liveOverrides.rotation ?? clip.rotation ?? 0;
     const activeScaleX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
@@ -194,7 +194,7 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
   const { left, top, width, height, transform } = useMemo(() => {
     // Use active values (override or clip)
     const x = liveOverrides.x ?? clip.position?.x ?? 0.5;
-    const y = liveOverrides.y ?? clip.position?.y ?? 0.9;
+    const y = liveOverrides.y ?? clip.position?.y ?? (clip.content ? 0.9 : 0.5);
     const sX = liveOverrides.scaleX ?? clip.scaleX ?? clip.scale ?? 1;
     const sY = liveOverrides.scaleY ?? clip.scaleY ?? clip.scale ?? 1;
     const rot = liveOverrides.rotation ?? clip.rotation ?? 0;

@@ -2,22 +2,28 @@
 import { Project, Asset } from '../types';
 
 export class ErrorReportingService {
-  private static logs: string[] = [];
-  private static originalConsoleLog = console.log;
+  private static logs: { type: string, message: string, time: string }[] = [];
   private static originalConsoleError = console.error;
+  private static originalConsoleWarn = console.warn;
 
   static init() {
-    console.log = (...args) => {
-      this.logs.push(`[LOG] ${new Date().toISOString()}: ${args.join(' ')}`);
-      this.originalConsoleLog.apply(console, args);
-    };
     console.error = (...args) => {
-      this.logs.push(`[ERROR] ${new Date().toISOString()}: ${args.join(' ')}`);
+      const message = args.map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ');
+      this.logs.push({ type: 'ERROR', message, time: new Date().toISOString() });
+      if (this.logs.length > 100) this.logs.shift();
       this.originalConsoleError.apply(console, args);
+    };
+
+    console.warn = (...args) => {
+      const message = args.map(arg => (typeof arg === 'object' ? JSON.stringify(arg) : String(arg))).join(' ');
+      this.logs.push({ type: 'WARN', message, time: new Date().toISOString() });
+      if (this.logs.length > 100) this.logs.shift();
+      this.originalConsoleWarn.apply(console, args);
     };
     
     window.addEventListener('unhandledrejection', (event) => {
-      this.logs.push(`[PROMISE_ERROR] ${event.reason}`);
+      this.logs.push({ type: 'PROMISE_ERROR', message: String(event.reason), time: new Date().toISOString() });
+      if (this.logs.length > 100) this.logs.shift();
     });
   }
 
@@ -36,7 +42,7 @@ export class ErrorReportingService {
         duration: Math.max(...project.tracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 0),
       },
       assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration })),
-      logs: this.logs.slice(-100), // Last 100 entries
+      logs: this.logs,
     };
 
     const reportStr = JSON.stringify(report, null, 2);

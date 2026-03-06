@@ -73,10 +73,13 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   }
 
   const updateClip = (updates: any, finalize: boolean = false) => {
+    const currentPos = selectedClip.position || { x: 0.5, y: (isSubtitle ? 0.9 : 0.5) };
+    const newPos = updates.position !== undefined ? { ...currentPos, ...updates.position } : currentPos;
+    
     updateSubtitle(
       primaryClipId, 
       updates.content, 
-      updates.position, 
+      newPos, 
       applyToAll, 
       updates.color, 
       updates.font, 
