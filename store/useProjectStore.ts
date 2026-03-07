@@ -25,6 +25,7 @@ export const useProjectStore = () => {
   const [zoom, setZoom] = useState(10);
   const [isMagnetEnabled, setIsMagnetEnabled] = useState(true);
   const [applyToAll, setApplyToAll] = useState(false);
+  const [kineticDrawMode, setKineticDrawMode] = useState(false);
 
   const historyRef = useRef<Project[]>([INITIAL_PROJECT]);
   const historyIndexRef = useRef<number>(0);
@@ -651,11 +652,53 @@ export const useProjectStore = () => {
     setSelectedClipIds(ids);
   }, []);
 
+  const updateKineticData = useCallback((clipId: string, data: any) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id === clipId) {
+              const currentKinetic = clip.kineticData || {
+                id: `kinetic-${Date.now()}`,
+                clipId: clip.id,
+                settings: {
+                  boundingBox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
+                  preset: 'Viral_Creator',
+                  fontFamily: clip.font || 'Inter, sans-serif',
+                  direction: 'auto'
+                },
+                words: []
+              };
+
+              return {
+                ...clip,
+                kineticData: {
+                  ...currentKinetic,
+                  ...data,
+                  settings: {
+                    ...currentKinetic.settings,
+                    ...(data.settings || {})
+                  },
+                  words: data.words || currentKinetic.words
+                }
+              };
+            }
+            return clip;
+          })
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled, setKineticDrawMode,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
+    syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, updateKineticData, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

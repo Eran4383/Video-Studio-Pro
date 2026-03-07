@@ -7,6 +7,7 @@ import { GFX_Gizmo } from '../../services/GFX_Gizmo';
 import { GFX_InteractionManager } from '../../services/GFX_InteractionManager';
 import { useProjectStore } from '../../store/useProjectStore';
 import { TransformOverlay } from './TransformOverlay';
+import { KineticDrawOverlay } from './KineticDrawOverlay';
 
 interface PreviewPlayerProps {
   store: any; // Using any to avoid circular type issues with the hook return type, or we could define a Store interface
@@ -710,6 +711,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                 );
             })()
           )}
+          
+          <KineticDrawOverlay store={store} />
         </div>
 
         <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none z-40">

@@ -3,6 +3,8 @@ import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPla
 import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
 
+import { KineticControls } from './KineticControls';
+
 const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => (
   <div className="border-b border-zinc-800/50">
     <div 
@@ -314,6 +316,8 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                    </button>
                 </div>
              </div>
+             
+             <KineticControls selectedClip={selectedClip} store={store} />
           </div>
         </Section>
       )}
