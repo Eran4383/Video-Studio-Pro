@@ -694,11 +694,41 @@ export const useProjectStore = () => {
     });
   }, []);
 
+  const updateKineticWord = useCallback((clipId: string, wordId: string, updates: any) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id === clipId && clip.kineticData) {
+              return {
+                ...clip,
+                kineticData: {
+                  ...clip.kineticData,
+                  words: clip.kineticData.words.map((word: any) => 
+                    word.id === wordId ? { ...word, ...updates } : word
+                  )
+                }
+              };
+            }
+            return clip;
+          })
+        }))
+      };
+      // Optional: pushToHistory(next) if we want undo for every word tweak
+      // For performance on sliders, maybe debounce or skip history?
+      // User requested "Post-Generation Editing", usually implies history.
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled, setKineticDrawMode,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
-    syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, updateKineticData, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
+    syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, updateKineticData, updateKineticWord, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };
