@@ -8,6 +8,7 @@ import { GFX_InteractionManager } from '../../services/GFX_InteractionManager';
 import { useProjectStore } from '../../store/useProjectStore';
 import { TransformOverlay } from './TransformOverlay';
 import { KineticDrawOverlay } from './KineticDrawOverlay';
+import { KineticTextDOM } from './KineticTextDOM';
 
 interface PreviewPlayerProps {
   store: any; // Using any to avoid circular type issues with the hook return type, or we could define a Store interface
@@ -597,7 +598,12 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           />
 
           {/* Subtitles Overlay */}
-          {activeSubs.map(sub => (
+          {activeSubs.map(sub => {
+            if (sub.kineticData?.words?.length > 0) {
+              return <KineticTextDOM key={sub.id} clip={sub} currentTime={renderTime} />;
+            }
+
+            return (
             <div 
               key={sub.id}
               id={`sub-dom-${sub.id}`}
@@ -626,7 +632,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                 {sub.content}
               </div>
             </div>
-          ))}
+          )})}
 
           {/* Snap Guides */}
           {snapGuides.x && (
