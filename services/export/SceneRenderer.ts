@@ -43,7 +43,7 @@ export class SceneRenderer {
     for (const track of subtitleTracks) {
       const clip = track.clips.find(c => time >= c.startTime && time < c.startTime + c.duration);
       if (clip && clip.content) {
-        this.drawSubtitle(clip);
+        this.drawSubtitle(clip, time);
       }
     }
   }
@@ -98,12 +98,69 @@ export class SceneRenderer {
     this.ctx.restore();
   }
 
-  private drawSubtitle(clip: Clip) {
+  private drawSubtitle(clip: Clip, time: number) {
     if (!clip.content) return;
 
-    this.ctx.save();
-    
-    // Dynamic font sizing based on video width (2.2% of width to match 1.25rem on 1920px)
+    // KINETIC TYPOGRAPHY RENDERER
+    if (clip.kineticData && clip.kineticData.words && clip.kineticData.words.length > 0) {
+      const { settings, words } = clip.kineticData;
+      const { boundingBox } = settings;
+
+      // 1. Calculate Absolute Bounding Box
+      const boxX = (boundingBox.x) * this.width;
+      const boxY = (boundingBox.y) * this.height;
+      const boxWidth = (boundingBox.width) * this.width;
+      const boxHeight = (boundingBox.height) * this.height;
+
+      // 2. Relative Timing
+      const relativeTime = time - clip.startTime;
+
+      this.ctx.save();
+      
+      // Draw Box Overlay (if enabled)
+      if (settings.showBox) {
+        this.ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)'; // Yellow-500
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        this.ctx.fillStyle = 'rgba(234, 179, 8, 0.1)';
+        this.ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        this.ctx.setLineDash([]);
+      }
+
+      // 3. Draw Words
+      words.forEach(word => {
+        if (relativeTime >= word.startTime) {
+          // Calculate Position relative to Box
+          const wordX = boxX + (word.position.x * boxWidth); // position.x is 0-1 relative to box
+          const wordY = boxY + (word.position.y * boxHeight);
+
+          // Calculate Font Size (cqh equivalent)
+          // word.fontSize is 0-1 relative to box HEIGHT
+          const fontSize = word.fontSize * boxHeight;
+
+          this.ctx.font = `900 ${fontSize}px ${word.fontFamily || settings.primaryFont || 'Inter, sans-serif'}`;
+          this.ctx.fillStyle = word.color;
+          this.ctx.textBaseline = 'top'; // DOM usually aligns top-left for spans
+          this.ctx.textAlign = 'left';
+          
+          // Shadow
+          this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
+          this.ctx.shadowBlur = 0;
+          this.ctx.shadowOffsetX = 2;
+          this.ctx.shadowOffsetY = 2;
+
+          this.ctx.fillText(word.text, wordX, wordY);
+        }
+      });
+
+      this.ctx.restore();
+
+    } else {
+      // STANDARD SUBTITLE RENDERER
+      this.ctx.save();
+      
+      // Dynamic font sizing based on video width (2.2% of width to match 1.25rem on 1920px)
     const baseFontSize = this.width * 0.022; 
     const scale = Number(clip.scale) || 1;
     const scaleX = Number(clip.scaleX ?? scale);
@@ -175,5 +232,6 @@ export class SceneRenderer {
     });
 
     this.ctx.restore();
+    }
   }
 }

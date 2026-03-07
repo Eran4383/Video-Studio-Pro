@@ -5,6 +5,7 @@ import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutManager'
 import { ProSlider } from '../UI/ProSlider';
 import { KineticSettingsForm } from './KineticSettingsForm';
 import { KineticSettings } from '../../types/kinetic';
+import { KineticWordEditor } from './KineticWordEditor';
 
 interface KineticControlsProps {
   selectedClip: Clip;
@@ -18,6 +19,7 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   const showBox = !!selectedClip.kineticData?.settings?.showBox;
   const bbox = selectedClip.kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
   const settings = selectedClip.kineticData?.settings;
+  const words = selectedClip.kineticData?.words || [];
 
   const toggleKinetic = () => {
     if (hasKinetic) {
@@ -120,6 +122,10 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
                </button>
              )}
            </div>
+
+           {words.length > 0 && (
+             <KineticWordEditor clipId={selectedClip.id} words={words} />
+           )}
         </div>
       )}
     </div>
