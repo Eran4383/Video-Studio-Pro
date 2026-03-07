@@ -1,4 +1,6 @@
 
+import { KineticBlock } from './types/kinetic';
+
 export enum MediaType {
   VIDEO = 'VIDEO',
   AUDIO = 'AUDIO',
@@ -43,6 +45,9 @@ export interface Clip {
   shadow?: boolean;
   fontWeight?: string; // 'bold', 'normal', etc.
   textAlign?: 'left' | 'center' | 'right';
+  
+  // Kinetic Typography Data (Optional)
+  kineticData?: KineticBlock;
 }
 
 export interface Effect {
