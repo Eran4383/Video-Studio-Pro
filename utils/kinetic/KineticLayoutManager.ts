@@ -10,9 +10,12 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
   if (wordsText.length === 0) return [];
 
   // RTL Detection
-  const isRtl = settings.direction === 'auto' 
-    ? /[\u0590-\u05FF]/.test(content) 
-    : settings.direction === 'rtl';
+  const isRtl = settings.direction === 'rtl' || (settings.direction === 'auto' && /[\u0590-\u05FF]/.test(content));
+
+  // Font Protection
+  const fontToUse = (settings.primaryFont && settings.primaryFont !== 'Original' && settings.primaryFont !== 'default') 
+    ? settings.primaryFont 
+    : (clip.font || 'Inter, sans-serif');
 
   // 1. Layout Algorithm
   let geometricWords: any[] = [];
@@ -35,11 +38,11 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
     text: gw.text,
     startTime: index * wordDuration, // Relative time 0-based
     endTime: (index + 1) * wordDuration,
-    position: { x: gw.x, y: gw.y },
-    fontSize: gw.fontSize,
-    width: gw.width,
+    position: { x: gw.x / 100, y: gw.y / 100 }, // Normalize 0-100 to 0-1
+    fontSize: gw.fontSize / 100, // Normalize 0-100 to 0-1
+    width: gw.width / 100, // Normalize 0-100 to 0-1
     color: '#ffffff', // Placeholder, will be assigned
-    fontFamily: settings.primaryFont || clip.font || 'Inter, sans-serif',
+    fontFamily: fontToUse,
     animation: settings.animationStyle
   }));
 

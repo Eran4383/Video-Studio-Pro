@@ -1,113 +1,134 @@
 import { KineticSettings } from '../../../types/kinetic';
 import { measureText } from '../kineticTextMeasure';
 
-interface GeometricWord {
-  text: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  fontSize: number;
-}
-
-export const generateDynamicCollage = (wordsText: string[], settings: KineticSettings, isRtl: boolean = false): GeometricWord[] => {
-  const { primaryFont, gap } = settings;
-  const gapPct = (gap || 0) / 100;
-
-  // 1. Measure Aspect Ratios
-  const measureSize = 100; 
-  const wordMetrics = wordsText.map(text => {
-    const { width, height } = measureText(text, primaryFont || 'Inter', measureSize);
-    return { text, ar: width / height };
+export const generateDynamicCollage = (wordsText: string[], settings: KineticSettings, isRtl: boolean): any[] => {
+  const font = (settings.primaryFont && settings.primaryFont !== 'Original') ? settings.primaryFont : 'Inter, sans-serif';
+  const wordsWithAR = wordsText.map(text => {
+    const size = measureText(text, font, 100);
+    const ar = (size.height > 0 ? size.width / size.height : 1) || 1;
+    return { text, ar };
   });
 
-  // 2. Group into lines (1-3 words)
-  const lines: { text: string, ar: number }[][] = [];
+  const lines: typeof wordsWithAR[] = [];
   let i = 0;
-  while (i < wordMetrics.length) {
-    const count = Math.min(Math.floor(Math.random() * 3) + 1, wordMetrics.length - i);
-    lines.push(wordMetrics.slice(i, i + count));
-    i += count;
+  while (i < wordsWithAR.length) {
+    const numWords = (Math.random() > 0.5 && i < wordsWithAR.length - 1) ? 2 : 1;
+    lines.push(wordsWithAR.slice(i, i + numWords));
+    i += numWords;
   }
 
-  // 3. Calculate Geometry per line
+  const gap = settings.gap ?? 2;
+  const positionedWords: any[] = [];
   let currentY = 0;
-  const lineGeometries: { y: number, height: number, words: GeometricWord[] }[] = [];
 
-  lines.forEach((lineWords) => {
-    const totalAR = lineWords.reduce((sum, w) => sum + w.ar, 0);
-    const gapsCount = Math.max(0, lineWords.length - 1);
-    const totalGapWidth = gapsCount * gapPct;
+  lines.forEach(line => {
+    const sumAR = line.reduce((sum, w) => sum + w.ar, 0);
+    const totalGapsAR = (line.length - 1) * (gap / 100);
+    const lineTotalAR = sumAR + totalGapsAR;
+
+    // Logical height to make line width exactly 100
+    const lineHeight = 100 / lineTotalAR; 
+    let currentX = isRtl ? 100 : 0;
     
-    // Available width for content (assuming container width = 1.0)
-    const availableWidth = Math.max(0.1, 1.0 - totalGapWidth);
-    
-    // Height of this line to make it fit width 1.0 exactly: W = h * totalAR => h = W / totalAR
-    const lineHeight = availableWidth / totalAR;
-    
-    let currentX = isRtl ? 1.0 : 0;
-    const lineResultWords: GeometricWord[] = [];
-    
-    lineWords.forEach((w) => {
+    line.forEach(w => {
       const wordWidth = lineHeight * w.ar;
-      
-      let xPos = currentX;
+      const gapWidth = lineHeight * (gap / 100);
+
       if (isRtl) {
         currentX -= wordWidth;
-        xPos = currentX;
+        positionedWords.push({ text: w.text, x: currentX, y: currentY, fontSize: lineHeight, width: wordWidth, height: lineHeight });
+        currentX -= gapWidth;
       } else {
-        xPos = currentX;
-      }
-
-      lineResultWords.push({
-        text: w.text,
-        x: xPos,
-        y: currentY,
-        width: wordWidth,
-        height: lineHeight,
-        fontSize: lineHeight // fontSize roughly equals line height
-      });
-      
-      if (isRtl) {
-        currentX -= gapPct;
-      } else {
-        currentX += wordWidth + gapPct;
+        positionedWords.push({ text: w.text, x: currentX, y: currentY, fontSize: lineHeight, width: wordWidth, height: lineHeight });
+        currentX += wordWidth + gapWidth;
       }
     });
-    
-    lineGeometries.push({ y: currentY, height: lineHeight, words: lineResultWords });
-    currentY += lineHeight + gapPct;
+    currentY += lineHeight + (lineHeight * (gap / 100));
   });
 
-  // 4. Global Scale to fit Height (Force Fill)
-  // Remove last gap from total height
-  const totalHeight = Math.max(0.1, currentY - gapPct);
+  // Calculate total height (subtracting the last gap if any)
+  // The last line added a gap, so we need to subtract it from currentY.
+  // Wait, currentY includes the last gap.
+  // The gap added was (lineHeight * (gap / 100)).
+  // We need to know the last line height to subtract the gap correctly.
   
-  // Force fill to 100% height
-  const scale = 1.0 / totalHeight;
-  
-  // Center vertically (should be 0 if exact fit, but good for safety)
-  const finalContentHeight = totalHeight * scale;
-  const offsetY = (1.0 - finalContentHeight) / 2;
-  
-  // Center horizontally (important if scale != 1.0)
-  const finalContentWidth = 1.0 * scale;
-  const offsetX = (1.0 - finalContentWidth) / 2;
+  let totalHeight = currentY;
+  if (lines.length > 0) {
+     const lastLine = lines[lines.length - 1];
+     const sumAR = lastLine.reduce((sum, w) => sum + w.ar, 0);
+     const totalGapsAR = (lastLine.length - 1) * (gap / 100);
+     const lineTotalAR = sumAR + totalGapsAR;
+     const lastLineHeight = 100 / lineTotalAR;
+     const lastGapHeight = lastLineHeight * (gap / 100);
+     totalHeight -= lastGapHeight;
+  }
 
-  const finalWords: GeometricWord[] = [];
+  // Object-fit: contain logic inside bounding box
+  const assumedScreenAR = 1920 / 1080;
+  const bw = settings.boundingBox?.width || 0.5; // Default 50% if missing, but usually 0.8
+  const bh = settings.boundingBox?.height || 0.5;
   
-  lineGeometries.forEach(line => {
-    line.words.forEach(w => {
-      finalWords.push({
-        text: w.text,
-        x: (w.x * scale) + offsetX,
-        y: (w.y * scale) + offsetY,
-        width: w.width * scale,
-        height: w.height * scale,
-        fontSize: w.fontSize * scale
-      });
-    });
-  });
+  // Box Aspect Ratio (Width / Height)
+  // If box is 50% width and 50% height of screen:
+  // Box Width (px) = 1920 * 0.5
+  // Box Height (px) = 1080 * 0.5
+  // Box AR = (1920 * 0.5) / (1080 * 0.5) = 1920/1080 = 1.77
+  const boxAR = (bw * assumedScreenAR) / bh;
 
-  return finalWords;
+  // We have content with Width=100 and Height=totalHeight.
+  // We want to fit it into a box with Width=100*boxAR and Height=100 (normalized to height 100).
+  // Or simpler:
+  // Content Size: W=100, H=totalHeight
+  // Target Box Size (in same units): W=100*boxAR, H=100 (if we normalize height to 100)
+  // Wait, let's normalize to the box dimensions.
+  // Let's say the box is 1x1 unit.
+  // Content is W=100, H=totalHeight.
+  // We want to scale content by S so that:
+  // W*S <= BoxWidth_in_content_units AND H*S <= BoxHeight_in_content_units
+  
+  // Let's map 0-100 coordinates to 0-1 coordinates relative to the box.
+  // Content Width = 100. Content Height = totalHeight.
+  // Box Width (relative to content width unit?) No.
+  
+  // Let's use the logic from the prompt:
+  const scaleW = boxAR; // If we scale width by boxAR, we fit width?
+  const scaleH = 100 / (totalHeight || 1);
+  const S = Math.min(scaleW, scaleH);
+
+  // If S = scaleW = boxAR:
+  // New Width = 100 * boxAR.
+  // This means the content width (100) is scaled up to match the box width ratio?
+  // Wait, if boxAR is 2 (wide box), and content is 100x100.
+  // scaleW = 2. scaleH = 1. S = 1.
+  // New Width = 100. New Height = 100.
+  // Box is 2 units wide, 1 unit high.
+  // Content fits in height, but width is half of box.
+  
+  // If S = scaleH = 1 (totalHeight=100).
+  // Content is 100x100.
+  // Box is 2x1 (AR=2).
+  // S = 1.
+  // Content becomes 100x100.
+  // We need to center it in 200x100 space?
+  // The prompt says:
+  // x: (offsetX_cqh + w.x * S) / boxAR
+  
+  // Let's trace:
+  // w.x is 0-100.
+  // w.x * S is 0-100 (if S=1).
+  // offsetX_cqh = (100 * boxAR - 100 * S) / 2 = (200 - 100)/2 = 50.
+  // x = (50 + 0..100) / 2 = 25..75.
+  // In 0-100 scale, 25 to 75 is 50% width, centered. Correct.
+  
+  const offsetX_cqh = (100 * boxAR - 100 * S) / 2;
+  const offsetY_cqh = (100 - totalHeight * S) / 2;
+
+  return positionedWords.map(w => ({
+    text: w.text,
+    x: (offsetX_cqh + w.x * S) / boxAR, // Normalize to 0-100 relative to box width
+    y: offsetY_cqh + w.y * S, // Normalize to 0-100 relative to box height
+    width: (w.width * S) / boxAR,
+    height: w.height * S,
+    fontSize: w.fontSize * S
+  }));
 };
