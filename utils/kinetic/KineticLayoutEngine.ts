@@ -81,8 +81,8 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
     kineticWords.push({
       id: `word-${index}-${Date.now()}`,
       text: word,
-      startTime: clip.startTime + (index * durationPerWord),
-      endTime: clip.startTime + ((index + 1) * durationPerWord),
+      startTime: index * durationPerWord, // Relative to clip start
+      endTime: (index + 1) * durationPerWord, // Relative to clip start
       fontSize: fontSizePx / CANVAS_HEIGHT, // Store as percentage of screen height
       color: preset.colors[index % preset.colors.length],
       entranceAnimation: preset.animation,

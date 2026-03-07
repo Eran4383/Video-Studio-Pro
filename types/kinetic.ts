@@ -24,6 +24,7 @@ export interface KineticSettings {
   preset: string;
   fontFamily: string;
   direction: 'ltr' | 'rtl' | 'auto';
+  showBox?: boolean;
 }
 
 export interface KineticBlock {

@@ -32,6 +32,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
   const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true });
   const [editingText, setEditingText] = useState('');
+  const [activeTab, setActiveTab] = useState<'basic' | 'kinetic'>('basic');
 
   useEffect(() => {
     if (selectedClip && isSubtitle) setEditingText(selectedClip.content || '');
@@ -111,9 +112,36 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedClip.id}</p>
       </div>
 
-      {/* Text Section (Subtitles Only) */}
       {isSubtitle && (
-        <Section id="text" title="Text Content" icon={Type} isOpen={sections.text} onToggle={toggleSection}>
+        <div className="flex p-2 gap-2 border-b border-zinc-800/50">
+          <button
+            onClick={() => setActiveTab('basic')}
+            className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-colors ${activeTab === 'basic' ? 'bg-zinc-800 text-white' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Basic
+          </button>
+          <button
+            onClick={() => setActiveTab('kinetic')}
+            className={`flex-1 py-1.5 text-[10px] font-bold uppercase tracking-wide rounded transition-colors ${activeTab === 'kinetic' ? 'bg-zinc-800 text-purple-400' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            Kinetic
+          </button>
+        </div>
+      )}
+
+      {/* Kinetic Tab Content */}
+      {isSubtitle && activeTab === 'kinetic' && (
+        <div className="p-2">
+           <KineticControls selectedClip={selectedClip} store={store} />
+        </div>
+      )}
+
+      {/* Basic Tab Content (or non-subtitle) */}
+      {(!isSubtitle || activeTab === 'basic') && (
+        <>
+          {/* Text Section (Subtitles Only) */}
+          {isSubtitle && (
+            <Section id="text" title="Text Content" icon={Type} isOpen={sections.text} onToggle={toggleSection}>
           <div className="flex flex-col gap-3">
             <textarea
               value={editingText}
@@ -317,10 +345,13 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                 </div>
              </div>
              
-             <KineticControls selectedClip={selectedClip} store={store} />
+             {/* Removed KineticControls from here as it's now in a tab */}
           </div>
         </Section>
       )}
+      </>
+      )}
+
     </div>
   );
 };

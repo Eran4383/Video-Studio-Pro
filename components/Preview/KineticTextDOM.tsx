@@ -11,7 +11,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTim
   
   if (!kineticData || !kineticData.settings.boundingBox) return null;
 
-  const { boundingBox, fontFamily } = kineticData.settings;
+  const { boundingBox, fontFamily, showBox } = kineticData.settings;
   const { words } = kineticData;
 
   // Calculate container style based on bounding box
@@ -26,11 +26,16 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTim
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
   };
 
+  const relativeTime = currentTime - clip.startTime;
+
   return (
-    <div style={containerStyle} className="z-40">
+    <div 
+      style={containerStyle} 
+      className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
+    >
       {words.map((word) => {
-        // Only show if time has passed start time
-        if (currentTime < word.startTime) return null;
+        // Only show if time has passed start time (relative)
+        if (relativeTime < word.startTime) return null;
 
         // Calculate position relative to the bounding box
         // word.position is global (0-1), bbox is global (0-1)

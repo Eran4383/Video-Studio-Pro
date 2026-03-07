@@ -1,8 +1,9 @@
 import React from 'react';
-import { Wand2, Pencil, Check, PlayCircle } from 'lucide-react';
+import { Wand2, Pencil, Check, PlayCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { KINETIC_PRESETS } from '../../config/kineticPresets';
 import { Clip } from '../../types';
 import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutEngine';
+import { ProSlider } from '../UI/ProSlider';
 
 interface KineticControlsProps {
   selectedClip: Clip;
@@ -13,14 +14,12 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   const { updateKineticData, setKineticDrawMode, kineticDrawMode, updateClipProperties } = store;
   const hasKinetic = !!selectedClip.kineticData;
   const hasBoundingBox = !!selectedClip.kineticData?.settings?.boundingBox;
+  const showBox = !!selectedClip.kineticData?.settings?.showBox;
+  const bbox = selectedClip.kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
 
   const toggleKinetic = () => {
     if (hasKinetic) {
-      // Disable: Remove kineticData (using updateClipProperties with finalize=true to trigger history)
-      // Since updateClipProperties doesn't support removing kineticData directly, we rely on updateKineticData to set it to null or undefined if supported,
-      // or just hide it. For now, we just toggle the UI state effectively.
-      // To truly disable, we'd need a store method to unset it.
-      // Let's just re-initialize if enabled.
+      // Logic to disable would go here
     } else {
       updateKineticData(selectedClip.id, {
          id: `k-${Date.now()}`,
@@ -29,7 +28,8 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
              boundingBox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
              preset: 'Viral_Creator',
              fontFamily: selectedClip.font || 'Inter, sans-serif',
-             direction: 'auto'
+             direction: 'auto',
+             showBox: true
          },
          words: []
       });
@@ -43,6 +43,13 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
     
     const generatedWords = generateKineticLayout(selectedClip, preset);
     updateKineticData(selectedClip.id, { words: generatedWords });
+  };
+
+  const updateBBox = (key: string, value: number) => {
+    const newBBox = { ...bbox, [key]: value / 100 };
+    updateKineticData(selectedClip.id, {
+      settings: { boundingBox: newBBox }
+    });
   };
 
   return (
@@ -75,23 +82,44 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
               </select>
            </div>
 
-           <button
-             onClick={() => setKineticDrawMode(!kineticDrawMode)}
-             className={`flex items-center justify-center gap-2 p-2 rounded-md border text-[10px] font-bold uppercase tracking-wide transition-all ${kineticDrawMode ? 'bg-purple-500 text-white border-purple-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-600'}`}
-           >
-             {kineticDrawMode ? <Check size={12} /> : <Pencil size={12} />}
-             {kineticDrawMode ? 'Finish Drawing' : 'Draw Animation Area'}
-           </button>
+           <div className="flex items-center justify-between">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">Box Overlay</span>
+              <button 
+                onClick={() => updateKineticData(selectedClip.id, { settings: { showBox: !showBox } })}
+                className="text-zinc-400 hover:text-white transition-colors"
+              >
+                {showBox ? <Eye size={14} /> : <EyeOff size={14} />}
+              </button>
+           </div>
 
            {hasBoundingBox && (
-             <button
-               onClick={handleGenerate}
-               className="flex items-center justify-center gap-2 p-2 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-all"
-             >
-               <PlayCircle size={12} />
-               Generate Animation
-             </button>
+             <div className="grid grid-cols-2 gap-2">
+                <ProSlider label="X" value={bbox.x * 100} onChange={(v) => updateBBox('x', v)} min={0} max={100} step={1} unit="%" />
+                <ProSlider label="Y" value={bbox.y * 100} onChange={(v) => updateBBox('y', v)} min={0} max={100} step={1} unit="%" />
+                <ProSlider label="W" value={bbox.width * 100} onChange={(v) => updateBBox('width', v)} min={5} max={100} step={1} unit="%" />
+                <ProSlider label="H" value={bbox.height * 100} onChange={(v) => updateBBox('height', v)} min={5} max={100} step={1} unit="%" />
+             </div>
            )}
+
+           <div className="flex gap-2">
+             <button
+               onClick={() => setKineticDrawMode(!kineticDrawMode)}
+               className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-md border text-[10px] font-bold uppercase tracking-wide transition-all ${kineticDrawMode ? 'bg-purple-500 text-white border-purple-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-600'}`}
+             >
+               {kineticDrawMode ? <Check size={12} /> : <Pencil size={12} />}
+               {kineticDrawMode ? 'Finish' : 'Draw'}
+             </button>
+
+             {hasBoundingBox && (
+               <button
+                 onClick={handleGenerate}
+                 className="flex-1 flex items-center justify-center gap-2 p-2 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-all"
+               >
+                 <RefreshCw size={12} />
+                 Regenerate
+               </button>
+             )}
+           </div>
         </div>
       )}
     </div>
