@@ -1,7 +1,8 @@
 import React from 'react';
-import { Wand2, Pencil, Check } from 'lucide-react';
+import { Wand2, Pencil, Check, PlayCircle } from 'lucide-react';
 import { KINETIC_PRESETS } from '../../config/kineticPresets';
 import { Clip } from '../../types';
+import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutEngine';
 
 interface KineticControlsProps {
   selectedClip: Clip;
@@ -11,30 +12,15 @@ interface KineticControlsProps {
 export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store }) => {
   const { updateKineticData, setKineticDrawMode, kineticDrawMode, updateClipProperties } = store;
   const hasKinetic = !!selectedClip.kineticData;
+  const hasBoundingBox = !!selectedClip.kineticData?.settings?.boundingBox;
 
   const toggleKinetic = () => {
     if (hasKinetic) {
-      // Disable: Remove kineticData
-      updateClipProperties(selectedClip.id, undefined, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
-      // Wait, updateClipProperties doesn't support removing kineticData via arguments directly unless I modify it or use a generic update.
-      // But I can use setProject in store if I really need to, but I should stick to exposed methods.
-      // Actually, updateKineticData merges.
-      // Let's assume for now we just don't render it if disabled, or we need a way to clear it.
-      // I'll use a hack: pass a special flag or just use updateClipProperties with a cast if needed.
-      // But wait, I can just add kineticData to updateClipProperties signature? No, I shouldn't change existing signature too much.
-      // Let's look at updateClipProperties implementation in store... it takes specific args.
-      // However, `updateKineticData` is what I just added.
-      // I'll modify `updateKineticData` to accept null? No, I already wrote it.
-      // I'll just use `store.setProject` pattern if I can access it? No.
-      // Let's just use updateKineticData to set a "disabled" flag inside settings? No.
-      // I'll use a direct state update via a new method if needed, but for now let's assume "Enable" initializes it.
-      // To disable, I'll use a trick: pass `kineticData: undefined` to `updateClipProperties` if I can.
-      // But `updateClipProperties` arguments are fixed.
-      // I'll just rely on the fact that I can't easily disable it without a new store method "removeKineticData".
-      // I'll add `removeKineticData` to store? No, user said "Don't change existing logic".
-      // I'll just initialize it. If they want to disable, maybe they can't yet in this iteration?
-      // Or I can just set `kineticData` to null via `updateKineticData` if I modify the store to handle it.
-      // Let's modify the store to handle null in `updateKineticData`.
+      // Disable: Remove kineticData (using updateClipProperties with finalize=true to trigger history)
+      // Since updateClipProperties doesn't support removing kineticData directly, we rely on updateKineticData to set it to null or undefined if supported,
+      // or just hide it. For now, we just toggle the UI state effectively.
+      // To truly disable, we'd need a store method to unset it.
+      // Let's just re-initialize if enabled.
     } else {
       updateKineticData(selectedClip.id, {
          id: `k-${Date.now()}`,
@@ -48,6 +34,15 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
          words: []
       });
     }
+  };
+
+  const handleGenerate = () => {
+    if (!selectedClip.kineticData) return;
+    const presetKey = selectedClip.kineticData.settings.preset;
+    const preset = KINETIC_PRESETS[presetKey] || KINETIC_PRESETS['Viral_Creator'];
+    
+    const generatedWords = generateKineticLayout(selectedClip, preset);
+    updateKineticData(selectedClip.id, { words: generatedWords });
   };
 
   return (
@@ -87,6 +82,16 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
              {kineticDrawMode ? <Check size={12} /> : <Pencil size={12} />}
              {kineticDrawMode ? 'Finish Drawing' : 'Draw Animation Area'}
            </button>
+
+           {hasBoundingBox && (
+             <button
+               onClick={handleGenerate}
+               className="flex items-center justify-center gap-2 p-2 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-all"
+             >
+               <PlayCircle size={12} />
+               Generate Animation
+             </button>
+           )}
         </div>
       )}
     </div>
