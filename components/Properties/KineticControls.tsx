@@ -1,9 +1,10 @@
 import React from 'react';
-import { Wand2, Pencil, Check, PlayCircle, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import { KINETIC_PRESETS } from '../../config/kineticPresets';
+import { Wand2, Pencil, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Clip } from '../../types';
-import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutEngine';
+import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutManager';
 import { ProSlider } from '../UI/ProSlider';
+import { KineticSettingsForm } from './KineticSettingsForm';
+import { KineticSettings } from '../../types/kinetic';
 
 interface KineticControlsProps {
   selectedClip: Clip;
@@ -11,11 +12,12 @@ interface KineticControlsProps {
 }
 
 export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store }) => {
-  const { updateKineticData, setKineticDrawMode, kineticDrawMode, updateClipProperties } = store;
+  const { updateKineticData, setKineticDrawMode, kineticDrawMode } = store;
   const hasKinetic = !!selectedClip.kineticData;
   const hasBoundingBox = !!selectedClip.kineticData?.settings?.boundingBox;
   const showBox = !!selectedClip.kineticData?.settings?.showBox;
   const bbox = selectedClip.kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
+  const settings = selectedClip.kineticData?.settings;
 
   const toggleKinetic = () => {
     if (hasKinetic) {
@@ -26,10 +28,13 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
          clipId: selectedClip.id,
          settings: {
              boundingBox: { x: 0.1, y: 0.1, width: 0.8, height: 0.8 },
-             preset: 'Viral_Creator',
+             layoutStyle: 'dynamic-collage',
+             animationStyle: 'pop',
+             paletteId: 'Hormozi',
              fontFamily: selectedClip.font || 'Inter, sans-serif',
              direction: 'auto',
-             showBox: true
+             showBox: true,
+             gap: 2
          },
          words: []
       });
@@ -38,10 +43,9 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
 
   const handleGenerate = () => {
     if (!selectedClip.kineticData) return;
-    const presetKey = selectedClip.kineticData.settings.preset;
-    const preset = KINETIC_PRESETS[presetKey] || KINETIC_PRESETS['Viral_Creator'];
+    const currentSettings = selectedClip.kineticData.settings;
     
-    const generatedWords = generateKineticLayout(selectedClip, preset);
+    const generatedWords = generateKineticLayout(selectedClip, currentSettings);
     updateKineticData(selectedClip.id, { words: generatedWords });
   };
 
@@ -49,6 +53,12 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
     const newBBox = { ...bbox, [key]: value / 100 };
     updateKineticData(selectedClip.id, {
       settings: { boundingBox: newBBox }
+    });
+  };
+
+  const updateSettings = (updates: Partial<KineticSettings>) => {
+    updateKineticData(selectedClip.id, {
+      settings: updates
     });
   };
 
@@ -67,21 +77,9 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
         </button>
       </div>
 
-      {hasKinetic && (
+      {hasKinetic && settings && (
         <div className="flex flex-col gap-3 animate-in slide-in-from-top-2 duration-200">
-           <div className="flex flex-col gap-1.5">
-              <label className="text-[9px] text-zinc-500 font-mono uppercase">Animation Style</label>
-              <select 
-                value={selectedClip.kineticData?.settings.preset}
-                onChange={(e) => updateKineticData(selectedClip.id, { settings: { preset: e.target.value } })}
-                className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none focus:border-purple-500/50 transition-colors"
-              >
-                {Object.keys(KINETIC_PRESETS).map(key => (
-                    <option key={key} value={key}>{key.replace('_', ' ')}</option>
-                ))}
-              </select>
-           </div>
-
+           
            <div className="flex items-center justify-between">
               <span className="text-[9px] text-zinc-500 font-mono uppercase">Box Overlay</span>
               <button 
@@ -100,6 +98,8 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
                 <ProSlider label="H" value={bbox.height * 100} onChange={(v) => updateBBox('height', v)} min={5} max={100} step={1} unit="%" />
              </div>
            )}
+
+           <KineticSettingsForm settings={settings} onChange={updateSettings} />
 
            <div className="flex gap-2">
              <button

@@ -39,27 +39,25 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTim
 
         // Calculate position relative to the bounding box
         // word.position is global (0-1), bbox is global (0-1)
-        const relativeX = (word.position.x - boundingBox.x) / boundingBox.width;
-        const relativeY = (word.position.y - boundingBox.y) / boundingBox.height;
-        
-        // Calculate font size relative to the bounding box height
-        // word.fontSize is global (0-1)
-        const relativeFontSize = word.fontSize / boundingBox.height;
+        // Wait, the new engine returns percentages relative to the bounding box!
+        // So word.position.x is 0-1 relative to the box width.
+        // We should multiply by 100 to get %.
 
         return (
           <span
             key={word.id}
-            className={`absolute ${word.entranceAnimation === 'pop' ? 'animate-in zoom-in-50 duration-200' : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}`}
+            className={`absolute ${word.animation === 'pop' ? 'animate-in zoom-in-50 duration-200' : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}`}
             style={{
-              left: `${relativeX * 100}%`,
-              top: `${relativeY * 100}%`,
+              left: `${word.position.x * 100}%`,
+              top: `${word.position.y * 100}%`,
               color: word.color,
               fontFamily: fontFamily || 'Inter, sans-serif',
-              fontSize: `${relativeFontSize * 100}cqh`,
-              lineHeight: 1.2,
+              fontSize: `${word.fontSize * 100}cqh`, // Container Query Height
+              lineHeight: 1,
               whiteSpace: 'nowrap',
               fontWeight: '900',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.5)'
+              textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
+              transformOrigin: 'center center'
             }}
           >
             {word.text}
