@@ -9,15 +9,20 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
   
   if (wordsText.length === 0) return [];
 
+  // RTL Detection
+  const isRtl = settings.direction === 'auto' 
+    ? /[\u0590-\u05FF]/.test(content) 
+    : settings.direction === 'rtl';
+
   // 1. Layout Algorithm
   let geometricWords: any[] = [];
   
   // Router for layouts
   if (settings.layoutStyle === 'dynamic-collage') {
-    geometricWords = generateDynamicCollage(wordsText, settings);
+    geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
   } else {
     // Fallback or other layouts
-    geometricWords = generateDynamicCollage(wordsText, settings);
+    geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
   }
 
   // 2. Timing
@@ -34,7 +39,7 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
     fontSize: gw.fontSize,
     width: gw.width,
     color: '#ffffff', // Placeholder, will be assigned
-    fontFamily: settings.primaryFont,
+    fontFamily: settings.primaryFont || clip.font || 'Inter, sans-serif',
     animation: settings.animationStyle
   }));
 

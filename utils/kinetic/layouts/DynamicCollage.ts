@@ -10,7 +10,7 @@ interface GeometricWord {
   fontSize: number;
 }
 
-export const generateDynamicCollage = (wordsText: string[], settings: KineticSettings): GeometricWord[] => {
+export const generateDynamicCollage = (wordsText: string[], settings: KineticSettings, isRtl: boolean = false): GeometricWord[] => {
   const { primaryFont, gap } = settings;
   const gapPct = (gap || 0) / 100;
 
@@ -45,46 +45,54 @@ export const generateDynamicCollage = (wordsText: string[], settings: KineticSet
     // Height of this line to make it fit width 1.0 exactly: W = h * totalAR => h = W / totalAR
     const lineHeight = availableWidth / totalAR;
     
-    let currentX = 0;
+    let currentX = isRtl ? 1.0 : 0;
     const lineResultWords: GeometricWord[] = [];
     
     lineWords.forEach((w) => {
       const wordWidth = lineHeight * w.ar;
       
+      let xPos = currentX;
+      if (isRtl) {
+        currentX -= wordWidth;
+        xPos = currentX;
+      } else {
+        xPos = currentX;
+      }
+
       lineResultWords.push({
         text: w.text,
-        x: currentX,
+        x: xPos,
         y: currentY,
         width: wordWidth,
         height: lineHeight,
         fontSize: lineHeight // fontSize roughly equals line height
       });
       
-      currentX += wordWidth + gapPct;
+      if (isRtl) {
+        currentX -= gapPct;
+      } else {
+        currentX += wordWidth + gapPct;
+      }
     });
     
     lineGeometries.push({ y: currentY, height: lineHeight, words: lineResultWords });
     currentY += lineHeight + gapPct;
   });
 
-  // 4. Global Scale to fit Height
+  // 4. Global Scale to fit Height (Force Fill)
   // Remove last gap from total height
   const totalHeight = Math.max(0.1, currentY - gapPct);
   
-  // Scale down if too tall, or center if too short
-  // We want to fit within 1.0 height.
-  let scale = 1.0;
-  if (totalHeight > 1.0) {
-    scale = 1.0 / totalHeight;
-  }
+  // Force fill to 100% height
+  const scale = 1.0 / totalHeight;
   
-  // Center vertically
+  // Center vertically (should be 0 if exact fit, but good for safety)
   const finalContentHeight = totalHeight * scale;
   const offsetY = (1.0 - finalContentHeight) / 2;
   
-  // Center horizontally if scaled down (width becomes < 1.0)
-  // Since we packed to width 1.0, scaling by S makes width S.
-  const offsetX = (1.0 - scale) / 2;
+  // Center horizontally (important if scale != 1.0)
+  const finalContentWidth = 1.0 * scale;
+  const offsetX = (1.0 - finalContentWidth) / 2;
 
   const finalWords: GeometricWord[] = [];
   
