@@ -46,7 +46,11 @@ export interface KineticSettings {
 
 export interface KineticBlock {
   id: string;
-  clipId: string;
+  name: string;
+  color: string;
+  startTime: number;
+  endTime: number;
+  clipIds: string[];
   settings: KineticSettings;
   words: KineticWord[];
 }

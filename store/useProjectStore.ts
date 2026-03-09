@@ -12,7 +12,8 @@ const INITIAL_PROJECT: Project = {
     { id: 'track-v1', name: 'Video 1', type: 'video', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 72 },
     { id: 'track-a1', name: 'Audio 1', type: 'audio', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 72 }
   ],
-  backgroundColor: '#000000'
+  backgroundColor: '#000000',
+  kineticBlocks: []
 };
 
 export const useProjectStore = () => {
@@ -184,6 +185,75 @@ export const useProjectStore = () => {
   const deleteClip = useCallback((clipId: string) => { 
       setProject(prev => ({...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))}));
       setSelectedClipIds(prev => prev.filter(id => id !== clipId));
+  }, []);
+
+  const createKineticBlock = useCallback((clipIds: string[]) => {
+    setProject(prev => {
+      const clips = prev.tracks.flatMap(t => t.clips).filter(c => clipIds.includes(c.id));
+      if (clips.length === 0) return prev;
+      
+      const startTime = Math.min(...clips.map(c => c.startTime));
+      const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
+      
+      const newBlock: any = {
+        id: `kb-${Date.now()}`,
+        name: 'Kinetic Block',
+        color: 'rgba(234, 179, 8, 0.3)',
+        startTime,
+        endTime,
+        clipIds,
+        settings: {
+          boundingBox: { x: 10, y: 10, width: 80, height: 80 },
+          layoutStyle: 'pop-in-place',
+          animationStyle: 'pop',
+          animationOrder: 'reading',
+          direction: 'auto',
+          paletteId: 'default',
+          primaryFont: 'Inter',
+          secondaryFont: 'Inter',
+          randomMode: false,
+          gap: 2,
+          blockHandling: 'separate'
+        },
+        words: []
+      };
+
+      const next = {
+        ...prev,
+        kineticBlocks: [...(prev.kineticBlocks || []), newBlock]
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
+  const updateKineticBlock = useCallback((blockId: string, updates: any) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        kineticBlocks: (prev.kineticBlocks || []).map(b => 
+          b.id === blockId ? { 
+            ...b, 
+            ...updates, 
+            settings: { ...b.settings, ...(updates.settings || {}) } 
+          } : b
+        )
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
+  const deleteKineticBlock = useCallback((blockId: string) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        kineticBlocks: (prev.kineticBlocks || []).filter(b => b.id !== blockId)
+      };
+      pushToHistory(next);
+      return next;
+    });
+    setSelectedClipIds([]);
   }, []);
   const splitClip = useCallback((targetId: string | null | undefined, time: number) => {
     setProject(prev => {
@@ -751,6 +821,27 @@ export const useProjectStore = () => {
 
   const updateKineticWord = useCallback((clipId: string, wordId: string, updates: any) => {
     setProject(prev => {
+      const isBlock = clipId.startsWith('kb-');
+      
+      if (isBlock) {
+        const next = {
+          ...prev,
+          kineticBlocks: (prev.kineticBlocks || []).map(b => {
+            if (b.id === clipId) {
+              return {
+                ...b,
+                words: b.words.map((word: any) => 
+                  word.id === wordId ? { ...word, ...updates } : word
+                )
+              };
+            }
+            return b;
+          })
+        };
+        pushToHistory(next);
+        return next;
+      }
+
       const next = {
         ...prev,
         tracks: prev.tracks.map(track => ({
@@ -771,9 +862,6 @@ export const useProjectStore = () => {
           })
         }))
       };
-      // Optional: pushToHistory(next) if we want undo for every word tweak
-      // For performance on sliders, maybe debounce or skip history?
-      // User requested "Post-Generation Editing", usually implies history.
       pushToHistory(next);
       return next;
     });
@@ -784,6 +872,7 @@ export const useProjectStore = () => {
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled, setKineticDrawMode,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
     syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, updateKineticData, updateKineticWord, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
+    createKineticBlock, updateKineticBlock, deleteKineticBlock,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

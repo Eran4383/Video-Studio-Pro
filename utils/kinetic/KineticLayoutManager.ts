@@ -3,8 +3,7 @@ import { KineticSettings, KineticWord } from '../../types/kinetic';
 import { generateDynamicCollage } from './layouts/DynamicCollage';
 import { assignColors } from './KineticColorEngine';
 
-export const generateKineticLayout = (clip: Clip, settings: KineticSettings): KineticWord[] => {
-  const content = clip.content || '';
+export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
   
   if (wordsText.length === 0) return [];
@@ -15,7 +14,7 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
   // Font Protection
   const fontToUse = (settings.primaryFont && settings.primaryFont !== 'Original' && settings.primaryFont !== 'default') 
     ? settings.primaryFont 
-    : (clip.font || 'Inter, sans-serif');
+    : fallbackFont;
 
   // 1. Layout Algorithm
   let geometricWords: any[] = [];
@@ -29,7 +28,6 @@ export const generateKineticLayout = (clip: Clip, settings: KineticSettings): Ki
   }
 
   // 2. Timing
-  const duration = clip.duration; // in seconds
   const wordDuration = duration / wordsText.length;
 
   // 3. Construct KineticWords

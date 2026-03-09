@@ -8,12 +8,13 @@ import { KineticSettings } from '../../types/kinetic';
 import { KineticWordEditor } from './KineticWordEditor';
 
 interface KineticControlsProps {
-  selectedClip: Clip;
+  selectedClip: any;
   store: any;
+  isBlock?: boolean;
 }
 
-export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store }) => {
-  const { updateKineticData, setKineticDrawMode, kineticDrawMode } = store;
+export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store, isBlock }) => {
+  const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode } = store;
   const hasKinetic = !!selectedClip.kineticData;
   const hasBoundingBox = !!selectedClip.kineticData?.settings?.boundingBox;
   const showBox = !!selectedClip.kineticData?.settings?.showBox;
@@ -21,11 +22,19 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   const settings = selectedClip.kineticData?.settings;
   const words = selectedClip.kineticData?.words || [];
 
+  const updateData = (clipId: string, data: any) => {
+    if (isBlock) {
+      updateKineticBlock(clipId, data);
+    } else {
+      updateKineticData(clipId, data);
+    }
+  };
+
   const toggleKinetic = () => {
     if (hasKinetic) {
       // Logic to disable would go here
     } else {
-      updateKineticData(selectedClip.id, {
+      updateData(selectedClip.id, {
          id: `k-${Date.now()}`,
          clipId: selectedClip.id,
          settings: {
@@ -47,19 +56,41 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
     if (!selectedClip.kineticData) return;
     const currentSettings = selectedClip.kineticData.settings;
     
-    const generatedWords = generateKineticLayout(selectedClip, currentSettings);
-    updateKineticData(selectedClip.id, { words: generatedWords });
+    let content = '';
+    let duration = 0;
+    let fallbackFont = 'Inter, sans-serif';
+
+    if (isBlock) {
+      const block = selectedClip.kineticData;
+      const clips = store.project.tracks.flatMap((t: any) => t.clips).filter((c: any) => block.clipIds.includes(c.id));
+      // Sort clips by start time
+      clips.sort((a: any, b: any) => a.startTime - b.startTime);
+      content = clips.map((c: any) => c.content || '').join(' ');
+      
+      const startTime = Math.min(...clips.map((c: any) => c.startTime));
+      const endTime = Math.max(...clips.map((c: any) => c.startTime + c.duration));
+      duration = endTime - startTime;
+      
+      fallbackFont = clips[0]?.font || 'Inter, sans-serif';
+    } else {
+      content = selectedClip.content || '';
+      duration = selectedClip.duration;
+      fallbackFont = selectedClip.font || 'Inter, sans-serif';
+    }
+
+    const generatedWords = generateKineticLayout(content, duration, currentSettings, fallbackFont);
+    updateData(selectedClip.id, { words: generatedWords });
   };
 
   const updateBBox = (key: string, value: number) => {
     const newBBox = { ...bbox, [key]: value / 100 };
-    updateKineticData(selectedClip.id, {
+    updateData(selectedClip.id, {
       settings: { boundingBox: newBBox }
     });
   };
 
   const updateSettings = (updates: Partial<KineticSettings>) => {
-    updateKineticData(selectedClip.id, {
+    updateData(selectedClip.id, {
       settings: updates
     });
   };
@@ -85,7 +116,7 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
            <div className="flex items-center justify-between">
               <span className="text-[9px] text-zinc-500 font-mono uppercase">Box Overlay</span>
               <button 
-                onClick={() => updateKineticData(selectedClip.id, { settings: { showBox: !showBox } })}
+                onClick={() => updateData(selectedClip.id, { settings: { showBox: !showBox } })}
                 className="text-zinc-400 hover:text-white transition-colors"
               >
                 {showBox ? <Eye size={14} /> : <EyeOff size={14} />}

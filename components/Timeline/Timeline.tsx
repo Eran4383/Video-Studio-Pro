@@ -5,6 +5,7 @@ import { AssetService } from '../../services/AssetService';
 import { MagneticAnchorService } from '../../services/MagneticAnchorService';
 import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
+import { KineticBlocksOverlay } from './KineticBlocksOverlay';
 
 interface TimelineProps {
   project: Project;
@@ -382,6 +383,12 @@ export const Timeline: React.FC<TimelineProps> = ({
           </div>
 
           <div className="flex flex-col relative" ref={tracksRef} onMouseDown={handleTrackAreaMouseDown}>
+            <KineticBlocksOverlay 
+              project={project} 
+              pxPerSec={pxPerSec} 
+              selectedClipIds={selectedClipIds}
+              onSelectBlock={(id) => onSelectClip(id)}
+            />
             <TimelineTracks 
               project={project}
               assets={assets}

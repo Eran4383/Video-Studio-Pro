@@ -2,14 +2,19 @@ import React, { useRef, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
 
 export const KineticDrawOverlay: React.FC<{ store: any }> = ({ store }) => {
-  const { kineticDrawMode, setKineticDrawMode, updateKineticData, selectedClipIds, project } = store;
+  const { kineticDrawMode, setKineticDrawMode, updateKineticData, updateKineticBlock, selectedClipIds, project } = store;
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });
   const [currentPos, setCurrentPos] = useState({ x: 0, y: 0 });
   
+  const primaryClipId = selectedClipIds[0];
+  const isKineticBlock = primaryClipId?.startsWith('kb-');
+  const selectedKineticBlock = isKineticBlock ? project.kineticBlocks?.find((b: any) => b.id === primaryClipId) : null;
   const selectedClip = project.tracks.flatMap((t: any) => t.clips).find((c: any) => selectedClipIds.includes(c.id));
 
-  if (!kineticDrawMode || !selectedClip) return null;
+  const targetId = isKineticBlock ? selectedKineticBlock?.id : selectedClip?.id;
+
+  if (!kineticDrawMode || !targetId) return null;
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     e.stopPropagation();
@@ -42,7 +47,8 @@ export const KineticDrawOverlay: React.FC<{ store: any }> = ({ store }) => {
     const height = Math.abs(currentPos.y - startPos.y);
 
     if (width > 0.05 && height > 0.05) { // Minimum size threshold
-       updateKineticData(selectedClip.id, {
+       const updateData = isKineticBlock ? updateKineticBlock : updateKineticData;
+       updateData(targetId, {
          settings: {
            boundingBox: { x, y, width, height }
          }

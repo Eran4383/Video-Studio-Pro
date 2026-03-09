@@ -25,10 +25,19 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   const { selectedClipIds, project, setProject, finalizeMove, updateSubtitle, applyToAll, setApplyToAll } = store;
   
   const primaryClipId = selectedClipIds[0];
-  const selectedClip = project.tracks.flatMap((t: any) => t.clips).find((c: any) => c.id === primaryClipId);
+  const isKineticBlock = primaryClipId?.startsWith('kb-');
+  const selectedKineticBlock = isKineticBlock ? project.kineticBlocks?.find((b: any) => b.id === primaryClipId) : null;
+
+  const selectedClips = project.tracks.flatMap((t: any) => t.clips).filter((c: any) => selectedClipIds.includes(c.id));
+  const selectedClip = selectedClips.find((c: any) => c.id === primaryClipId);
   const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === primaryClipId));
   const isSubtitle = track?.type === 'subtitle';
   const isVisual = track?.type === 'video' || track?.type === 'image' || isSubtitle;
+
+  const allSelectedAreSubtitles = selectedClips.length > 1 && selectedClips.every((c: any) => {
+    const t = project.tracks.find((tr: any) => tr.clips.some((cl: any) => cl.id === c.id));
+    return t?.type === 'subtitle';
+  });
 
   const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true });
   const [editingText, setEditingText] = useState('');
@@ -37,6 +46,31 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   useEffect(() => {
     if (selectedClip && isSubtitle) setEditingText(selectedClip.content || '');
   }, [selectedClip?.id, isSubtitle]);
+
+  if (isKineticBlock && selectedKineticBlock) {
+    return (
+      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
+        <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Type size={14} className="text-purple-400" />
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Kinetic Block</h2>
+            </div>
+            <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedKineticBlock.id}</p>
+          </div>
+          <button 
+            onClick={() => store.deleteKineticBlock(selectedKineticBlock.id)}
+            className="text-[10px] font-bold uppercase tracking-wider text-red-400 hover:text-red-300 bg-red-400/10 hover:bg-red-400/20 px-2 py-1 rounded transition-colors"
+          >
+            Ungroup
+          </button>
+        </div>
+        <div className="p-2">
+          <KineticControls selectedClip={{ id: selectedKineticBlock.id, kineticData: selectedKineticBlock }} store={store} isBlock={true} />
+        </div>
+      </div>
+    );
+  }
 
   if (!selectedClip) {
     return (
@@ -111,6 +145,20 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         </div>
         <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedClip.id}</p>
       </div>
+
+      {allSelectedAreSubtitles && (
+        <div className="p-4 border-b border-zinc-800/50">
+          <button
+            onClick={() => {
+              store.createKineticBlock(selectedClipIds);
+              store.selectClip(null);
+            }}
+            className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-widest rounded transition-colors"
+          >
+            Group into Kinetic Block
+          </button>
+        </div>
+      )}
 
       {isSubtitle && (
         <div className="flex p-2 gap-2 border-b border-zinc-800/50">

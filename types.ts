@@ -64,6 +64,7 @@ export interface Project {
   fps: number;
   tracks: Track[];
   backgroundColor?: string;
+  kineticBlocks?: KineticBlock[];
 }
 
 export interface Track {

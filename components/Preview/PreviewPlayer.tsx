@@ -211,6 +211,16 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     .flatMap(t => t.clips)
     .filter(c => c.content && renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
 
+  const activeKineticBlocks = (project.kineticBlocks || []).map((b: any) => {
+    const clips = project.tracks.flatMap(t => t.clips).filter(c => b.clipIds.includes(c.id));
+    if (clips.length === 0) return null;
+    const startTime = Math.min(...clips.map(c => c.startTime));
+    const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
+    return { ...b, startTime, endTime };
+  }).filter(
+    (b: any) => b && renderTime >= b.startTime && renderTime <= b.endTime
+  );
+
   const activeSub = activeSubs[0]; // For the editor panel
 
   const handleSubMouseDown = (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => {
@@ -599,6 +609,10 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
           {/* Subtitles Overlay */}
           {activeSubs.map(sub => {
+            // If the subtitle is part of a kinetic block, don't render it individually
+            const isPartOfBlock = project.kineticBlocks?.some((b: any) => b.clipIds.includes(sub.id));
+            if (isPartOfBlock) return null;
+
             if (sub.kineticData?.words?.length > 0) {
               return <KineticTextDOM key={sub.id} clip={sub} currentTime={renderTime} />;
             }
@@ -633,6 +647,20 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
               </div>
             </div>
           )})}
+
+          {/* Kinetic Blocks Overlay */}
+          {activeKineticBlocks.map((block: any) => {
+            if (block.words?.length > 0) {
+              const fakeClip = {
+                id: block.id,
+                startTime: block.startTime,
+                duration: block.endTime - block.startTime,
+                kineticData: block
+              } as any;
+              return <KineticTextDOM key={block.id} clip={fakeClip} currentTime={renderTime} />;
+            }
+            return null;
+          })}
 
           {/* Snap Guides */}
           {snapGuides.x && (
