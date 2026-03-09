@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wand2, Pencil, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Clip } from '../../types';
-import { generateKineticLayout, generateBlockLayout } from '../../utils/kinetic/KineticLayoutManager';
+import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutManager';
 import { ProSlider } from '../UI/ProSlider';
 import { KineticSettingsForm } from './KineticSettingsForm';
 import { KineticSettings } from '../../types/kinetic';
