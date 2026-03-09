@@ -867,12 +867,31 @@ export const useProjectStore = () => {
     });
   }, []);
 
+  const generateBlockAnimation = useCallback((blockId: string) => {
+    setProject(prev => {
+      const block = prev.kineticBlocks?.find(b => b.id === blockId);
+      if (!block) return prev;
+
+      const allClips = prev.tracks.flatMap(t => t.clips);
+      const words = generateBlockLayout(block, allClips);
+
+      const next = {
+        ...prev,
+        kineticBlocks: (prev.kineticBlocks || []).map(b => 
+          b.id === blockId ? { ...b, words } : b
+        )
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, []);
+
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode,
     setZoom, setCurrentTime, setIsPlaying, setIsLooping, selectClip, selectClips, setIsMagnetEnabled, setKineticDrawMode,
     toggleTrackProperty, setTrackHeight, addTrack, addAsset, addClipAtPosition, addClips, detachAudio, deleteClip, splitClip, moveClip, resizeClip,
     syncClipsToAnchors, updateClipProperties, updateSubtitle: updateClipProperties, updateKineticData, updateKineticWord, applyToAll, setApplyToAll, setBackgroundColor, importSubtitles, setProjectResolution, addSubtitleClip,
-    createKineticBlock, updateKineticBlock, deleteKineticBlock,
+    createKineticBlock, updateKineticBlock, deleteKineticBlock, generateBlockAnimation,
     finalizeMove: () => pushToHistory(project), undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1, setProject
   };
 };

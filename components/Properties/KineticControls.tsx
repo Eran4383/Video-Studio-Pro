@@ -1,7 +1,7 @@
 import React from 'react';
 import { Wand2, Pencil, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import { Clip } from '../../types';
-import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutManager';
+import { generateKineticLayout, generateBlockLayout } from '../../utils/kinetic/KineticLayoutManager';
 import { ProSlider } from '../UI/ProSlider';
 import { KineticSettingsForm } from './KineticSettingsForm';
 import { KineticSettings } from '../../types/kinetic';
@@ -14,13 +14,18 @@ interface KineticControlsProps {
 }
 
 export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store, isBlock }) => {
-  const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode } = store;
-  const hasKinetic = !!selectedClip.kineticData;
-  const hasBoundingBox = !!selectedClip.kineticData?.settings?.boundingBox;
-  const showBox = !!selectedClip.kineticData?.settings?.showBox;
-  const bbox = selectedClip.kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
-  const settings = selectedClip.kineticData?.settings;
-  const words = selectedClip.kineticData?.words || [];
+  const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode, generateBlockAnimation } = store;
+  
+  // If it's a block, we need to find the actual block object from project
+  const activeBlock = isBlock ? store.project.kineticBlocks?.find((b: any) => b.id === selectedClip.id) : null;
+  const kineticData = isBlock ? activeBlock : selectedClip.kineticData;
+  
+  const hasKinetic = !!kineticData;
+  const hasBoundingBox = !!kineticData?.settings?.boundingBox;
+  const showBox = !!kineticData?.settings?.showBox;
+  const bbox = kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
+  const settings = kineticData?.settings;
+  const words = kineticData?.words || [];
 
   const updateData = (clipId: string, data: any) => {
     if (isBlock) {
@@ -53,33 +58,18 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   };
 
   const handleGenerate = () => {
-    if (!selectedClip.kineticData) return;
-    const currentSettings = selectedClip.kineticData.settings;
+    if (!kineticData) return;
     
-    let content = '';
-    let duration = 0;
-    let fallbackFont = 'Inter, sans-serif';
-
     if (isBlock) {
-      const block = selectedClip.kineticData;
-      const clips = store.project.tracks.flatMap((t: any) => t.clips).filter((c: any) => block.clipIds.includes(c.id));
-      // Sort clips by start time
-      clips.sort((a: any, b: any) => a.startTime - b.startTime);
-      content = clips.map((c: any) => c.content || '').join(' ');
-      
-      const startTime = Math.min(...clips.map((c: any) => c.startTime));
-      const endTime = Math.max(...clips.map((c: any) => c.startTime + c.duration));
-      duration = endTime - startTime;
-      
-      fallbackFont = clips[0]?.font || 'Inter, sans-serif';
+      generateBlockAnimation(selectedClip.id);
     } else {
-      content = selectedClip.content || '';
-      duration = selectedClip.duration;
-      fallbackFont = selectedClip.font || 'Inter, sans-serif';
+      const currentSettings = kineticData.settings;
+      const content = selectedClip.content || '';
+      const duration = selectedClip.duration;
+      const fallbackFont = selectedClip.font || 'Inter, sans-serif';
+      const generatedWords = generateKineticLayout(content, duration, currentSettings, fallbackFont);
+      updateData(selectedClip.id, { words: generatedWords });
     }
-
-    const generatedWords = generateKineticLayout(content, duration, currentSettings, fallbackFont);
-    updateData(selectedClip.id, { words: generatedWords });
   };
 
   const updateBBox = (key: string, value: number) => {

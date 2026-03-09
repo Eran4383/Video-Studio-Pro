@@ -613,10 +613,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
             const isPartOfBlock = project.kineticBlocks?.some((b: any) => b.clipIds.includes(sub.id));
             if (isPartOfBlock) return null;
 
-            if (sub.kineticData?.words?.length > 0) {
-              return <KineticTextDOM key={sub.id} clip={sub} currentTime={renderTime} />;
-            }
-
             return (
             <div 
               key={sub.id}
@@ -649,18 +645,9 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           )})}
 
           {/* Kinetic Blocks Overlay */}
-          {activeKineticBlocks.map((block: any) => {
-            if (block.words?.length > 0) {
-              const fakeClip = {
-                id: block.id,
-                startTime: block.startTime,
-                duration: block.endTime - block.startTime,
-                kineticData: block
-              } as any;
-              return <KineticTextDOM key={block.id} clip={fakeClip} currentTime={renderTime} />;
-            }
-            return null;
-          })}
+          {activeKineticBlocks.map((block: any) => (
+            <KineticTextDOM key={block.id} block={block} currentTime={renderTime} />
+          ))}
 
           {/* Snap Guides */}
           {snapGuides.x && (

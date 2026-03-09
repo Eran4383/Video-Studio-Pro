@@ -1,18 +1,17 @@
 import React from 'react';
-import { Clip } from '../../types';
+import { KineticBlock } from '../../types/kinetic';
 
 interface KineticTextDOMProps {
-  clip: Clip;
+  block: KineticBlock;
   currentTime: number;
 }
 
-export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTime }) => {
-  const { kineticData } = clip;
+export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime }) => {
+  const { settings, words } = block;
   
-  if (!kineticData || !kineticData.settings.boundingBox) return null;
+  if (!settings || !settings.boundingBox) return null;
 
-  const { boundingBox, fontFamily, showBox } = kineticData.settings;
-  const { words } = kineticData;
+  const { boundingBox, fontFamily, showBox } = settings;
 
   // Calculate container style based on bounding box
   const containerStyle: React.CSSProperties = {
@@ -26,22 +25,14 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTim
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
   };
 
-  const relativeTime = currentTime - clip.startTime;
-
   return (
     <div 
       style={containerStyle} 
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >
       {words.map((word) => {
-        // Only show if time has passed start time (relative)
-        if (relativeTime < word.startTime) return null;
-
-        // Calculate position relative to the bounding box
-        // word.position is global (0-1), bbox is global (0-1)
-        // Wait, the new engine returns percentages relative to the bounding box!
-        // So word.position.x is 0-1 relative to the box width.
-        // We should multiply by 100 to get %.
+        // Only show if time is within word's active range
+        if (currentTime < word.startTime || currentTime > word.endTime) return null;
 
         return (
           <span
@@ -51,8 +42,8 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ clip, currentTim
               left: `${word.position.x * 100}%`,
               top: `${word.position.y * 100}%`,
               color: word.color,
-              fontFamily: fontFamily || 'Inter, sans-serif',
-              fontSize: `${word.fontSize * 100}cqh`, // Container Query Height
+              fontFamily: word.fontFamily || fontFamily || 'Inter, sans-serif',
+              fontSize: `${(word.fontSize || 0.1) * 100}cqh`, // Container Query Height
               lineHeight: 1,
               whiteSpace: 'nowrap',
               fontWeight: '900',
