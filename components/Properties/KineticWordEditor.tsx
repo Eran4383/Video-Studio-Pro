@@ -10,7 +10,8 @@ interface KineticWordEditorProps {
 
 export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words }) => {
   const [selectedWordId, setSelectedWordId] = useState<string>('');
-  const updateKineticWord = useProjectStore(state => state.updateKineticWord);
+  const store = useProjectStore();
+  const updateKineticWord = store.updateKineticWord;
 
   const selectedWord = words.find(w => w.id === selectedWordId);
 

@@ -1,5 +1,6 @@
 
 import { Project, Asset } from '../types';
+import { useProjectStore } from '../store/useProjectStore';
 
 export class ErrorReportingService {
   private static logs: { type: string, message: string, time: string }[] = [];
@@ -28,6 +29,8 @@ export class ErrorReportingService {
   }
 
   static generateFullReport(project: Project, assets: Asset[]) {
+    const storeState = useProjectStore.getState();
+    
     const report = {
       timestamp: new Date().toISOString(),
       userAgent: navigator.userAgent,
@@ -40,6 +43,16 @@ export class ErrorReportingService {
         windowWidth: window.innerWidth,
         windowHeight: window.innerHeight,
         screenAR: window.innerWidth / window.innerHeight,
+      },
+      uiState: {
+        currentTime: storeState.currentTime,
+        isPlaying: storeState.isPlaying,
+        isLooping: storeState.isLooping,
+        zoom: storeState.zoom,
+        isMagnetEnabled: storeState.isMagnetEnabled,
+        selectedClipIds: storeState.selectedClipIds,
+        historyLength: storeState.history.length,
+        historyIndex: storeState.historyIndex,
       },
       assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration, width: a.width, height: a.height })),
       logs: this.logs,

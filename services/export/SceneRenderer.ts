@@ -26,7 +26,7 @@ export class SceneRenderer {
     // We render tracks in order. Assuming tracks[0] is the bottom-most layer? 
     // Usually in NLEs, higher track index = higher z-index.
     // Let's assume the array order is the render order for now.
-    const visualTracks = project.tracks.filter(t => (t.type === 'video' || t.type === 'image') && t.isVisible);
+    const visualTracks = project.tracks.filter(t => t.type === 'video' && t.isVisible);
 
     for (const track of visualTracks) {
       const clip = track.clips.find(c => time >= c.startTime && time < c.startTime + c.duration);

@@ -96,7 +96,7 @@ export class ExportController {
 
   private async preloadAssets(project: Project, assets: Asset[]) {
     const videoClips = project.tracks
-      .filter(t => t.type === 'video' || t.type === 'image')
+      .filter(t => t.type === 'video')
       .flatMap(t => t.clips);
 
     const promises = videoClips.map(async clip => {

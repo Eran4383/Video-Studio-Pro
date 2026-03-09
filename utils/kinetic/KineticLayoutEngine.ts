@@ -5,7 +5,7 @@ import { measureText } from './kineticTextMeasure';
 export const generateKineticLayout = (clip: Clip, preset: { colors: string[], animation: string }): KineticWord[] => {
   if (!clip.content || !clip.kineticData?.settings?.boundingBox) return [];
 
-  const { boundingBox, fontFamily, direction } = clip.kineticData.settings;
+  const { boundingBox, primaryFont, direction } = clip.kineticData.settings;
   const words = clip.content.split(/\s+/).filter(w => w.length > 0);
   if (words.length === 0) return [];
 
@@ -37,7 +37,7 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
   const kineticWords: KineticWord[] = [];
 
   words.forEach((word, index) => {
-    const { width } = measureText(word, fontFamily || 'Inter, sans-serif', fontSizePx);
+    const { width } = measureText(word, primaryFont || 'Inter, sans-serif', fontSizePx);
     
     let xPos = 0;
     let yPos = currentY;
@@ -65,17 +65,6 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
     }
 
     // Convert back to percentage (0-1) relative to screen
-    // Position is top-left of the word (or baseline depending on renderer)
-    // Let's assume top-left for simplicity in renderer, so subtract ascent?
-    // measureText returns height based on baseline.
-    // Let's store the baseline Y for now as calculated.
-    // Actually, let's store top-left to be safe.
-    // yPos is baseline. Top is yPos - ascent.
-    // Let's just use yPos as the anchor point (baseline) and let renderer handle it?
-    // Or center it?
-    // Let's use top-left for standard positioning.
-    // yPos was calculated as baseline (bbox.y + fontSize).
-    // So top is yPos - fontSize * 0.8 approx.
     const topY = yPos - (fontSizePx * 0.8);
     
     kineticWords.push({
@@ -85,7 +74,8 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
       endTime: (index + 1) * durationPerWord, // Relative to clip start
       fontSize: fontSizePx / CANVAS_HEIGHT, // Store as percentage of screen height
       color: preset.colors[index % preset.colors.length],
-      entranceAnimation: preset.animation,
+      fontFamily: primaryFont || 'Inter, sans-serif',
+      animation: preset.animation as any,
       position: { 
         x: xPos / CANVAS_WIDTH, 
         y: topY / CANVAS_HEIGHT 

@@ -185,7 +185,62 @@ export const useProjectStore = () => {
       setProject(prev => ({...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))}));
       setSelectedClipIds(prev => prev.filter(id => id !== clipId));
   }, []);
-  const splitClip = useCallback((targetId: string | null, time: number) => { /* Same as before */ }, []);
+  const splitClip = useCallback((targetId: string | null | undefined, time: number) => {
+    setProject(prev => {
+      let newlyCreatedIds: string[] = [];
+      const newTracks = prev.tracks.map(track => {
+        if (track.isLocked) return track;
+
+        let clipsToSplit = [];
+        if (targetId) {
+          const c = track.clips.find(c => c.id === targetId);
+          if (c && time > c.startTime && time < c.startTime + c.duration) {
+            clipsToSplit.push(c);
+          }
+        } else {
+          clipsToSplit = track.clips.filter(c => time > c.startTime && time < c.startTime + c.duration);
+        }
+
+        if (clipsToSplit.length === 0) return track;
+
+        let newClips = [...track.clips];
+        
+        for (const clip of clipsToSplit) {
+          const relativeSplitPoint = time - clip.startTime;
+          if (relativeSplitPoint <= 0.1 || relativeSplitPoint >= clip.duration - 0.1) continue;
+
+          const leftClip: Clip = { 
+            ...clip, 
+            duration: relativeSplitPoint,
+            effects: JSON.parse(JSON.stringify(clip.effects || [])),
+            kineticData: clip.kineticData ? JSON.parse(JSON.stringify(clip.kineticData)) : undefined
+          };
+          const rightClipId = `clip-${Math.random().toString(36).substr(2, 9)}`;
+          newlyCreatedIds.push(rightClipId);
+          const rightClip: Clip = {
+            ...clip,
+            id: rightClipId,
+            startTime: time,
+            offset: clip.offset + relativeSplitPoint,
+            duration: clip.duration - relativeSplitPoint,
+            effects: JSON.parse(JSON.stringify(clip.effects || [])),
+            kineticData: clip.kineticData ? JSON.parse(JSON.stringify(clip.kineticData)) : undefined,
+            linkedClipId: undefined // Break link for the right part to avoid issues
+          };
+
+          const clipIdx = newClips.findIndex(c => c.id === clip.id);
+          newClips.splice(clipIdx, 1, leftClip, rightClip);
+        }
+
+        return { ...track, clips: newClips };
+      });
+
+      if (newlyCreatedIds.length > 0) {
+        setTimeout(() => setSelectedClipIds(newlyCreatedIds), 0);
+      }
+      return { ...prev, tracks: newTracks };
+    });
+  }, []);
 
   const syncClipsToAnchors = useCallback((onlySelected: boolean = false) => {
     setProject(prev => {

@@ -238,7 +238,6 @@ export const Timeline: React.FC<TimelineProps> = ({
       // Finalize Box Selection
       if (selectionBox && tracksRef.current) {
         const rect = tracksRef.current.getBoundingClientRect();
-        const scrollLeft = scrollRef.current?.scrollLeft || 0;
         
         // Calculate selection box in timeline coordinates (time and track index)
         const startX = Math.min(selectionBox.startX, selectionBox.currentX);
@@ -247,8 +246,8 @@ export const Timeline: React.FC<TimelineProps> = ({
         const endY = Math.max(selectionBox.startY, selectionBox.currentY);
 
         // Convert X to Time
-        const startTime = Math.max(0, (startX - rect.left + scrollLeft - HEADER_WIDTH) / pxPerSec);
-        const endTime = Math.max(0, (endX - rect.left + scrollLeft - HEADER_WIDTH) / pxPerSec);
+        const startTime = Math.max(0, (startX - rect.left - HEADER_WIDTH) / pxPerSec);
+        const endTime = Math.max(0, (endX - rect.left - HEADER_WIDTH) / pxPerSec);
 
         // Find intersecting clips
         const newSelectedIds: string[] = [];
