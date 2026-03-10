@@ -22,6 +22,8 @@ export interface KineticWord {
   width?: number; // optional pre-calculated width percentage
   color: string;
   fontFamily: string;
+  fontWeight?: string;
+  textCase?: 'uppercase' | 'lowercase' | 'original';
   animation: KineticAnimationStyle;
   stretchX?: boolean;
   stretchY?: boolean;
@@ -49,7 +51,8 @@ export interface KineticSettings {
   fonts?: string[]; // Array of selected fonts
   pastWordsOpacity?: number; // 0-100, default 40
   pastWordsFadeDuration?: number; // seconds, default 0.5
-  fontWeight?: string; // default '900'
+  fontWeight?: string; // default '900', can be 'random'
+  textCase?: 'uppercase' | 'lowercase' | 'original' | 'random';
   lineHeight?: number; // default 1
   
   // Legacy compatibility (optional, to be removed after full refactor)

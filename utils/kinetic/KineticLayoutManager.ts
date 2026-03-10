@@ -24,6 +24,22 @@ const getWordFont = (settings: KineticSettings, index: number) => {
   return settings.primaryFont || 'Inter, sans-serif';
 };
 
+const getWordWeight = (settings: KineticSettings): string => {
+  if (settings.fontWeight === 'random') {
+    const weights = ['100', '300', '400', '700', '900'];
+    return weights[Math.floor(Math.random() * weights.length)];
+  }
+  return settings.fontWeight || '900';
+};
+
+const getWordTextCase = (settings: KineticSettings): 'uppercase' | 'lowercase' | 'original' => {
+  if (settings.textCase === 'random') {
+    const cases: ('uppercase' | 'lowercase' | 'original')[] = ['uppercase', 'lowercase', 'original'];
+    return cases[Math.floor(Math.random() * cases.length)];
+  }
+  return settings.textCase || 'original';
+};
+
 export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
@@ -64,6 +80,8 @@ export const generateKineticLayout = (content: string, duration: number, setting
     width: gw.width / 100, // Normalize 0-100 to 0-1
     color: '#ffffff', // Placeholder, will be assigned
     fontFamily: getWordFont(settings, index),
+    fontWeight: getWordWeight(settings),
+    textCase: getWordTextCase(settings),
     animation: getWordAnimation(settings.animationStyle, index)
   }));
 
@@ -126,6 +144,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       width: gw.width / 100,
       color: '#ffffff',
       fontFamily: getWordFont(block.settings, i + j),
+      fontWeight: getWordWeight(block.settings),
+      textCase: getWordTextCase(block.settings),
       animation: getWordAnimation(block.settings.animationStyle, i + j)
     }));
 

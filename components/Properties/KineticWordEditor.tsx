@@ -67,6 +67,34 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
             </div>
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Weight</label>
+            <select
+              value={selectedWord.fontWeight || '900'}
+              onChange={(e) => onUpdateWord(selectedWord.id, { fontWeight: e.target.value })}
+              className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none"
+            >
+              <option value="100">100 - Thin</option>
+              <option value="300">300 - Light</option>
+              <option value="400">400 - Regular</option>
+              <option value="700">700 - Bold</option>
+              <option value="900">900 - Black</option>
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] text-zinc-500 font-mono uppercase">Text Case</label>
+            <select
+              value={selectedWord.textCase || 'original'}
+              onChange={(e) => onUpdateWord(selectedWord.id, { textCase: e.target.value as any })}
+              className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none"
+            >
+              <option value="original">Original</option>
+              <option value="uppercase">Uppercase</option>
+              <option value="lowercase">Lowercase</option>
+            </select>
+          </div>
+
           <ProSlider 
             label="Font Size" 
             value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%

@@ -2,8 +2,9 @@ import React from 'react';
 import { KineticSettings, KineticAnimationStyle } from '../../types/kinetic';
 import { KINETIC_PALETTES } from '../../config/kineticPalettes';
 import { ProSlider } from '../UI/ProSlider';
-import { Check, Info, ChevronUp, ChevronDown, RotateCw, ListChecks, Plus, Trash2 } from 'lucide-react';
+import { Check, Info, ChevronUp, ChevronDown, RotateCw, ListChecks, Plus, Trash2, Maximize2, Target } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
+import { Clip } from '../../types';
 
 interface KineticSettingsFormProps {
   settings: KineticSettings;
@@ -28,8 +29,20 @@ const ANIMATION_OPTIONS: { id: KineticAnimationStyle; label: string }[] = [
 type TabId = 'Layout' | 'Fonts' | 'Colors' | 'Advanced' | 'BoundingBox';
 
 export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settings, onChange }) => {
-  const { applySettingsToAllKineticBlocks } = useProjectStore();
+  const { applySettingsToAllKineticBlocks, project, currentTime } = useProjectStore();
   const [tabOrder, setTabOrder] = React.useState<TabId[]>(['Layout', 'Fonts', 'Colors', 'Advanced', 'BoundingBox']);
+  const [isFontDropdownOpen, setIsFontDropdownOpen] = React.useState(false);
+  const fontDropdownRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (fontDropdownRef.current && !fontDropdownRef.current.contains(event.target as Node)) {
+        setIsFontDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const moveTab = (id: TabId, direction: 'up' | 'down') => {
     const index = tabOrder.indexOf(id);
@@ -52,6 +65,42 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
     const otherFonts = ALL_FONTS.filter(f => f !== settings.primaryFont);
     const random = otherFonts[Math.floor(Math.random() * otherFonts.length)];
     onChange({ primaryFont: random, fonts: [random], fontMultiSelect: false });
+  };
+
+  const snapToScreen = () => {
+    onChange({
+      boundingBox: { x: 0, y: 0, width: 1, height: 1 }
+    });
+  };
+
+  const snapToClip = () => {
+    const visualTracks = project.tracks.filter(t => t.type === 'video');
+    let targetClip: Clip | null = null;
+    
+    for (let i = visualTracks.length - 1; i >= 0; i--) {
+      const track = visualTracks[i];
+      if (!track.isVisible) continue;
+      const clip = track.clips.find(c => currentTime >= c.startTime && currentTime <= c.startTime + c.duration);
+      if (clip) {
+        targetClip = clip;
+        break;
+      }
+    }
+
+    if (targetClip) {
+      const pos = targetClip.position || { x: 0.5, y: 0.5 };
+      const scaleX = targetClip.scaleX ?? targetClip.scale ?? 1;
+      const scaleY = targetClip.scaleY ?? targetClip.scale ?? 1;
+      
+      const width = scaleX;
+      const height = scaleY;
+      const x = pos.x - (width / 2);
+      const y = pos.y - (height / 2);
+      
+      onChange({
+        boundingBox: { x, y, width, height }
+      });
+    }
   };
 
   const renderTab = (id: TabId) => {
@@ -169,24 +218,49 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                     </button>
                   </div>
                 </div>
-                <select
-                  multiple={!!settings.fontMultiSelect}
-                  size={settings.fontMultiSelect ? 4 : undefined}
-                  value={settings.fonts || [settings.primaryFont || 'Inter']}
-                  onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value);
-                    if (settings.fontMultiSelect) {
-                      onChange({ fonts: values });
-                    } else {
-                      onChange({ primaryFont: values[0], fonts: [values[0]] });
-                    }
-                  }}
-                  className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
-                >
-                  {ALL_FONTS.map(f => (
-                    <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
-                  ))}
-                </select>
+                <div className="relative" ref={fontDropdownRef}>
+                  <button
+                    onClick={() => setIsFontDropdownOpen(!isFontDropdownOpen)}
+                    className="w-full bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white flex items-center justify-between hover:border-zinc-700 transition-colors"
+                  >
+                    <span>{settings.primaryFont || 'Inter'}</span>
+                    <ChevronDown size={12} className={`transition-transform ${isFontDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {isFontDropdownOpen && (
+                    <div className="absolute z-[100] w-full mt-1 bg-[#121212] border border-zinc-800 rounded-md shadow-2xl max-h-60 overflow-y-auto custom-scrollbar">
+                      {ALL_FONTS.map(font => {
+                        const isSelected = settings.fontMultiSelect 
+                          ? (settings.fonts || []).includes(font)
+                          : settings.primaryFont === font;
+                        
+                        return (
+                          <button
+                            key={font}
+                            onClick={() => {
+                              if (settings.fontMultiSelect) {
+                                const currentFonts = settings.fonts || [];
+                                const newFonts = currentFonts.includes(font)
+                                  ? currentFonts.filter(f => f !== font)
+                                  : [...currentFonts, font];
+                                onChange({ fonts: newFonts });
+                              } else {
+                                onChange({ primaryFont: font, fonts: [font] });
+                                setIsFontDropdownOpen(false);
+                              }
+                            }}
+                            className={`w-full px-3 py-2 text-left text-[11px] hover:bg-zinc-800 flex items-center justify-between transition-colors ${isSelected ? 'bg-indigo-600/20 text-indigo-400' : 'text-zinc-300'}`}
+                          >
+                            <div className="flex items-center gap-2">
+                              {isSelected && <Check size={12} className="text-indigo-500" />}
+                              <span className="font-sans">{font}</span>
+                            </div>
+                            <span style={{ fontFamily: font }} className="text-[14px]">Shay</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="flex flex-col gap-2">
                 <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Weight</label>
@@ -195,11 +269,26 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   onChange={(e) => onChange({ fontWeight: e.target.value })}
                   className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
                 >
+                  <option value="random">Random</option>
                   <option value="100">100 - Thin</option>
                   <option value="300">300 - Light</option>
                   <option value="400">400 - Regular</option>
                   <option value="700">700 - Bold</option>
                   <option value="900">900 - Black</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Text Case</label>
+                <select
+                  value={settings.textCase || 'original'}
+                  onChange={(e) => onChange({ textCase: e.target.value as any })}
+                  className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                >
+                  <option value="original">Original</option>
+                  <option value="uppercase">Uppercase</option>
+                  <option value="lowercase">Lowercase</option>
+                  <option value="random">Random</option>
                 </select>
               </div>
 
@@ -364,6 +453,20 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
           <details key={id} className="group mb-2 border border-zinc-800 rounded-md overflow-hidden">
             {summary('Bounding Box')}
             <div className="p-3 flex flex-col gap-5 bg-black/20">
+              <div className="flex gap-2">
+                <button 
+                  onClick={snapToScreen}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[9px] font-bold uppercase rounded border border-zinc-700 transition-colors"
+                >
+                  <Maximize2 size={12} /> Snap to Screen
+                </button>
+                <button 
+                  onClick={snapToClip}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-[9px] font-bold uppercase rounded border border-zinc-700 transition-colors"
+                >
+                  <Target size={12} /> Snap to Clip
+                </button>
+              </div>
               <div className="flex items-center justify-between bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
                 <span className="text-[10px] font-black text-zinc-300 uppercase tracking-tighter">Show Bounding Box</span>
                 <button 
