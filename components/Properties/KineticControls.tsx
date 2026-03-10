@@ -87,17 +87,37 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
 
   return (
     <div className="flex flex-col gap-3 p-3 bg-zinc-900/30 rounded-lg border border-zinc-800/50 mt-4">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2">
           <Wand2 size={14} className="text-purple-400" />
-          <span className="text-[10px] font-black uppercase text-zinc-300 tracking-wider">Smart Kinetic</span>
+          <span className="text-[11px] font-black uppercase text-zinc-200 tracking-wider">Kinetic Block</span>
         </div>
-        <button 
-          onClick={toggleKinetic}
-          className={`w-8 h-4 rounded-full relative transition-colors ${hasKinetic ? 'bg-purple-500/20 border-purple-500/50' : 'bg-zinc-800 border-zinc-700'}`}
-        >
-           <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${hasKinetic ? 'left-4.5 bg-purple-400' : 'left-0.5 bg-zinc-600'}`} />
-        </button>
+        <div className="flex items-center gap-1">
+          {hasKinetic && hasBoundingBox && (
+            <>
+              <button 
+                onClick={() => setKineticDrawMode(!kineticDrawMode)}
+                className={`p-1.5 rounded-md border transition-all ${kineticDrawMode ? 'bg-purple-500 text-white border-purple-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-600'}`}
+                title="Draw Area"
+              >
+                <Pencil size={12} />
+              </button>
+              <button 
+                onClick={handleGenerate}
+                className="p-1.5 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 hover:bg-purple-500/20 transition-all"
+                title="Regenerate"
+              >
+                <RefreshCw size={12} />
+              </button>
+            </>
+          )}
+          <button 
+            onClick={toggleKinetic}
+            className={`w-8 h-4 rounded-full relative transition-colors ml-2 ${hasKinetic ? 'bg-purple-500/20 border-purple-500/50' : 'bg-zinc-800 border-zinc-700'}`}
+          >
+             <div className={`absolute top-0.5 w-3 h-3 rounded-full transition-all ${hasKinetic ? 'left-4.5 bg-purple-400' : 'left-0.5 bg-zinc-600'}`} />
+          </button>
+        </div>
       </div>
 
       {hasKinetic && settings && (
@@ -123,26 +143,6 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
            )}
 
            <KineticSettingsForm settings={settings} onChange={updateSettings} />
-
-           <div className="flex gap-2">
-             <button
-               onClick={() => setKineticDrawMode(!kineticDrawMode)}
-               className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-md border text-[10px] font-bold uppercase tracking-wide transition-all ${kineticDrawMode ? 'bg-purple-500 text-white border-purple-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-600'}`}
-             >
-               {kineticDrawMode ? <Check size={12} /> : <Pencil size={12} />}
-               {kineticDrawMode ? 'Finish' : 'Draw'}
-             </button>
-
-             {hasBoundingBox && (
-               <button
-                 onClick={handleGenerate}
-                 className="flex-1 flex items-center justify-center gap-2 p-2 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-all"
-               >
-                 <RefreshCw size={12} />
-                 Regenerate
-               </button>
-             )}
-           </div>
 
            {words.length > 0 && (
              <KineticWordEditor 

@@ -25,14 +25,11 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
   };
 
-  const getAnimationClass = (animation: string) => {
-    switch (animation) {
-      case 'pop': return 'animate-in zoom-in duration-300';
-      case 'slide-up': return 'animate-in slide-in-from-bottom-10 duration-300';
-      case 'fade': return 'animate-in fade-in duration-300';
-      case 'scale': return 'animate-in zoom-in-50 duration-300';
-      default: return 'animate-in zoom-in duration-300';
-    }
+  const ANIMATION_CLASSES: Record<string, string> = {
+    'pop': 'animate-in zoom-in fade-in duration-300 fill-mode-forwards',
+    'slide-up': 'animate-in slide-in-from-bottom-8 fade-in duration-300 fill-mode-forwards',
+    'scale': 'animate-in zoom-in-50 fade-in duration-300 fill-mode-forwards',
+    'fade': 'animate-in fade-in duration-300 fill-mode-forwards',
   };
 
   return (
@@ -44,10 +41,12 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         // Only show if time is within word's active range
         if (currentTime < word.startTime || currentTime > word.endTime) return null;
 
+        const animClass = ANIMATION_CLASSES[word.animation || 'pop'] || ANIMATION_CLASSES.pop;
+
         return (
           <span
             key={word.id}
-            className={`absolute ${getAnimationClass(word.animation)}`}
+            className={`absolute ${animClass}`}
             style={{
               left: `${word.position.x * 100}%`,
               top: `${word.position.y * 100}%`,
