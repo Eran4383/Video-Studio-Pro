@@ -293,9 +293,27 @@ export const Timeline: React.FC<TimelineProps> = ({
   }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, project.tracks, ghostTime, selectionBox, selectedClipIds]);
 
   const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey) { e.preventDefault(); setZoom(Math.min(100, Math.max(1, zoom + (e.deltaY > 0 ? -2 : 2)))); }
+    if (e.ctrlKey) { 
+      // Handled by useEffect for preventDefault
+    }
     else if (e.altKey && scrollRef.current) { e.preventDefault(); scrollRef.current.scrollLeft += e.deltaY * 5; }
   };
+
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    const handleWheelEvent = (e: WheelEvent) => {
+      if (e.ctrlKey) {
+        e.preventDefault();
+        const delta = e.deltaY > 0 ? -2 : 2;
+        setZoom(Math.min(100, Math.max(1, zoom + delta)));
+      }
+    };
+
+    scrollContainer.addEventListener('wheel', handleWheelEvent, { passive: false });
+    return () => scrollContainer.removeEventListener('wheel', handleWheelEvent);
+  }, [zoom, setZoom]);
 
   const handleDrop = async (e: React.DragEvent, trackId: string) => {
     e.preventDefault();

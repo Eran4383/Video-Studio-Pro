@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Project, Clip } from '../types';
-import { KineticBoundingBox } from '../types/kinetic';
+import { KineticBoundingBox, KineticSettings } from '../types/kinetic';
 import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 
 export const useKineticActions = (
@@ -82,6 +82,20 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
+  const applySettingsToAllKineticBlocks = useCallback((settings: Partial<KineticSettings>) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        kineticBlocks: (prev.kineticBlocks || []).map(b => ({
+          ...b,
+          settings: { ...b.settings, ...settings }
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
   const generateBlockAnimation = useCallback((blockId: string) => {
     setProject(prev => {
       const block = prev.kineticBlocks?.find(b => b.id === blockId);
@@ -150,5 +164,5 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { createKineticBlock, updateKineticBlock, deleteKineticBlock, generateBlockAnimation, updateKineticData, updateKineticWord };
+  return { createKineticBlock, updateKineticBlock, deleteKineticBlock, applySettingsToAllKineticBlocks, generateBlockAnimation, updateKineticData, updateKineticWord };
 };

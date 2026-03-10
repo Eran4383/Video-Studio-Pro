@@ -29,10 +29,9 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFit = () => {
-    // Approx available width is screen width - library width - track header width
     const availableWidth = window.innerWidth - 300 - 150;
-    const requiredPxPerSec = availableWidth / (projectDuration * 1.1); // Add 10% padding
-    setZoom(Math.max(1, Math.min(100, requiredPxPerSec / 10)));
+    const minZoomValue = availableWidth / (projectDuration * 10 || 1);
+    setZoom(Math.max(0.1, Math.min(100, minZoomValue)));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,6 +43,9 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
       fileInputRef.current.value = '';
     }
   };
+
+  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 300 - 150 : 1000;
+  const minZoom = Math.max(0.1, availableWidth / (projectDuration * 10 || 1));
 
   return (
     <div className="h-10 bg-[#161616] border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
@@ -136,14 +138,15 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
         </Tooltip>
 
         <Tooltip text="Zoom Out" shortcut="CTRL + -">
-          <button onClick={() => setZoom(Math.max(1, zoom - 5))}><ZoomOut size={14} className="text-zinc-500 hover:text-white transition-colors" /></button>
+          <button onClick={() => setZoom(Math.max(minZoom, zoom - 5))}><ZoomOut size={14} className="text-zinc-500 hover:text-white transition-colors" /></button>
         </Tooltip>
         
         <div className="w-32 flex items-center">
              <input 
                 type="range" 
-                min="1" 
+                min={minZoom} 
                 max="100" 
+                step="0.01"
                 value={zoom} 
                 onChange={(e) => setZoom(Number(e.target.value))}
                 className="w-full h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-indigo-500 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:hover:scale-110 [&::-webkit-slider-thumb]:transition-transform"

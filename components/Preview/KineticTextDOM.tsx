@@ -27,10 +27,10 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
   };
 
   const getAnimationClass = (type: string) => {
-    if (type === 'slide-up') return 'animate-in fade-in slide-in-from-bottom-12 duration-500 fill-mode-forwards';
-    if (type === 'scale') return 'animate-in fade-in zoom-in-50 duration-500 fill-mode-forwards';
-    if (type === 'fade') return 'animate-in fade-in duration-500 fill-mode-forwards';
-    return 'animate-in fade-in zoom-in duration-500 fill-mode-forwards'; // pop
+    if (type === 'slide-up') return 'animate-in fade-in slide-in-from-bottom-12 fill-mode-forwards';
+    if (type === 'scale') return 'animate-in fade-in zoom-in-50 fill-mode-forwards';
+    if (type === 'fade') return 'animate-in fade-in fill-mode-forwards';
+    return 'animate-in fade-in zoom-in fill-mode-forwards'; // pop
   };
 
   return (
@@ -55,6 +55,9 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           ? (settings.layoutStyle === 'pop-in-place' ? 0 : pastOpacity) 
           : 1;
 
+        const wordDuration = word.endTime - word.startTime;
+        const animDuration = Math.min(0.5, wordDuration);
+
         return (
           <span
             key={word.id}
@@ -64,7 +67,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
               top: `${word.position.y * 100}%`,
               transform: settings.layoutStyle === 'pop-in-place' ? 'translate(-50%, -50%)' : undefined,
               opacity: opacityValue,
-              transition: `opacity ${fadeDuration}s ease-in-out`,
+              transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
               zIndex: isActive ? 10 : 1
             }}
           >
@@ -80,6 +83,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
                 fontWeight: '900',
                 textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
                 transformOrigin: 'center center',
+                animationDuration: `${animDuration}s`
               }}
             >
               {word.text}
