@@ -152,6 +152,7 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
             <label className="text-[9px] text-zinc-500 font-mono uppercase">Selected Fonts</label>
             <select
               multiple={!!settings.fontMultiSelect}
+              size={settings.fontMultiSelect ? 4 : undefined}
               value={settings.fonts || [settings.primaryFont || 'Inter']}
               onChange={(e) => {
                 const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value);
@@ -161,7 +162,7 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   onChange({ primaryFont: values[0], fonts: [values[0]] });
                 }
               }}
-              className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer min-h-[100px]"
+              className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
             >
               {['Inter', 'Roboto', 'Montserrat', 'Oswald', 'Poppins', 'Playfair Display', 'Rubik', 'Lora', 'Merriweather', 'Nunito'].map(f => (
                 <option key={f} value={f}>{f}</option>
@@ -220,14 +221,39 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
         </summary>
         <div className="p-3 flex flex-col gap-5 bg-black/20">
           {/* Keep Previous Words Visible */}
-          <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800">
-            <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Keep Previous Words</span>
-            <button 
-              onClick={() => onChange({ keepPreviousWordsVisible: !settings.keepPreviousWordsVisible })}
-              className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPreviousWordsVisible ? 'bg-indigo-600' : 'bg-zinc-700'}`}
-            >
-              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPreviousWordsVisible ? 'left-4.5' : 'left-0.5'}`} />
-            </button>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800">
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Keep Previous Words</span>
+              <button 
+                onClick={() => onChange({ keepPreviousWordsVisible: !settings.keepPreviousWordsVisible })}
+                className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPreviousWordsVisible ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPreviousWordsVisible ? 'left-4.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+
+            {settings.keepPreviousWordsVisible && (
+              <div className="flex flex-col gap-4 pl-2 border-l border-zinc-800 ml-1">
+                <ProSlider
+                  label="Past Words Opacity"
+                  value={settings.pastWordsOpacity ?? 40}
+                  onChange={(v) => onChange({ pastWordsOpacity: v })}
+                  min={0}
+                  max={100}
+                  step={5}
+                  unit="%"
+                />
+                <ProSlider
+                  label="Fade Duration"
+                  value={settings.pastWordsFadeDuration ?? 0.5}
+                  onChange={(v) => onChange({ pastWordsFadeDuration: v })}
+                  min={0}
+                  max={5}
+                  step={0.1}
+                  unit="s"
+                />
+              </div>
+            )}
           </div>
 
           {/* Text Direction */}

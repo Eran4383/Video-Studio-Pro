@@ -17,6 +17,13 @@ const getWordAnimation = (style: any, index: number): KineticAnimationStyle => {
   return style as KineticAnimationStyle;
 };
 
+const getWordFont = (settings: KineticSettings, index: number) => {
+  if (settings.fontMultiSelect && settings.fonts?.length) {
+    return settings.fonts[index % settings.fonts.length];
+  }
+  return settings.primaryFont || 'Inter, sans-serif';
+};
+
 export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
@@ -25,11 +32,6 @@ export const generateKineticLayout = (content: string, duration: number, setting
 
   // RTL Detection
   const isRtl = settings.direction === 'rtl' || (settings.direction === 'auto' && /[\u0590-\u05FF]/.test(content));
-
-  // Font Protection
-  const fontToUse = (settings.primaryFont && settings.primaryFont !== 'Original' && settings.primaryFont !== 'default') 
-    ? settings.primaryFont 
-    : fallbackFont;
 
   // 1. Layout Algorithm
   let geometricWords: any[] = [];
@@ -61,7 +63,7 @@ export const generateKineticLayout = (content: string, duration: number, setting
     fontSize: gw.fontSize / 100, // Normalize 0-100 to 0-1
     width: gw.width / 100, // Normalize 0-100 to 0-1
     color: '#ffffff', // Placeholder, will be assigned
-    fontFamily: fontToUse,
+    fontFamily: getWordFont(settings, index),
     animation: getWordAnimation(settings.animationStyle, index)
   }));
 
@@ -123,7 +125,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       fontSize: gw.fontSize / 100,
       width: gw.width / 100,
       color: '#ffffff',
-      fontFamily: block.settings.primaryFont || 'Inter, sans-serif',
+      fontFamily: getWordFont(block.settings, i + j),
       animation: getWordAnimation(block.settings.animationStyle, i + j)
     }));
 

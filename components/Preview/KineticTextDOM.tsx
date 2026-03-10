@@ -9,17 +9,18 @@ interface KineticTextDOMProps {
 export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime }) => {
   const { settings, words } = block;
   
-  if (!settings || !settings.boundingBox) return null;
+  if (!settings) return null;
 
-  const { boundingBox, fontFamily, showBox } = settings;
+  const box = settings.boundingBox || { x: 0, y: 0, width: 1, height: 1 };
+  const { fontFamily, showBox } = settings;
 
   // Calculate container style based on bounding box
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    left: `${boundingBox.x * 100}%`,
-    top: `${boundingBox.y * 100}%`,
-    width: `${boundingBox.width * 100}%`,
-    height: `${boundingBox.height * 100}%`,
+    left: `${box.x * 100}%`,
+    top: `${box.y * 100}%`,
+    width: `${box.width * 100}%`,
+    height: `${box.height * 100}%`,
     overflow: 'hidden',
     pointerEvents: 'none',
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
@@ -45,27 +46,44 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         if (!shouldShow) return null;
 
         const animClass = getAnimationClass(word.animation || 'pop');
-        const opacityClass = isPast ? (settings.layoutStyle === 'pop-in-place' ? 'opacity-0' : 'opacity-40') : '';
+        
+        // Dynamic opacity and transition for past words
+        const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
+        const fadeDuration = settings.pastWordsFadeDuration || 0.5;
+        
+        const opacityValue = isPast 
+          ? (settings.layoutStyle === 'pop-in-place' ? 0 : pastOpacity) 
+          : 1;
 
         return (
           <span
             key={word.id}
-            className={`absolute ${animClass} ${opacityClass}`}
+            className="absolute"
             style={{
               left: `${word.position.x * 100}%`,
               top: `${word.position.y * 100}%`,
-              color: word.color,
-              fontFamily: word.fontFamily || fontFamily || 'Inter, sans-serif',
-              fontSize: `${(word.fontSize || 0.1) * 100}cqh`, // Container Query Height
-              lineHeight: 1,
-              whiteSpace: 'nowrap',
-              fontWeight: '900',
-              textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
-              transformOrigin: 'center center',
-              transform: settings.layoutStyle === 'pop-in-place' ? 'translate(-50%, -50%)' : undefined
+              transform: settings.layoutStyle === 'pop-in-place' ? 'translate(-50%, -50%)' : undefined,
+              opacity: opacityValue,
+              transition: `opacity ${fadeDuration}s ease-in-out`,
+              zIndex: isActive ? 10 : 1
             }}
           >
-            {word.text}
+            <span
+              className={animClass}
+              style={{
+                display: 'block',
+                color: word.color,
+                fontFamily: word.fontFamily || fontFamily || 'Inter, sans-serif',
+                fontSize: `${(word.fontSize || 0.1) * 100}cqh`,
+                lineHeight: 1,
+                whiteSpace: 'nowrap',
+                fontWeight: '900',
+                textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
+                transformOrigin: 'center center',
+              }}
+            >
+              {word.text}
+            </span>
           </span>
         );
       })}
