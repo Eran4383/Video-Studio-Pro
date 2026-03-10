@@ -39,6 +39,7 @@ export interface KineticSettings {
   blockHandling: 'separate' | 'combined';
   maxWordsVisible?: number; // 0 means unlimited
   showBox?: boolean;
+  customColors?: string[];
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;

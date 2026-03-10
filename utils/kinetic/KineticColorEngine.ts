@@ -1,9 +1,18 @@
 import { getPalette } from '../../config/kineticPalettes';
 import { KineticWord } from '../../types/kinetic';
 
-export const assignColors = (words: Partial<KineticWord>[], paletteId: string, randomMode: boolean): void => {
+export const assignColors = (
+  words: Partial<KineticWord>[], 
+  paletteId: string, 
+  randomMode: boolean,
+  customColors?: string[]
+): void => {
   const palette = getPalette(paletteId);
-  const colors = palette.colors;
+  let colors = palette.colors;
+
+  if (paletteId === 'Custom' && customColors && customColors.length > 0) {
+    colors = customColors;
+  }
   
   if (!colors || colors.length === 0) return;
 

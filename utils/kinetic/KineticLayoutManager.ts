@@ -66,7 +66,7 @@ export const generateKineticLayout = (content: string, duration: number, setting
   }));
 
   // 4. Assign Colors
-  assignColors(kineticWords, settings.paletteId, settings.randomMode);
+  assignColors(kineticWords, settings.paletteId, settings.randomMode, settings.customColors);
 
   return kineticWords;
 };
@@ -127,7 +127,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       animation: getWordAnimation(block.settings.animationStyle, i + j)
     }));
 
-    assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode);
+    assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
     kineticWords.push(...sceneWords);
   }
 

@@ -22,6 +22,11 @@ export const KINETIC_PALETTES: KineticPalette[] = [
     name: 'Cyberpunk Neon',
     colors: ['#F472B6', '#22D3EE', '#FFFF00'], // Pink, Cyan, Yellow
     background: '#111827'
+  },
+  {
+    id: 'Custom',
+    name: 'Custom Palette',
+    colors: [], // Will be filled from settings.customColors
   }
 ];
 
