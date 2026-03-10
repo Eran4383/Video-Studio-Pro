@@ -23,6 +23,8 @@ export interface KineticWord {
   color: string;
   fontFamily: string;
   animation: KineticAnimationStyle;
+  stretchX?: boolean;
+  stretchY?: boolean;
 }
 
 export interface KineticSettings {
@@ -47,6 +49,8 @@ export interface KineticSettings {
   fonts?: string[]; // Array of selected fonts
   pastWordsOpacity?: number; // 0-100, default 40
   pastWordsFadeDuration?: number; // seconds, default 0.5
+  fontWeight?: string; // default '900'
+  lineHeight?: number; // default 1
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;

@@ -196,9 +196,11 @@ export const Timeline: React.FC<TimelineProps> = ({
             }
         } else if (dragging.mode === 'RESIZE_R') {
             // New duration = original duration + delta
-            // Max duration = asset length - offset
+            // Max duration = asset length - offset (only for video/audio)
             let newDur = Math.max(0.1, originalState.duration + deltaSeconds);
-            if (originalState.offset + newDur > assetDuration) {
+            const isUnlimited = clip.type === 'image' || clip.type === 'text';
+            
+            if (!isUnlimited && originalState.offset + newDur > assetDuration) {
                 newDur = assetDuration - originalState.offset;
             }
             onClipResize(id, originalState.startTime, newDur, originalState.offset);

@@ -46,6 +46,27 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
              </div>
           </div>
 
+          <div className="flex flex-col gap-2 bg-zinc-900/30 p-2 rounded border border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Horizontal</span>
+              <button 
+                onClick={() => onUpdateWord(selectedWord.id, { stretchX: !selectedWord.stretchX })}
+                className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.stretchX ? 'bg-purple-600' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedWord.stretchX ? 'left-3.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Vertical</span>
+              <button 
+                onClick={() => onUpdateWord(selectedWord.id, { stretchY: !selectedWord.stretchY })}
+                className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.stretchY ? 'bg-purple-600' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedWord.stretchY ? 'left-3.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+          </div>
+
           <ProSlider 
             label="Font Size" 
             value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%

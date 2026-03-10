@@ -2,7 +2,7 @@ import React from 'react';
 import { KineticSettings, KineticAnimationStyle } from '../../types/kinetic';
 import { KINETIC_PALETTES } from '../../config/kineticPalettes';
 import { ProSlider } from '../UI/ProSlider';
-import { Check, Info, ChevronUp, ChevronDown, RotateCw, ListChecks } from 'lucide-react';
+import { Check, Info, ChevronUp, ChevronDown, RotateCw, ListChecks, Plus, Trash2 } from 'lucide-react';
 import { useProjectStore } from '../../store/useProjectStore';
 
 interface KineticSettingsFormProps {
@@ -184,10 +184,34 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
                 >
                   {ALL_FONTS.map(f => (
-                    <option key={f} value={f}>{f}</option>
+                    <option key={f} value={f} style={{ fontFamily: f }}>{f}</option>
                   ))}
                 </select>
               </div>
+              <div className="flex flex-col gap-2">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Weight</label>
+                <select
+                  value={settings.fontWeight || '900'}
+                  onChange={(e) => onChange({ fontWeight: e.target.value })}
+                  className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                >
+                  <option value="100">100 - Thin</option>
+                  <option value="300">300 - Light</option>
+                  <option value="400">400 - Regular</option>
+                  <option value="700">700 - Bold</option>
+                  <option value="900">900 - Black</option>
+                </select>
+              </div>
+
+              <ProSlider
+                label="Line Height"
+                value={settings.lineHeight || 1}
+                onChange={(v) => onChange({ lineHeight: v })}
+                min={0.5}
+                max={2}
+                step={0.1}
+                unit=""
+              />
             </div>
           </details>
         );
@@ -213,10 +237,54 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                           <span className={`text-[10px] font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-zinc-500'}`}>{palette.name}</span>
                           {isSelected && <Check size={12} className="text-indigo-500" />}
                         </div>
-                        <div className="flex gap-1.5">
-                          {colors.slice(0, 6).map((c, i) => (
+                        <div className="flex gap-1.5 flex-wrap">
+                          {colors.slice(0, 12).map((c, i) => (
                             <div key={i} className="w-4 h-4 rounded-sm border border-black/20 shadow-sm" style={{ backgroundColor: c }} />
                           ))}
+                          {palette.id === 'Custom' && (
+                            <div className="w-full mt-2 flex flex-col gap-2 p-2 bg-black/40 rounded border border-zinc-800">
+                              <div className="flex flex-wrap gap-2">
+                                {(settings.customColors || []).map((color, idx) => (
+                                  <div key={idx} className="flex items-center gap-1 bg-zinc-800 p-1 rounded border border-zinc-700">
+                                    <input 
+                                      type="color" 
+                                      value={color}
+                                      onChange={(e) => {
+                                        const newColors = [...(settings.customColors || [])];
+                                        newColors[idx] = e.target.value;
+                                        onChange({ customColors: newColors });
+                                      }}
+                                      className="w-5 h-5 rounded cursor-pointer bg-transparent border-none p-0"
+                                    />
+                                    <button 
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        const newColors = (settings.customColors || []).filter((_, i) => i !== idx);
+                                        onChange({ customColors: newColors });
+                                      }}
+                                      className="text-zinc-500 hover:text-red-400 transition-colors"
+                                    >
+                                      <Trash2 size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                                {(settings.customColors || []).length < 8 && (
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      onChange({ customColors: [...(settings.customColors || []), '#ffffff'] });
+                                    }}
+                                    className="w-7 h-7 flex items-center justify-center bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded border border-zinc-700 transition-colors"
+                                  >
+                                    <Plus size={14} />
+                                  </button>
+                                )}
+                              </div>
+                              {(!settings.customColors || settings.customColors.length === 0) && (
+                                <span className="text-[9px] text-zinc-500 italic">No custom colors. Click + to add.</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </button>
                     );

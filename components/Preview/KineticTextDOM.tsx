@@ -58,14 +58,23 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const wordDuration = word.endTime - word.startTime;
         const animDuration = Math.min(0.5, wordDuration);
 
+        // Stretch logic
+        const isStretchX = word.stretchX;
+        const isStretchY = word.stretchY;
+
         return (
           <span
             key={word.id}
             className="absolute"
             style={{
-              left: `${word.position.x * 100}%`,
-              top: `${word.position.y * 100}%`,
-              transform: settings.layoutStyle === 'pop-in-place' ? 'translate(-50%, -50%)' : undefined,
+              left: isStretchX ? 0 : `${word.position.x * 100}%`,
+              top: isStretchY ? 0 : `${word.position.y * 100}%`,
+              width: isStretchX ? '100%' : undefined,
+              height: isStretchY ? '100%' : undefined,
+              display: (isStretchX || isStretchY) ? 'flex' : 'block',
+              alignItems: isStretchY ? 'center' : undefined,
+              justifyContent: isStretchX ? 'center' : undefined,
+              transform: (settings.layoutStyle === 'pop-in-place' && !isStretchX && !isStretchY) ? 'translate(-50%, -50%)' : undefined,
               opacity: opacityValue,
               transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
               zIndex: isActive ? 10 : 1
@@ -77,13 +86,16 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
                 display: 'block',
                 color: word.color,
                 fontFamily: word.fontFamily || fontFamily || 'Inter, sans-serif',
-                fontSize: `${(word.fontSize || 0.1) * 100}cqh`,
-                lineHeight: 1,
-                whiteSpace: 'nowrap',
-                fontWeight: '900',
+                fontSize: isStretchX ? '100cqw' : (isStretchY ? '100cqh' : `${(word.fontSize || 0.1) * 100}cqh`),
+                lineHeight: settings.lineHeight || 1,
+                whiteSpace: (isStretchX || isStretchY) ? 'normal' : 'nowrap',
+                fontWeight: settings.fontWeight || '900',
+                textAlign: isStretchX ? 'center' : 'left',
                 textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
                 transformOrigin: 'center center',
-                animationDuration: `${animDuration}s`
+                animationDuration: `${animDuration}s`,
+                width: isStretchX ? '100%' : undefined,
+                height: isStretchY ? '100%' : undefined,
               }}
             >
               {word.text}
