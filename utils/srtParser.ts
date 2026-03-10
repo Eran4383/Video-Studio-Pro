@@ -5,84 +5,64 @@ export interface SubtitleItem {
   text: string;
 }
 
-export const parseSRT = (srtContent: string): SubtitleItem[] => {
-  const items: SubtitleItem[] = [];
-  // Normalize line endings
-  const normalized = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = normalized.split('\n');
+const parseTimecode = (timecode: string): number => {
+  // Format: HH:MM:SS,ms or HH:MM:SS.ms
+  const separator = timecode.includes(',') ? ',' : '.';
+  const [time, ms] = timecode.split(separator);
+  const parts = time.split(':').map(Number);
   
-  let currentItem: Partial<SubtitleItem> = {};
-  let state: 'INDEX' | 'TIMECODE' | 'TEXT' = 'INDEX';
-  let textBuffer: string[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-
-    // Check for timecode line (e.g. "00:00:01,000 --> 00:00:04,000")
-    if (line.includes('-->')) {
-      const [startStr, endStr] = line.split(' --> ');
-      if (startStr && endStr) {
-        // If we were building a previous item but didn't finish (no empty line), commit it now
-        if (state === 'TEXT' && currentItem.startTime !== undefined && currentItem.endTime !== undefined && textBuffer.length > 0) {
-           items.push({
-             id: crypto.randomUUID(),
-             startTime: currentItem.startTime,
-             endTime: currentItem.endTime,
-             text: textBuffer.join('\n')
-           });
-        }
-        
-        // Start new item
-        currentItem = {
-          startTime: parseTimecode(startStr),
-          endTime: parseTimecode(endStr)
-        };
-        textBuffer = [];
-        state = 'TEXT';
-      }
-      continue;
-    }
-
-    // Empty line usually signals end of block
-    if (line === '') {
-      if (state === 'TEXT' && currentItem.startTime !== undefined && currentItem.endTime !== undefined && textBuffer.length > 0) {
-        items.push({
-          id: crypto.randomUUID(),
-          startTime: currentItem.startTime,
-          endTime: currentItem.endTime,
-          text: textBuffer.join('\n')
-        });
-        currentItem = {};
-        textBuffer = [];
-        state = 'INDEX';
-      }
-      continue;
-    }
-
-    // If we are in TEXT state, accumulate lines
-    if (state === 'TEXT') {
-      textBuffer.push(line);
-    } 
-    // If we are in INDEX state, it's just an index number, ignore it
+  let hours = 0, minutes = 0, seconds = 0;
+  if (parts.length === 3) {
+    [hours, minutes, seconds] = parts;
+  } else if (parts.length === 2) {
+    [minutes, seconds] = parts;
+  } else {
+    seconds = parts[0] || 0;
   }
   
-  // Commit last item if exists
-  if (state === 'TEXT' && currentItem.startTime !== undefined && currentItem.endTime !== undefined && textBuffer.length > 0) {
-      items.push({
-          id: crypto.randomUUID(),
-          startTime: currentItem.startTime,
-          endTime: currentItem.endTime,
-          text: textBuffer.join('\n')
-      });
-  }
-
-  return items;
+  const milliseconds = ms ? Number(ms.padEnd(3, '0').substring(0, 3)) : 0;
+  return (hours * 3600) + (minutes * 60) + seconds + (milliseconds / 1000);
 };
 
-const parseTimecode = (timecode: string): number => {
-  // Format: HH:MM:SS,ms
-  const [time, ms] = timecode.split(',');
-  const [hours, minutes, seconds] = time.split(':').map(Number);
+export const parseSRT = (srtContent: string): SubtitleItem[] => {
+  const items: SubtitleItem[] = [];
+  if (!srtContent) return items;
+
+  // Normalize line endings
+  const normalized = srtContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
   
-  return (hours * 3600) + (minutes * 60) + seconds + (Number(ms) / 1000);
+  // Split into blocks by double newline (or similar)
+  const blocks = normalized.trim().split(/\n\s*\n/);
+  
+  blocks.forEach((block, index) => {
+    const lines = block.trim().split('\n');
+    if (lines.length < 2) return;
+
+    let timecodeLine = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (lines[i].includes('-->')) {
+            timecodeLine = i;
+            break;
+        }
+    }
+
+    if (timecodeLine === -1) return;
+
+    const timecode = lines[timecodeLine];
+    const [startStr, endStr] = timecode.split(/\s*-->\s*/);
+    
+    if (startStr && endStr) {
+        const text = lines.slice(timecodeLine + 1).join('\n').trim();
+        if (text) {
+            items.push({
+                id: `srt-${Date.now()}-${index}`,
+                startTime: parseTimecode(startStr),
+                endTime: parseTimecode(endStr),
+                text
+            });
+        }
+    }
+  });
+
+  return items;
 };

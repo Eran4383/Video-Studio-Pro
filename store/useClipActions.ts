@@ -1,0 +1,75 @@
+import React, { useCallback } from 'react';
+import { Project, Asset, Clip, MediaType } from '../types';
+
+export const useClipActions = (
+  setProject: React.Dispatch<React.SetStateAction<Project>>,
+  pushToHistory: (p: Project) => void,
+  assets: Asset[]
+) => {
+  const addClips = useCallback((trackId: string, newClips: Clip[]) => {
+    setProject(prev => {
+      const targetTrack = prev.tracks.find(t => t.id === trackId);
+      if (!targetTrack) return prev;
+      const next = { ...prev, tracks: prev.tracks.map(t => t.id === trackId ? { ...t, clips: [...t.clips, ...newClips] } : t) };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  const addClipAtPosition = useCallback((trackId: string, asset: Asset, startTime: number) => {
+    setProject(prev => {
+      let targetTrack = prev.tracks.find(t => t.id === trackId);
+      if (!targetTrack || targetTrack.isLocked) return prev;
+      const hasVisualClips = prev.tracks.some(t => (t.type === 'video' || t.type === 'image') && t.clips.length > 0);
+      let resolution = prev.resolution;
+      if (!hasVisualClips && (asset.type === MediaType.VIDEO || asset.type === MediaType.IMAGE) && asset.width && asset.height) {
+         resolution = { width: asset.width, height: asset.height };
+      }
+      const newClip: Clip = {
+        id: `clip-${Math.random().toString(36).substr(2, 9)}`,
+        assetId: asset.id,
+        startTime: startTime,
+        offset: 0,
+        duration: asset.duration || 5,
+        layer: 0,
+        effects: [],
+        position: { x: 0.5, y: 0.5 },
+        isSilent: false
+      };
+      const next = { ...prev, resolution, tracks: prev.tracks.map(t => t.id === targetTrack!.id ? { ...t, clips: [...t.clips, newClip] } : t) };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  const resizeClip = useCallback((clipId: string, newStartTime: number, newDuration: number, newOffset: number) => {
+    setProject(prev => ({
+      ...prev,
+      tracks: prev.tracks.map(track => ({
+        ...track,
+        clips: track.clips.map(clip => clip.id === clipId ? { ...clip, startTime: newStartTime, duration: newDuration, offset: newOffset } : clip)
+      }))
+    }));
+  }, [setProject]);
+
+  const deleteClip = useCallback((clipId: string, setSelectedClipIds: (ids: string[]) => void) => { 
+      setProject(prev => ({...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))}));
+      setSelectedClipIds([]);
+  }, [setProject]);
+
+  const updateClipProperties = useCallback((clipId: string, updates: Partial<Clip>) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => clip.id === clipId ? { ...clip, ...updates } : clip)
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { addClips, addClipAtPosition, resizeClip, deleteClip, updateClipProperties };
+};

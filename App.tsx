@@ -147,6 +147,10 @@ const App: React.FC = () => {
     try {
       const text = await file.text();
       const items = parseSRT(text);
+      if (items.length === 0) {
+        alert("No subtitles found in the selected file. Please check the SRT format.");
+        return;
+      }
       store.importSubtitles(items);
     } catch (err) {
       console.error("Failed to parse SRT", err);

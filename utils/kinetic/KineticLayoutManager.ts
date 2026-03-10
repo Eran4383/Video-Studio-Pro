@@ -1,9 +1,24 @@
 import { Clip } from '../../types';
-import { KineticBlock, KineticSettings, KineticWord } from '../../types/kinetic';
+import { KineticBlock, KineticSettings, KineticWord, KineticAnimationStyle } from '../../types/kinetic';
 import { generateDynamicCollage } from './layouts/DynamicCollage';
+import { generatePopInPlace } from './layouts/PopInPlace';
+import { generateKaraoke } from './layouts/Karaoke';
 import { assignColors } from './KineticColorEngine';
 
+const ANIMATIONS: KineticAnimationStyle[] = ['pop', 'slide-up', 'scale', 'fade'];
+
+const getWordAnimation = (style: any, index: number): KineticAnimationStyle => {
+  if (style === 'random') {
+    return ANIMATIONS[Math.floor(Math.random() * ANIMATIONS.length)];
+  }
+  if (Array.isArray(style)) {
+    return style[index % style.length];
+  }
+  return style as KineticAnimationStyle;
+};
+
 export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
+  if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
   
   if (wordsText.length === 0) return [];
@@ -20,11 +35,17 @@ export const generateKineticLayout = (content: string, duration: number, setting
   let geometricWords: any[] = [];
   
   // Router for layouts
-  if (settings.layoutStyle === 'dynamic-collage') {
-    geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
-  } else {
-    // Fallback or other layouts
-    geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
+  switch (settings.layoutStyle) {
+    case 'pop-in-place':
+      geometricWords = generatePopInPlace(wordsText, settings);
+      break;
+    case 'karaoke':
+      geometricWords = generateKaraoke(wordsText, settings);
+      break;
+    case 'dynamic-collage':
+    default:
+      geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
+      break;
   }
 
   // 2. Timing
@@ -41,7 +62,7 @@ export const generateKineticLayout = (content: string, duration: number, setting
     width: gw.width / 100, // Normalize 0-100 to 0-1
     color: '#ffffff', // Placeholder, will be assigned
     fontFamily: fontToUse,
-    animation: settings.animationStyle
+    animation: getWordAnimation(settings.animationStyle, index)
   }));
 
   // 4. Assign Colors
@@ -78,7 +99,19 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     const chunkWords = chunk.map(w => w.text);
     
     // Generate layout for this scene
-    const geometricWords = generateDynamicCollage(chunkWords, block.settings, false);
+    let geometricWords: any[] = [];
+    switch (block.settings.layoutStyle) {
+      case 'pop-in-place':
+        geometricWords = generatePopInPlace(chunkWords, block.settings);
+        break;
+      case 'karaoke':
+        geometricWords = generateKaraoke(chunkWords, block.settings);
+        break;
+      case 'dynamic-collage':
+      default:
+        geometricWords = generateDynamicCollage(chunkWords, block.settings, false);
+        break;
+    }
     
     // Assign colors
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
@@ -91,7 +124,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       width: gw.width / 100,
       color: '#ffffff',
       fontFamily: block.settings.primaryFont || 'Inter, sans-serif',
-      animation: block.settings.animationStyle || 'pop'
+      animation: getWordAnimation(block.settings.animationStyle, i + j)
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode);

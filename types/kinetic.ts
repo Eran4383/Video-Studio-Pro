@@ -28,7 +28,7 @@ export interface KineticWord {
 export interface KineticSettings {
   boundingBox: KineticBoundingBox;
   layoutStyle: KineticLayoutStyle;
-  animationStyle: KineticAnimationStyle;
+  animationStyle: KineticAnimationStyle | KineticAnimationStyle[] | 'random';
   animationOrder: 'reading' | 'random';
   direction: 'ltr' | 'rtl' | 'auto';
   paletteId: string;

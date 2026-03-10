@@ -25,6 +25,16 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
   };
 
+  const getAnimationClass = (animation: string) => {
+    switch (animation) {
+      case 'pop': return 'animate-in zoom-in duration-300';
+      case 'slide-up': return 'animate-in slide-in-from-bottom-10 duration-300';
+      case 'fade': return 'animate-in fade-in duration-300';
+      case 'scale': return 'animate-in zoom-in-50 duration-300';
+      default: return 'animate-in zoom-in duration-300';
+    }
+  };
+
   return (
     <div 
       style={containerStyle} 
@@ -37,7 +47,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         return (
           <span
             key={word.id}
-            className={`absolute ${word.animation === 'pop' ? 'animate-in zoom-in-50 duration-200' : 'animate-in fade-in slide-in-from-bottom-2 duration-200'}`}
+            className={`absolute ${getAnimationClass(word.animation)}`}
             style={{
               left: `${word.position.x * 100}%`,
               top: `${word.position.y * 100}%`,
@@ -48,7 +58,8 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
               whiteSpace: 'nowrap',
               fontWeight: '900',
               textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
-              transformOrigin: 'center center'
+              transformOrigin: 'center center',
+              transform: settings.layoutStyle === 'pop-in-place' ? 'translate(-50%, -50%)' : undefined
             }}
           >
             {word.text}
