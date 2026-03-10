@@ -40,6 +40,11 @@ export interface KineticSettings {
   maxWordsVisible?: number; // 0 means unlimited
   showBox?: boolean;
   customColors?: string[];
+  keepPreviousWordsVisible?: boolean;
+  karaokeMode?: 'single-line' | 'multi-line';
+  animationMultiSelect?: boolean;
+  fontMultiSelect?: boolean;
+  fonts?: string[]; // Array of selected fonts
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;

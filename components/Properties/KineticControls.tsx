@@ -86,8 +86,9 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   };
 
   return (
-    <div className="flex flex-col gap-3 p-3 bg-zinc-900/30 rounded-lg border border-zinc-800/50 mt-4">
-      <div className="flex items-center justify-between mb-1">
+    <div className="flex flex-col gap-3 p-3 bg-zinc-900/30 rounded-lg border border-zinc-800/50 mt-4 relative">
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-20 bg-zinc-900/95 backdrop-blur py-2 mb-4 border-b border-zinc-700 flex justify-between items-center">
         <div className="flex items-center gap-2">
           <Wand2 size={14} className="text-purple-400" />
           <span className="text-[11px] font-black uppercase text-zinc-200 tracking-wider">Kinetic Block</span>
@@ -143,6 +144,27 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
            )}
 
            <KineticSettingsForm settings={settings} onChange={updateSettings} />
+
+           {/* Large Action Buttons */}
+           <div className="flex gap-2 mt-2">
+             <button
+               onClick={() => setKineticDrawMode(!kineticDrawMode)}
+               className={`flex-1 flex items-center justify-center gap-2 p-2 rounded-md border text-[10px] font-bold uppercase tracking-wide transition-all ${kineticDrawMode ? 'bg-purple-500 text-white border-purple-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:text-white hover:border-zinc-600'}`}
+             >
+               {kineticDrawMode ? <Check size={12} /> : <Pencil size={12} />}
+               {kineticDrawMode ? 'Finish Draw' : 'Draw Area'}
+             </button>
+
+             {hasBoundingBox && (
+               <button
+                 onClick={handleGenerate}
+                 className="flex-1 flex items-center justify-center gap-2 p-2 rounded-md border border-purple-500/50 bg-purple-500/10 text-purple-300 text-[10px] font-bold uppercase tracking-wide hover:bg-purple-500/20 transition-all"
+               >
+                 <RefreshCw size={12} />
+                 Generate
+               </button>
+             )}
+           </div>
 
            {words.length > 0 && (
              <KineticWordEditor 

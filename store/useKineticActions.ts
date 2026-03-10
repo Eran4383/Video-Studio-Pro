@@ -25,7 +25,7 @@ export const useKineticActions = (
         endTime,
         clipIds,
         settings: {
-          boundingBox: lastKineticBox || { x: 10, y: 10, width: 80, height: 80 },
+          boundingBox: lastKineticBox || { x: 0, y: 0, width: 100, height: 100 },
           layoutStyle: 'pop-in-place',
           animationStyle: 'pop',
           animationOrder: 'reading',

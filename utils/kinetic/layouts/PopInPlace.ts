@@ -35,8 +35,8 @@ export const generatePopInPlace = (
   
   const calculatedFontSize = Math.min(100, 100 * (boxAR / maxWordAR));
   
-  // Apply 0.9 safety margin
-  const finalFontSize = calculatedFontSize * 0.9;
+  // Apply 100% width usage
+  const finalFontSize = calculatedFontSize;
 
   return words.map((text) => ({
     text,

@@ -25,11 +25,11 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
   };
 
-  const ANIMATION_CLASSES: Record<string, string> = {
-    'pop': 'animate-in zoom-in fade-in duration-300 fill-mode-forwards',
-    'slide-up': 'animate-in slide-in-from-bottom-8 fade-in duration-300 fill-mode-forwards',
-    'scale': 'animate-in zoom-in-50 fade-in duration-300 fill-mode-forwards',
-    'fade': 'animate-in fade-in duration-300 fill-mode-forwards',
+  const getAnimationClass = (type: string) => {
+    if (type === 'slide-up') return 'animate-in fade-in slide-in-from-bottom-12 duration-500 fill-mode-forwards';
+    if (type === 'scale') return 'animate-in fade-in zoom-in-50 duration-500 fill-mode-forwards';
+    if (type === 'fade') return 'animate-in fade-in duration-500 fill-mode-forwards';
+    return 'animate-in fade-in zoom-in duration-500 fill-mode-forwards'; // pop
   };
 
   return (
@@ -38,15 +38,19 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >
       {words.map((word) => {
-        // Only show if time is within word's active range
-        if (currentTime < word.startTime || currentTime > word.endTime) return null;
+        const isPast = currentTime > word.endTime;
+        const isActive = currentTime >= word.startTime && currentTime <= word.endTime;
+        const shouldShow = isActive || (isPast && settings.keepPreviousWordsVisible);
 
-        const animClass = ANIMATION_CLASSES[word.animation || 'pop'] || ANIMATION_CLASSES.pop;
+        if (!shouldShow) return null;
+
+        const animClass = getAnimationClass(word.animation || 'pop');
+        const opacityClass = isPast ? (settings.layoutStyle === 'pop-in-place' ? 'opacity-0' : 'opacity-40') : '';
 
         return (
           <span
             key={word.id}
-            className={`absolute ${animClass}`}
+            className={`absolute ${animClass} ${opacityClass}`}
             style={{
               left: `${word.position.x * 100}%`,
               top: `${word.position.y * 100}%`,
