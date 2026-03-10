@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { KineticWord } from '../../types/kinetic';
-import { useProjectStore } from '../../store/useProjectStore';
 import { ProSlider } from '../UI/ProSlider';
 
 interface KineticWordEditorProps {
   clipId: string;
   words: KineticWord[];
+  onUpdateWord: (wordId: string, updates: Partial<KineticWord>) => void;
 }
 
-export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words }) => {
+export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words, onUpdateWord }) => {
   const [selectedWordId, setSelectedWordId] = useState<string>('');
-  const store = useProjectStore();
-  const updateKineticWord = store.updateKineticWord;
 
   const selectedWord = words.find(w => w.id === selectedWordId);
 
@@ -42,7 +40,7 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
                <input 
                  type="color" 
                  value={selectedWord.color}
-                 onChange={(e) => updateKineticWord(clipId, selectedWord.id, { color: e.target.value })}
+                 onChange={(e) => onUpdateWord(selectedWord.id, { color: e.target.value })}
                  className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
                />
              </div>
@@ -51,7 +49,7 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
           <ProSlider 
             label="Font Size" 
             value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%
-            onChange={(v) => updateKineticWord(clipId, selectedWord.id, { fontSize: v / 100 })}
+            onChange={(v) => onUpdateWord(selectedWord.id, { fontSize: v / 100 })}
             min={1} 
             max={100} 
             step={1} 

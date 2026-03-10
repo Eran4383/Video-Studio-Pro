@@ -873,12 +873,12 @@ export const useProjectStore = () => {
       if (!block) return prev;
 
       const allClips = prev.tracks.flatMap(t => t.clips);
-      const words = generateBlockLayout(block, allClips);
+      const updatedWords = generateBlockLayout(block, allClips);
 
       const next = {
         ...prev,
         kineticBlocks: (prev.kineticBlocks || []).map(b => 
-          b.id === blockId ? { ...b, words } : b
+          b.id === blockId ? { ...b, words: updatedWords } : b
         )
       };
       pushToHistory(next);
