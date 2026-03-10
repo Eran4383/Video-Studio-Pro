@@ -145,7 +145,18 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
            </div>
 
            {words.length > 0 && (
-             <KineticWordEditor clipId={selectedClip.id} words={words} />
+             <KineticWordEditor 
+               clipId={selectedClip.id}
+               words={kineticData.words} 
+               onUpdateWord={(wordId, updates) => {
+                 const newWords = kineticData.words.map((w: any) => w.id === wordId ? { ...w, ...updates } : w);
+                 if (isBlock) {
+                   updateKineticBlock(selectedClip.id, { words: newWords });
+                 } else {
+                   updateKineticData(selectedClip.id, { words: newWords });
+                 }
+               }} 
+             />
            )}
         </div>
       )}

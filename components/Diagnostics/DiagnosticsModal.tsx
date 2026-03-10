@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, X, Cpu, HardDrive, Layers, PlayCircle, AlertTriangle, FileText, Download, Clock, ArrowRightLeft } from 'lucide-react';
 import { DiagnosticsService, SystemStats } from '../../services/DiagnosticsService';
+import { ErrorReportingService } from '../../services/ErrorReportingService';
 import { useProjectStore } from '../../store/useProjectStore';
 import { Clip } from '../../types';
 
 interface DiagnosticsModalProps {
   onClose: () => void;
+  project: any;
+  assets: any[];
 }
 
-export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) => {
+export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose, project, assets }) => {
   const store = useProjectStore();
   const [activeTab, setActiveTab] = useState<'system' | 'subtitles' | 'logs'>('system');
   const [stats, setStats] = useState<SystemStats | null>(null);
@@ -48,33 +51,13 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose }) =
     setIsBenchmarking(false);
   };
 
-  const subtitleClips = store.project.tracks
+  const subtitleClips = project.tracks
     .filter(t => t.type === 'subtitle')
     .flatMap(t => t.clips)
     .sort((a, b) => a.startTime - b.startTime);
 
   const handleExportReport = () => {
-    const report = {
-      generatedAt: new Date().toISOString(),
-      project: store.project.name,
-      subtitles: subtitleClips.map(c => ({
-        id: c.id,
-        content: c.content,
-        startTime: c.startTime,
-        endTime: c.startTime + c.duration,
-        duration: c.duration
-      }))
-    };
-
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `subtitle-timing-report-${Date.now()}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    ErrorReportingService.generateFullReport(project, assets, {});
   };
 
   const handleShiftSubtitles = () => {

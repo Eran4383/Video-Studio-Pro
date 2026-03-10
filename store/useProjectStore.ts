@@ -1,6 +1,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { Project, Asset, Clip, Track, MediaType } from '../types';
+import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 import { MagneticAnchorService } from '../services/MagneticAnchorService';
 
 const INITIAL_PROJECT: Project = {

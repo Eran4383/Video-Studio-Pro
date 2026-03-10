@@ -133,7 +133,7 @@ const App: React.FC = () => {
   };
 
   const handleGenerateReport = () => {
-    ErrorReportingService.generateFullReport(store.project, store.assets);
+    ErrorReportingService.generateFullReport(store.project, store.assets, {});
   };
 
   const handleAssetToTimeline = (asset: Asset) => {
@@ -300,7 +300,7 @@ const App: React.FC = () => {
       
       {isShortcutModalOpen && <ShortcutModal shortcuts={shortcutStore.shortcuts} onUpdate={shortcutStore.updateShortcut} onClose={() => setIsShortcutModalOpen(false)} />}
       {isExportModalOpen && <ExportModal project={store.project} assets={store.assets} onClose={() => setIsExportModalOpen(false)} />}
-      {isDiagnosticsModalOpen && <DiagnosticsModal onClose={() => setIsDiagnosticsModalOpen(false)} />}
+      {isDiagnosticsModalOpen && <DiagnosticsModal onClose={() => setIsDiagnosticsModalOpen(false)} project={store.project} assets={store.assets} />}
       
       {transcriptionState.isOpen && !transcriptionState.isMinimized && (
         <TranscriptionModal 
