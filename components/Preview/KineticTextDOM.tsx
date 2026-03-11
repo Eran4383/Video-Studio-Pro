@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { KineticBlock } from '../../types/kinetic';
+import { useProjectStore } from '../../store/useProjectStore';
+import { Clip } from '../../types';
 
 interface KineticTextDOMProps {
   block: KineticBlock;
@@ -7,12 +9,46 @@ interface KineticTextDOMProps {
 }
 
 export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime }) => {
+  const { project } = useProjectStore();
   const { settings, words } = block;
   
   if (!settings) return null;
 
+  // Optimized Clip Map for O(1) lookup
+  const clipMap = useMemo(() => {
+    const map: Record<string, Clip> = {};
+    project.tracks.forEach(track => {
+      track.clips.forEach(clip => {
+        map[clip.id] = clip;
+      });
+    });
+    return map;
+  }, [project.tracks]);
+
   const box = settings.boundingBox || { x: 0, y: 0, width: 1, height: 1 };
   const { fontFamily, showBox } = settings;
+
+  // Pre-calculate word indices and counts per clip for O(1) timing calculation
+  const wordMetadata = useMemo(() => {
+    const metadata: Record<string, { index: number, total: number }> = {};
+    const clipWordCounts: Record<string, number> = {};
+    const clipWordIndices: Record<string, number> = {};
+
+    words.forEach(w => {
+      if (w.sourceClipId) {
+        clipWordCounts[w.sourceClipId] = (clipWordCounts[w.sourceClipId] || 0) + 1;
+      }
+    });
+
+    words.forEach(w => {
+      if (w.sourceClipId) {
+        const idx = clipWordIndices[w.sourceClipId] || 0;
+        metadata[w.id] = { index: idx, total: clipWordCounts[w.sourceClipId] };
+        clipWordIndices[w.sourceClipId] = idx + 1;
+      }
+    });
+    return metadata;
+  }, [words]);
 
   // Calculate container style based on bounding box
   const containerStyle: React.CSSProperties = {
@@ -39,8 +75,28 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >
       {words.map((word) => {
-        const isPast = currentTime > word.endTime;
-        const isActive = currentTime >= word.startTime && currentTime <= word.endTime;
+        // Live Time Sync: Use the current clip state from the map
+        const clip = clipMap[word.sourceClipId];
+        const meta = wordMetadata[word.id];
+        
+        // Fallback to word's own timing if clip not found (e.g. single layout preview)
+        let isActive = false;
+        let isPast = false;
+
+        if (clip && meta) {
+          // Calculate word's position within the clip to find its live timing
+          const wordDuration = clip.duration / Math.max(1, meta.total);
+          
+          const liveStartTime = clip.startTime + (meta.index * wordDuration);
+          const liveEndTime = liveStartTime + wordDuration;
+          
+          isActive = currentTime >= liveStartTime && currentTime <= liveEndTime;
+          isPast = currentTime > liveEndTime;
+        } else {
+          isActive = currentTime >= word.startTime && currentTime <= word.endTime;
+          isPast = currentTime > word.endTime;
+        }
+
         const shouldShow = isActive || (isPast && settings.keepPreviousWordsVisible);
 
         if (!shouldShow) return null;
@@ -51,9 +107,18 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
         const fadeDuration = settings.pastWordsFadeDuration || 0.5;
         
+        const isKeepVisible = settings.keepPreviousWordsVisible;
         const opacityValue = isPast 
-          ? (settings.layoutStyle === 'pop-in-place' ? 0 : pastOpacity) 
+          ? (settings.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
           : 1;
+
+        // CSS Ghosting Fix: Hard cutoff if not keeping previous words
+        const hardCutoffStyles: React.CSSProperties = (isPast && !isKeepVisible) ? {
+          opacity: 0,
+          transition: 'none !important',
+          animation: 'none !important',
+          pointerEvents: 'none'
+        } : {};
 
         const wordDuration = word.endTime - word.startTime;
         const animDuration = Math.min(0.5, wordDuration);
@@ -77,7 +142,8 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
               transform: (settings.layoutStyle === 'pop-in-place' && !isStretchX && !isStretchY) ? 'translate(-50%, -50%)' : undefined,
               opacity: opacityValue,
               transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
-              zIndex: isActive ? 10 : 1
+              zIndex: isActive ? 10 : 1,
+              ...hardCutoffStyles
             }}
           >
             <span

@@ -1,12 +1,13 @@
 import { KineticSettings } from '../../../types/kinetic';
 import { measureText } from '../kineticTextMeasure';
+import { ProcessedWord } from '../KineticLayoutManager';
 
-export const generateDynamicCollage = (wordsText: string[], settings: KineticSettings, isRtl: boolean): any[] => {
-  const font = (settings.primaryFont && settings.primaryFont !== 'Original') ? settings.primaryFont : 'Inter, sans-serif';
-  const wordsWithAR = wordsText.map(text => {
-    const size = measureText(text, font, 100);
+export const generateDynamicCollage = (words: ProcessedWord[], settings: KineticSettings, isRtl: boolean): any[] => {
+  const wordsWithAR = words.map(w => {
+    const fullFont = `${w.fontWeight} 100px ${w.fontFamily}`;
+    const size = measureText(w.text, fullFont, 100);
     const ar = (size.height > 0 ? size.width / size.height : 1) || 1;
-    return { text, ar };
+    return { text: w.text, ar };
   });
 
   const lines: typeof wordsWithAR[] = [];

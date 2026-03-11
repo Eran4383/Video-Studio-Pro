@@ -1,12 +1,12 @@
 import { KineticSettings } from '../../../types/kinetic';
 import { measureText } from '../kineticTextMeasure';
+import { ProcessedWord } from '../KineticLayoutManager';
 
-export const generateKaraoke = (words: string[], settings: KineticSettings) => {
+export const generateKaraoke = (words: ProcessedWord[], settings: KineticSettings) => {
   if (words.length === 0) return [];
 
-  const { boundingBox, primaryFont, karaokeMode, direction, gap = 2 } = settings;
-  const font = primaryFont || 'Inter, sans-serif';
-  const isRtl = direction === 'rtl' || (direction === 'auto' && /[\u0590-\u05FF]/.test(words.join(' ')));
+  const { boundingBox, karaokeMode, direction, gap = 2 } = settings;
+  const isRtl = direction === 'rtl' || (direction === 'auto' && /[\u0590-\u05FF]/.test(words.map(w => w.text).join(' ')));
 
   const SCREEN_AR = 1920 / 1080;
   const boxAR = (boundingBox.width * SCREEN_AR) / boundingBox.height;
@@ -14,10 +14,11 @@ export const generateKaraoke = (words: string[], settings: KineticSettings) => {
   const REF_FONT_SIZE = 100;
   const baseFontSizeCqh = 15; // 15% of box height as requested
 
-  const wordData = words.map(text => {
-    const { width, height } = measureText(text, font, REF_FONT_SIZE);
+  const wordData = words.map(w => {
+    const fullFont = `${w.fontWeight} ${REF_FONT_SIZE}px ${w.fontFamily}`;
+    const { width, height } = measureText(w.text, fullFont, REF_FONT_SIZE);
     const wordAR = width / height;
-    return { text, ar: wordAR };
+    return { text: w.text, ar: wordAR };
   });
 
   if (karaokeMode === 'single-line') {

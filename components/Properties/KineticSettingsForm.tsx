@@ -125,19 +125,38 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
             <div className="p-3 flex flex-col gap-5 bg-black/20">
               {/* Layout Style */}
               <div className="flex flex-col gap-2">
-                <label className="text-[9px] text-zinc-500 font-mono uppercase flex items-center gap-1.5">
-                  Layout Style <Info size={10} className="text-zinc-700" />
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase flex items-center gap-1.5">
+                    Layout Style <Info size={10} className="text-zinc-700" />
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[8px] text-zinc-600 uppercase">Multi</span>
+                    <button 
+                      onClick={() => onChange({ layoutMultiSelect: !settings.layoutMultiSelect })}
+                      className={`w-6 h-3 rounded-full relative transition-colors ${settings.layoutMultiSelect ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-0.5 w-2 h-2 bg-white rounded-full transition-all ${settings.layoutMultiSelect ? 'left-3.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                </div>
                 <select
-                  value={settings.layoutStyle || 'dynamic-collage'}
-                  onChange={(e) => onChange({ layoutStyle: e.target.value as any })}
-                  className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
+                  multiple={!!settings.layoutMultiSelect}
+                  value={Array.isArray(settings.layoutStyle) ? settings.layoutStyle : [settings.layoutStyle as any]}
+                  onChange={(e) => {
+                    const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value as any);
+                    if (settings.layoutMultiSelect) {
+                      onChange({ layoutStyle: values });
+                    } else {
+                      onChange({ layoutStyle: values[0] });
+                    }
+                  }}
+                  className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer min-h-[40px]"
                 >
                   <option value="dynamic-collage">Dynamic Collage</option>
                   <option value="pop-in-place">Pop In Place</option>
                   <option value="karaoke">Karaoke</option>
                 </select>
-                {settings.layoutStyle === 'karaoke' && (
+                {(!settings.layoutMultiSelect && settings.layoutStyle === 'karaoke') && (
                   <div className="mt-2 flex flex-col gap-1.5">
                     <label className="text-[8px] text-zinc-600 font-mono uppercase">Karaoke Mode</label>
                     <select
@@ -151,7 +170,9 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   </div>
                 )}
                 <p className="text-[10px] text-zinc-500 italic leading-tight px-1">
-                  {LAYOUT_DESCRIPTIONS[settings.layoutStyle] || "Select a layout style."}
+                  {settings.layoutMultiSelect 
+                    ? "Multiple layouts selected. They will rotate per scene."
+                    : (LAYOUT_DESCRIPTIONS[settings.layoutStyle as string] || "Select a layout style.")}
                 </p>
               </div>
 

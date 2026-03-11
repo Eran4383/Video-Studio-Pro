@@ -1,11 +1,25 @@
 import { Clip } from '../../types';
-import { KineticBlock, KineticSettings, KineticWord, KineticAnimationStyle } from '../../types/kinetic';
+import { KineticBlock, KineticSettings, KineticWord, KineticAnimationStyle, KineticLayoutStyle } from '../../types/kinetic';
 import { generateDynamicCollage } from './layouts/DynamicCollage';
 import { generatePopInPlace } from './layouts/PopInPlace';
 import { generateKaraoke } from './layouts/Karaoke';
 import { assignColors } from './KineticColorEngine';
 
+export interface ProcessedWord {
+  originalText: string;
+  text: string;
+  fontFamily: string;
+  fontWeight: string;
+  textCase: 'uppercase' | 'lowercase' | 'original';
+}
+
 const ANIMATIONS: KineticAnimationStyle[] = ['pop', 'slide-up', 'scale', 'fade'];
+
+const applyCase = (text: string, textCase: 'uppercase' | 'lowercase' | 'original'): string => {
+  if (textCase === 'uppercase') return text.toUpperCase();
+  if (textCase === 'lowercase') return text.toLowerCase();
+  return text;
+};
 
 const getWordAnimation = (style: any, index: number): KineticAnimationStyle => {
   if (style === 'random') {
@@ -46,6 +60,18 @@ export const generateKineticLayout = (content: string, duration: number, setting
   
   if (wordsText.length === 0) return [];
 
+  // Map to ProcessedWords first
+  const processedWords: ProcessedWord[] = wordsText.map((text, i) => {
+    const textCase = getWordTextCase(settings);
+    return {
+      originalText: text,
+      text: applyCase(text, textCase),
+      fontFamily: getWordFont(settings, i),
+      fontWeight: getWordWeight(settings),
+      textCase
+    };
+  });
+
   // RTL Detection
   const isRtl = settings.direction === 'rtl' || (settings.direction === 'auto' && /[\u0590-\u05FF]/.test(content));
 
@@ -53,21 +79,23 @@ export const generateKineticLayout = (content: string, duration: number, setting
   let geometricWords: any[] = [];
   
   // Router for layouts
-  switch (settings.layoutStyle) {
+  const layoutStyle = Array.isArray(settings.layoutStyle) ? settings.layoutStyle[0] : settings.layoutStyle;
+
+  switch (layoutStyle) {
     case 'pop-in-place':
-      geometricWords = generatePopInPlace(wordsText, settings);
+      geometricWords = generatePopInPlace(processedWords, settings);
       break;
     case 'karaoke':
-      geometricWords = generateKaraoke(wordsText, settings);
+      geometricWords = generateKaraoke(processedWords, settings);
       break;
     case 'dynamic-collage':
     default:
-      geometricWords = generateDynamicCollage(wordsText, settings, isRtl);
+      geometricWords = generateDynamicCollage(processedWords, settings, isRtl);
       break;
   }
 
   // 2. Timing
-  const wordDuration = duration / wordsText.length;
+  const wordDuration = duration / processedWords.length;
 
   // 3. Construct KineticWords
   const kineticWords: KineticWord[] = geometricWords.map((gw, index) => ({
@@ -75,13 +103,14 @@ export const generateKineticLayout = (content: string, duration: number, setting
     text: gw.text,
     startTime: index * wordDuration, // Relative time 0-based
     endTime: (index + 1) * wordDuration,
+    sourceClipId: '', // Will be set in block layout
     position: { x: gw.x / 100, y: gw.y / 100 }, // Normalize 0-100 to 0-1
     fontSize: gw.fontSize / 100, // Normalize 0-100 to 0-1
     width: gw.width / 100, // Normalize 0-100 to 0-1
     color: '#ffffff', // Placeholder, will be assigned
-    fontFamily: getWordFont(settings, index),
-    fontWeight: getWordWeight(settings),
-    textCase: getWordTextCase(settings),
+    fontFamily: processedWords[index].fontFamily,
+    fontWeight: processedWords[index].fontWeight,
+    textCase: processedWords[index].textCase,
     animation: getWordAnimation(settings.animationStyle, index)
   }));
 
@@ -98,7 +127,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
 
   if (clips.length === 0) return [];
 
-  const allWords: { text: string, startTime: number, endTime: number }[] = [];
+  const allWords: { text: string, startTime: number, endTime: number, clipId: string }[] = [];
   clips.forEach(clip => {
     const words = (clip.content || '').split(/\s+/).filter(w => w.length > 0);
     const wordDuration = clip.duration / words.length;
@@ -106,7 +135,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       allWords.push({
         text,
         startTime: clip.startTime + (i * wordDuration),
-        endTime: clip.startTime + ((i + 1) * wordDuration)
+        endTime: clip.startTime + ((i + 1) * wordDuration),
+        clipId: clip.id
       });
     });
   });
@@ -114,22 +144,40 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
   const maxWords = block.settings.maxWordsVisible || 8;
   const kineticWords: KineticWord[] = [];
 
+  const layoutStyles = Array.isArray(block.settings.layoutStyle) 
+    ? block.settings.layoutStyle 
+    : [block.settings.layoutStyle];
+
   for (let i = 0; i < allWords.length; i += maxWords) {
     const chunk = allWords.slice(i, i + maxWords);
-    const chunkWords = chunk.map(w => w.text);
+    
+    // Map to ProcessedWords
+    const processedWords: ProcessedWord[] = chunk.map((w, j) => {
+      const textCase = getWordTextCase(block.settings);
+      return {
+        originalText: w.text,
+        text: applyCase(w.text, textCase),
+        fontFamily: getWordFont(block.settings, i + j),
+        fontWeight: getWordWeight(block.settings),
+        textCase
+      };
+    });
+
+    // Select layout style cyclically
+    const layoutStyle = layoutStyles[Math.floor(i / maxWords) % layoutStyles.length];
     
     // Generate layout for this scene
     let geometricWords: any[] = [];
-    switch (block.settings.layoutStyle) {
+    switch (layoutStyle) {
       case 'pop-in-place':
-        geometricWords = generatePopInPlace(chunkWords, block.settings);
+        geometricWords = generatePopInPlace(processedWords, block.settings);
         break;
       case 'karaoke':
-        geometricWords = generateKaraoke(chunkWords, block.settings);
+        geometricWords = generateKaraoke(processedWords, block.settings);
         break;
       case 'dynamic-collage':
       default:
-        geometricWords = generateDynamicCollage(chunkWords, block.settings, false);
+        geometricWords = generateDynamicCollage(processedWords, block.settings, false);
         break;
     }
     
@@ -139,13 +187,14 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       text: gw.text,
       startTime: chunk[j].startTime,
       endTime: chunk[j].endTime,
+      sourceClipId: chunk[j].clipId,
       position: { x: gw.x / 100, y: gw.y / 100 },
       fontSize: gw.fontSize / 100,
       width: gw.width / 100,
       color: '#ffffff',
-      fontFamily: getWordFont(block.settings, i + j),
-      fontWeight: getWordWeight(block.settings),
-      textCase: getWordTextCase(block.settings),
+      fontFamily: processedWords[j].fontFamily,
+      fontWeight: processedWords[j].fontWeight,
+      textCase: processedWords[j].textCase,
       animation: getWordAnimation(block.settings.animationStyle, i + j)
     }));
 

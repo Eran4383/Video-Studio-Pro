@@ -1,14 +1,14 @@
 import { KineticSettings } from '../../../types/kinetic';
 import { measureText } from '../kineticTextMeasure';
+import { ProcessedWord } from '../KineticLayoutManager';
 
 export const generatePopInPlace = (
-  words: string[],
+  words: ProcessedWord[],
   settings: KineticSettings
 ): any[] => {
   if (words.length === 0) return [];
 
-  const { boundingBox, primaryFont } = settings;
-  const font = primaryFont || 'Inter, sans-serif';
+  const { boundingBox } = settings;
 
   // Screen aspect ratio constant
   const SCREEN_AR = 1920 / 1080;
@@ -21,8 +21,9 @@ export const generatePopInPlace = (
 
   // Find the word with the maximum aspect ratio (width/height)
   let maxWordAR = 0;
-  words.forEach(word => {
-    const { width, height } = measureText(word, font, REF_FONT_SIZE);
+  words.forEach(w => {
+    const fullFont = `${w.fontWeight} ${REF_FONT_SIZE}px ${w.fontFamily}`;
+    const { width, height } = measureText(w.text, fullFont, REF_FONT_SIZE);
     const wordAR = width / height;
     if (wordAR > maxWordAR) maxWordAR = wordAR;
   });
@@ -38,8 +39,8 @@ export const generatePopInPlace = (
   // Apply 100% width usage
   const finalFontSize = calculatedFontSize;
 
-  return words.map((text) => ({
-    text,
+  return words.map((w) => ({
+    text: w.text,
     x: 50, // Center X in percentage (50% of box width)
     y: 50, // Center Y in percentage (50% of box height)
     fontSize: finalFontSize,

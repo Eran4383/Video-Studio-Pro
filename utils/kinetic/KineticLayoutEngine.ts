@@ -72,6 +72,7 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
       text: word,
       startTime: index * durationPerWord, // Relative to clip start
       endTime: (index + 1) * durationPerWord, // Relative to clip start
+      sourceClipId: clip.id,
       fontSize: fontSizePx / CANVAS_HEIGHT, // Store as percentage of screen height
       color: preset.colors[index % preset.colors.length],
       fontFamily: primaryFont || 'Inter, sans-serif',

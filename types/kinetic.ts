@@ -13,6 +13,7 @@ export interface KineticWord {
   text: string;
   startTime: number;
   endTime: number;
+  sourceClipId: string;
   // Absolute percentages relative to the bounding box
   position: {
     x: number;
@@ -31,7 +32,8 @@ export interface KineticWord {
 
 export interface KineticSettings {
   boundingBox: KineticBoundingBox;
-  layoutStyle: KineticLayoutStyle;
+  layoutStyle: KineticLayoutStyle | KineticLayoutStyle[];
+  layoutMultiSelect?: boolean;
   animationStyle: KineticAnimationStyle | KineticAnimationStyle[] | 'random';
   animationOrder: 'reading' | 'random';
   direction: 'ltr' | 'rtl' | 'auto';
