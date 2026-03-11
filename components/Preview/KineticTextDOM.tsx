@@ -100,8 +100,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
-          settings.keepPreviousWordsVisible; // fallback for old projects
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop);
 
         const isSceneDone = currentTime > word.sceneEndTime;
         if (isSceneDone) return null;

@@ -149,8 +149,7 @@ export class SceneRenderer {
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
-          settings.keepPreviousWordsVisible; // fallback for old projects
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop);
 
         const isSceneDone = time > word.sceneEndTime;
         if (isSceneDone) return;

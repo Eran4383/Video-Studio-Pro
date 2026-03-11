@@ -50,6 +50,14 @@ export const useProjectStore = () => {
     });
   }, [pushToHistory]);
 
+  const setResolution = useCallback((width: number, height: number) => {
+    setProject(prev => {
+      const next = { ...prev, resolution: { width, height } };
+      pushToHistory(next);
+      return next;
+    });
+  }, [pushToHistory]);
+
   const addAsset = useCallback((asset: Asset) => {
     setAssets(prev => [...prev, asset]);
   }, []);
@@ -58,7 +66,7 @@ export const useProjectStore = () => {
 
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode, lastKineticBox,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setKineticDrawMode, setBackgroundColor, addAsset,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setKineticDrawMode, setBackgroundColor, setResolution, addAsset,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

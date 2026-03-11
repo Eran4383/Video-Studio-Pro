@@ -152,6 +152,21 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     ? block.settings.layoutStyle 
     : [block.settings.layoutStyle];
 
+  // Create weighted pool
+  let layoutPool: KineticLayoutStyle[] = [];
+  if (block.settings.layoutMultiSelect && layoutStyles.length > 0) {
+    const weights = block.settings.layoutWeights || {};
+    layoutStyles.forEach(style => {
+      const weight = weights[style] ?? 1;
+      for (let i = 0; i < weight; i++) {
+        layoutPool.push(style);
+      }
+    });
+  }
+  if (layoutPool.length === 0) {
+    layoutPool = layoutStyles;
+  }
+
   const chunks: typeof allWords[] = [];
   let currentChunk: typeof allWords = [];
 
@@ -176,7 +191,6 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
   }
 
   let globalWordIndex = 0;
-  let chunkIndex = 0;
 
   for (const chunk of chunks) {
     // Map to ProcessedWords
@@ -191,8 +205,13 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       };
     });
 
-    // Select layout style cyclically
-    const layoutStyle = layoutStyles[chunkIndex % layoutStyles.length];
+    // Select layout style from weighted pool
+    let layoutStyle: KineticLayoutStyle;
+    if (block.settings.layoutMultiSelect) {
+      layoutStyle = layoutPool[Math.floor(Math.random() * layoutPool.length)];
+    } else {
+      layoutStyle = layoutStyles[0];
+    }
     
     // Generate layout for this scene
     let geometricWords: any[] = [];
@@ -234,7 +253,6 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     kineticWords.push(...sceneWords);
 
     globalWordIndex += chunk.length;
-    chunkIndex++;
   }
 
   return kineticWords;

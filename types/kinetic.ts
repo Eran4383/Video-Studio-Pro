@@ -37,6 +37,7 @@ export interface KineticSettings {
   boundingBox: KineticBoundingBox;
   layoutStyle: KineticLayoutStyle | KineticLayoutStyle[];
   layoutMultiSelect?: boolean;
+  layoutWeights?: Record<string, number>;
   animationStyle: KineticAnimationStyle | KineticAnimationStyle[] | 'random';
   animationOrder: 'reading' | 'random';
   direction: 'ltr' | 'rtl' | 'auto';
@@ -67,7 +68,6 @@ export interface KineticSettings {
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
-  keepPreviousWordsVisible?: boolean; // Keep for backward compatibility during migration
 }
 
 export interface KineticBlock {

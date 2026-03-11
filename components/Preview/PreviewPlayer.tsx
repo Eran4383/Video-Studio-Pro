@@ -31,6 +31,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const requestRef = useRef<number>(null);
   const lastTimeRef = useRef<number>(performance.now());
   const containerRef = useRef<HTMLDivElement>(null);
+  const playerContainerRef = useRef<HTMLDivElement>(null);
   
   // Zoom & Pan State
   const [scale, setScale] = useState(1);
@@ -38,6 +39,27 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [showTransform, setShowTransform] = useState(true);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      playerContainerRef.current?.requestFullscreen().catch(err => {
+        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+      });
+      resetView();
+    } else {
+      document.exitFullscreen();
+      resetView();
+    }
+  };
 
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
@@ -554,15 +576,17 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#18181b]"
+        ref={playerContainerRef}
+        className={`flex-1 flex items-center justify-center overflow-hidden cursor-crosshair relative bg-[#18181b] ${isFullscreen ? 'p-0' : 'p-6'}`}
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
+        onDoubleClick={toggleFullscreen}
       >
         <div 
           ref={containerRef}
-          className="w-full max-w-4xl rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
+          className={`w-full flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out ${isFullscreen ? 'max-w-full h-full rounded-none border-none' : 'max-w-4xl rounded shadow-2xl border border-white/5'}`}
           style={{ 
             transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
             backgroundColor: project.backgroundColor || '#000000',
@@ -778,6 +802,10 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            <div className="w-px h-4 bg-zinc-800" />
            <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">
              <button onClick={() => setIsLooping(!isLooping)} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
+           </Tooltip>
+           <div className="w-px h-4 bg-zinc-800" />
+           <Tooltip text="Fullscreen" position="top">
+             <button onClick={toggleFullscreen} className="hover:text-white transition-colors"><Maximize size={16} /></button>
            </Tooltip>
         </div>
       </div>
