@@ -60,8 +60,15 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   const spacing = 2; // 2% spacing
 
   wordData.forEach(w => {
-    const fontSize = baseFontSizeCqh * w.multiplier * SAFETY_MARGIN;
-    const wordWidth = (fontSize * w.ar / boxAR);
+    let fontSize = baseFontSizeCqh * w.multiplier * SAFETY_MARGIN;
+    let wordWidth = (fontSize * w.ar / boxAR);
+    
+    // Clamping to prevent extremely long words from overflowing horizontally
+    if (wordWidth > 100 * SAFETY_MARGIN) {
+      const scaleDown = (100 * SAFETY_MARGIN) / wordWidth;
+      fontSize *= scaleDown;
+      wordWidth *= scaleDown;
+    }
     
     if (currentLineWidth + wordWidth + (currentLine.length > 0 ? spacing : 0) > 100 && currentLine.length > 0) {
       lines.push(currentLine);
@@ -80,15 +87,36 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   // Approximate total height using baseFontSizeCqh for simplicity, or we could find max font size per line
   const lineHeights = lines.map(line => Math.max(...line.map(w => w.fontSize)));
   const totalHeight = lineHeights.reduce((sum, h) => sum + h, 0) + (lines.length - 1) * gap;
-  const offsetY = (100 - totalHeight) / 2;
 
+  // FIX 1: Vertical Scaling Constraint
+  let finalLineHeights = [...lineHeights];
+  let finalTotalHeight = totalHeight;
+  let finalGap = gap;
+  let finalSpacing = spacing;
+
+  if (totalHeight > 100 * SAFETY_MARGIN) {
+    const scaleDown = (100 * SAFETY_MARGIN) / totalHeight;
+    finalTotalHeight *= scaleDown;
+    finalLineHeights = lineHeights.map(h => h * scaleDown);
+    finalGap *= scaleDown;
+    finalSpacing *= scaleDown;
+    
+    lines.forEach(line => {
+      line.forEach(w => {
+        w.fontSize *= scaleDown;
+        w.width *= scaleDown;
+      });
+    });
+  }
+
+  const offsetY = (100 - finalTotalHeight) / 2;
   let currentY = offsetY;
 
   lines.forEach((line, i) => {
-    const lineWidth = line.reduce((sum, w) => sum + w.width, 0) + (line.length - 1) * spacing;
+    const lineWidth = line.reduce((sum, w) => sum + w.width, 0) + (line.length - 1) * finalSpacing;
     const offsetX = (100 - lineWidth) / 2;
     let currentX = isRtl ? 100 - offsetX : offsetX;
-    const lineHeight = lineHeights[i];
+    const lineHeight = finalLineHeights[i];
 
     line.forEach(w => {
       const x = isRtl ? currentX - w.width : currentX;
@@ -99,10 +127,10 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
         fontSize: w.fontSize,
         width: w.width
       });
-      currentX = isRtl ? currentX - (w.width + spacing) : currentX + (w.width + spacing);
+      currentX = isRtl ? currentX - (w.width + finalSpacing) : currentX + (w.width + finalSpacing);
     });
 
-    currentY += lineHeight + gap;
+    currentY += lineHeight + finalGap;
   });
 
   return result;

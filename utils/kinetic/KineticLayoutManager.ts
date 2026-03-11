@@ -163,7 +163,28 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       const gap = currentWord.startTime - previousWord.endTime;
       const maxGap = block.settings.maxTimeGap ?? 0.4;
       
-      if (currentChunk.length >= maxWords || gap > maxGap) {
+      let shouldBreak = false;
+      if (gap > maxGap) {
+        shouldBreak = true;
+      } else if (currentChunk.length >= maxWords) {
+        // Look ahead to see if only 1 or 2 words remain until next natural gap
+        let wordsInSequence = 0;
+        let lastWord = previousWord;
+        for (let j = i; j < allWords.length; j++) {
+          const nextW = allWords[j];
+          const g = nextW.startTime - lastWord.endTime;
+          if (g > maxGap) break;
+          wordsInSequence++;
+          lastWord = nextW;
+          if (wordsInSequence > 2) break;
+        }
+        
+        if (wordsInSequence > 2) {
+          shouldBreak = true;
+        }
+      }
+
+      if (shouldBreak) {
         chunks.push(currentChunk);
         currentChunk = [];
       }
