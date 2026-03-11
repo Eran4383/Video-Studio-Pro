@@ -102,7 +102,8 @@ export const useKineticActions = (
       if (!block) return prev;
 
       const allClips = prev.tracks.flatMap(t => t.clips);
-      const updatedWords = generateBlockLayout(block, allClips);
+      const screenAR = prev.resolution.width / prev.resolution.height;
+      const updatedWords = generateBlockLayout(block, allClips, screenAR);
 
       const next = {
         ...prev,

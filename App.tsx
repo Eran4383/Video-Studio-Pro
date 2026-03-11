@@ -94,7 +94,7 @@ const App: React.FC = () => {
     switch (action) {
       case 'play_pause': store.setIsPlaying(!store.isPlaying); break;
       case 'split': store.splitClip(store.selectedClipIds[0], store.currentTime); break;
-      case 'delete': if (store.selectedClipIds.length > 0) store.selectedClipIds.forEach(id => store.deleteClip(id)); break;
+      case 'delete': store.deleteSelectedClips(); break;
       case 'undo': store.undo(); break;
       case 'zoom_in': store.setZoom(Math.min(100, store.zoom + 5)); break;
       case 'zoom_out': store.setZoom(Math.max(1, store.zoom - 5)); break;

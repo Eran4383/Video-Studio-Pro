@@ -54,7 +54,7 @@ const getWordTextCase = (settings: KineticSettings): 'uppercase' | 'lowercase' |
   return settings.textCase || 'original';
 };
 
-export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
+export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string, screenAR: number): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
   
@@ -83,14 +83,14 @@ export const generateKineticLayout = (content: string, duration: number, setting
 
   switch (layoutStyle) {
     case 'pop-in-place':
-      geometricWords = generatePopInPlace(processedWords, settings);
+      geometricWords = generatePopInPlace(processedWords, settings, screenAR);
       break;
     case 'karaoke':
-      geometricWords = generateKaraoke(processedWords, settings);
+      geometricWords = generateKaraoke(processedWords, settings, screenAR);
       break;
     case 'dynamic-collage':
     default:
-      geometricWords = generateDynamicCollage(processedWords, settings, isRtl);
+      geometricWords = generateDynamicCollage(processedWords, settings, isRtl, screenAR);
       break;
   }
 
@@ -124,7 +124,7 @@ export const generateKineticLayout = (content: string, duration: number, setting
   return kineticWords;
 };
 
-export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): KineticWord[] => {
+export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], screenAR: number): KineticWord[] => {
   const clips = projectClips
     .filter(c => block.clipIds.includes(c.id))
     .sort((a, b) => a.startTime - b.startTime);
@@ -198,14 +198,14 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     let geometricWords: any[] = [];
     switch (layoutStyle) {
       case 'pop-in-place':
-        geometricWords = generatePopInPlace(processedWords, block.settings);
+        geometricWords = generatePopInPlace(processedWords, block.settings, screenAR);
         break;
       case 'karaoke':
-        geometricWords = generateKaraoke(processedWords, block.settings);
+        geometricWords = generateKaraoke(processedWords, block.settings, screenAR);
         break;
       case 'dynamic-collage':
       default:
-        geometricWords = generateDynamicCollage(processedWords, block.settings, false);
+        geometricWords = generateDynamicCollage(processedWords, block.settings, false, screenAR);
         break;
     }
     

@@ -8,7 +8,7 @@ const RATIOS = [
 ];
 
 export const ResolutionSwitcher: React.FC<{ store: any }> = ({ store }) => {
-    const { project, setProjectResolution } = store;
+    const { project, setResolution } = store;
     const currentRatio = RATIOS.find(r => r.width === project.resolution.width && r.height === project.resolution.height) || RATIOS[0];
 
     return (
@@ -18,7 +18,7 @@ export const ResolutionSwitcher: React.FC<{ store: any }> = ({ store }) => {
                 return (
                     <button
                         key={ratio.label}
-                        onClick={() => setProjectResolution(ratio.width, ratio.height)}
+                        onClick={() => setResolution(ratio.width, ratio.height)}
                         className={`flex flex-col items-center justify-center gap-1 p-2 rounded-md transition-all ${
                             isActive ? 'bg-zinc-800 text-white shadow-sm ring-1 ring-zinc-700' : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50'
                         }`}

@@ -78,7 +78,8 @@ export class SceneRenderer {
       allClips.forEach(c => clipMap[c.id] = c);
 
       this.cachedKineticBlocks = project.kineticBlocks.map(block => {
-        const words = generateBlockLayout(block, allClips);
+        const screenAR = this.width / this.height;
+        const words = generateBlockLayout(block, allClips, screenAR);
         
         // Pre-calculate word indices and counts per clip for O(1) timing calculation
         const metadata: Record<string, { index: number, total: number }> = {};

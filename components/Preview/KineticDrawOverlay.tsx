@@ -58,7 +58,7 @@ export const KineticDrawOverlay: React.FC<{ store: any }> = ({ store }) => {
 
   return (
     <div 
-      className="absolute inset-0 z-50 cursor-crosshair"
+      className="absolute inset-0 w-full h-full z-50 cursor-crosshair"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
