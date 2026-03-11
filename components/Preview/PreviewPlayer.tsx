@@ -452,9 +452,9 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
         
-        // Apply Live Overrides
-        const activeMedia = activeVideoClip && (videoRef.current || imageRef.current) ? {
-            element: (activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current) as HTMLVideoElement | HTMLImageElement,
+        const element = activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current;
+        const activeMedia = activeVideoClip && element ? {
+            element,
             clipId: activeVideoClip.id,
             asset: activeVideoAsset
         } : undefined;
@@ -585,7 +585,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       
       <div 
         ref={playerContainerRef}
-        className={`flex-1 flex items-center justify-center overflow-hidden w-full h-full cursor-crosshair relative bg-[#18181b] ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-6'}`}
+        className={`relative flex items-center justify-center w-full h-full min-h-[400px] bg-[#1a1a1a] overflow-hidden cursor-crosshair ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-8'}`}
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -594,18 +594,19 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       >
         <div 
           ref={containerRef}
-          className={`flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-2xl border border-white/5'}`}
+          className={`relative flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-700/30'}`}
           style={{ 
             transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
             backgroundColor: project.backgroundColor || '#000000',
             aspectRatio: `${project.resolution.width} / ${project.resolution.height}`,
-            maxHeight: '100%',
+            width: project.resolution.width >= project.resolution.height ? '100%' : 'auto',
+            height: project.resolution.width < project.resolution.height ? '100%' : 'auto',
             maxWidth: '100%',
-            objectFit: 'contain'
+            maxHeight: '100%'
           }}
         >
-          {/* Hidden Media Container for Canvas Source */}
-          <div className="hidden">
+          {/* Hidden Media Container for Canvas Source - using opacity-0 instead of hidden to keep media active */}
+          <div className="absolute inset-0 pointer-events-none opacity-0 -z-50 overflow-hidden">
             {activeVideoAsset && activeVideoClip && (
                 activeVideoAsset.type === 'VIDEO' ? (
                     <video 
@@ -613,6 +614,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                       ref={videoRef} 
                       src={activeVideoAsset.url} 
                       playsInline
+                      className="absolute inset-0 w-full h-full object-cover"
                       muted={isVideoSilenceNeeded}
                       onLoadedMetadata={() => {
                          // Force update to ensure dimensions are ready
@@ -624,6 +626,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                       key={activeVideoAsset.id}
                       ref={imageRef}
                       src={activeVideoAsset.url} 
+                      className="absolute inset-0 w-full h-full"
                       referrerPolicy="no-referrer" 
                       onLoad={() => {
                          if (imageRef.current) setFps(f => f + 1);
