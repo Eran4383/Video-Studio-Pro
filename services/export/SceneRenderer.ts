@@ -152,6 +152,9 @@ export class SceneRenderer {
           (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
           settings.keepPreviousWordsVisible; // fallback for old projects
 
+        const isSceneDone = time > word.sceneEndTime;
+        if (isSceneDone) return;
+
         const shouldShow = isActive || (isPast && isKeepVisible);
 
         if (!shouldShow) return;

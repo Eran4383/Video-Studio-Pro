@@ -30,6 +30,7 @@ export interface KineticWord {
   stretchY?: boolean;
   isCentered?: boolean;
   layoutStyle?: KineticLayoutStyle;
+  sceneEndTime: number;
 }
 
 export interface KineticSettings {
@@ -46,8 +47,10 @@ export interface KineticSettings {
   gap: number; // gap between rows/words in percentage
   blockHandling: 'separate' | 'combined';
   maxWordsVisible?: number; // 0 means unlimited
+  maxTimeGap?: number; // max gap between words in seconds to split scenes
   showBox?: boolean;
   customColors?: string[];
+  savedCustomPalettes?: string[][];
   keepPastInCollage?: boolean;
   keepPastInKaraoke?: boolean;
   keepPastInPop?: boolean;

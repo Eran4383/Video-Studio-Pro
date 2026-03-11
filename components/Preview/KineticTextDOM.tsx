@@ -103,6 +103,9 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
           settings.keepPreviousWordsVisible; // fallback for old projects
 
+        const isSceneDone = currentTime > word.sceneEndTime;
+        if (isSceneDone) return null;
+
         const shouldShow = isActive || (isPast && isKeepVisible);
 
         if (!shouldShow) return null;

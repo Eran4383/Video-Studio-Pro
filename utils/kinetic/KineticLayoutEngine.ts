@@ -80,7 +80,8 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
       position: { 
         x: xPos / CANVAS_WIDTH, 
         y: topY / CANVAS_HEIGHT 
-      }
+      },
+      sceneEndTime: clip.duration
     });
   });
 

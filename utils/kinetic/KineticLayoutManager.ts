@@ -97,7 +97,8 @@ export const generateKineticLayout = (content: string, duration: number, setting
   // 2. Timing
   const wordDuration = duration / processedWords.length;
 
-  // 3. Construct KineticWords
+    // 3. Construct KineticWords
+  const currentSceneEndTime = duration;
   const kineticWords: KineticWord[] = geometricWords.map((gw, index) => ({
     id: `kw-${index}-${Date.now()}`,
     text: gw.text,
@@ -113,7 +114,8 @@ export const generateKineticLayout = (content: string, duration: number, setting
     textCase: processedWords[index].textCase,
     animation: getWordAnimation(settings.animationStyle, index),
     isCentered: gw.isCentered,
-    layoutStyle: layoutStyle
+    layoutStyle: layoutStyle,
+    sceneEndTime: currentSceneEndTime
   }));
 
   // 4. Assign Colors
@@ -159,8 +161,9 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     if (currentChunk.length > 0) {
       const previousWord = currentChunk[currentChunk.length - 1];
       const gap = currentWord.startTime - previousWord.endTime;
+      const maxGap = block.settings.maxTimeGap ?? 0.4;
       
-      if (currentChunk.length >= maxWords || gap > 1.0) {
+      if (currentChunk.length >= maxWords || gap > maxGap) {
         chunks.push(currentChunk);
         currentChunk = [];
       }
@@ -207,6 +210,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     }
     
     // Assign colors
+    const currentSceneEndTime = chunk[chunk.length - 1].endTime;
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
       id: `kw-${Date.now()}-${globalWordIndex + j}`,
       text: gw.text,
@@ -222,7 +226,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       textCase: processedWords[j].textCase,
       animation: getWordAnimation(block.settings.animationStyle, globalWordIndex + j),
       isCentered: gw.isCentered,
-      layoutStyle: layoutStyle
+      layoutStyle: layoutStyle,
+      sceneEndTime: currentSceneEndTime
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
