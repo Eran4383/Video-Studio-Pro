@@ -41,6 +41,30 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [showTransform, setShowTransform] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // --- Auto-Fit Logic ---
+  useEffect(() => {
+    if (!playerContainerRef.current) return;
+    
+    const updateScale = () => {
+      const containerWidth = playerContainerRef.current!.clientWidth;
+      const containerHeight = playerContainerRef.current!.clientHeight;
+      const padding = isFullscreen ? 0 : 80;
+      
+      const fitScale = Math.min(
+        (containerWidth - padding) / project.resolution.width,
+        (containerHeight - padding) / project.resolution.height
+      );
+      
+      setScale(fitScale);
+      setPan({ x: 0, y: 0 });
+    };
+
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(playerContainerRef.current);
+    return () => observer.disconnect();
+  }, [project.resolution.width, project.resolution.height, isFullscreen]);
+
   useEffect(() => {
     const handleFullscreenChange = () => {
       setIsFullscreen(!!document.fullscreenElement);
@@ -114,7 +138,16 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   };
 
   const resetView = () => {
-    setScale(1);
+    if (!playerContainerRef.current) return;
+    const containerWidth = playerContainerRef.current.clientWidth;
+    const containerHeight = playerContainerRef.current.clientHeight;
+    const padding = isFullscreen ? 0 : 80;
+    
+    const fitScale = Math.min(
+      (containerWidth - padding) / project.resolution.width,
+      (containerHeight - padding) / project.resolution.height
+    );
+    setScale(fitScale);
     setPan({ x: 0, y: 0 });
   };
 
@@ -594,15 +627,14 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       >
         <div 
           ref={containerRef}
-          className={`relative flex-shrink-0 flex items-center justify-center overflow-hidden transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-700/30'}`}
+          className={`absolute origin-center overflow-hidden transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-700/30'}`}
           style={{ 
-            transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
+            width: project.resolution.width,
+            height: project.resolution.height,
+            left: '50%',
+            top: '50%',
+            transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
             backgroundColor: project.backgroundColor || '#000000',
-            aspectRatio: `${project.resolution.width} / ${project.resolution.height}`,
-            width: project.resolution.width >= project.resolution.height ? '100%' : 'auto',
-            height: project.resolution.width < project.resolution.height ? '100%' : 'auto',
-            maxWidth: '100%',
-            maxHeight: '100%'
           }}
         >
           {/* Hidden Media Container for Canvas Source - using opacity-0 instead of hidden to keep media active */}
@@ -614,7 +646,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                       ref={videoRef} 
                       src={activeVideoAsset.url} 
                       playsInline
-                      className="absolute inset-0 w-full h-full object-cover"
+                      className="absolute inset-0 w-full h-full object-contain"
                       muted={isVideoSilenceNeeded}
                       onLoadedMetadata={() => {
                          // Force update to ensure dimensions are ready
