@@ -33,7 +33,7 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
     return { text: w.text, ar: wordAR, multiplier };
   });
 
-  const SAFETY_MARGIN = 0.95;
+  const SAFETY_MARGIN = 0.85;
 
   if (karaokeMode === 'single-line') {
     const totalAR = wordData.reduce((sum, w) => sum + (w.ar * w.multiplier), 0) + (words.length - 1) * 0.2;

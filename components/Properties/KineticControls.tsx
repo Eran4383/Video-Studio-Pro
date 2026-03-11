@@ -57,9 +57,10 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!kineticData) return;
     
+    await document.fonts.ready;
     if (isBlock) {
       generateBlockAnimation(selectedClip.id);
     } else {

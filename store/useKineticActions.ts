@@ -96,7 +96,8 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
-  const generateBlockAnimation = useCallback((blockId: string) => {
+  const generateBlockAnimation = useCallback(async (blockId: string) => {
+    await document.fonts.ready;
     setProject(prev => {
       const block = prev.kineticBlocks?.find(b => b.id === blockId);
       if (!block) return prev;
