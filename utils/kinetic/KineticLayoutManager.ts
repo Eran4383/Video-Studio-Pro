@@ -54,7 +54,7 @@ const getWordTextCase = (settings: KineticSettings): 'uppercase' | 'lowercase' |
   return settings.textCase || 'original';
 };
 
-export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string, resolution: { width: number, height: number } = { width: 1920, height: 1080 }): KineticWord[] => {
+export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
   
@@ -83,14 +83,14 @@ export const generateKineticLayout = (content: string, duration: number, setting
 
   switch (layoutStyle) {
     case 'pop-in-place':
-      geometricWords = generatePopInPlace(processedWords, settings, resolution);
+      geometricWords = generatePopInPlace(processedWords, settings);
       break;
     case 'karaoke':
-      geometricWords = generateKaraoke(processedWords, settings, resolution);
+      geometricWords = generateKaraoke(processedWords, settings);
       break;
     case 'dynamic-collage':
     default:
-      geometricWords = generateDynamicCollage(processedWords, settings, isRtl, resolution);
+      geometricWords = generateDynamicCollage(processedWords, settings, isRtl);
       break;
   }
 
@@ -124,7 +124,7 @@ export const generateKineticLayout = (content: string, duration: number, setting
   return kineticWords;
 };
 
-export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], resolution: { width: number, height: number } = { width: 1920, height: 1080 }): KineticWord[] => {
+export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): KineticWord[] => {
   const clips = projectClips
     .filter(c => block.clipIds.includes(c.id))
     .sort((a, b) => a.startTime - b.startTime);
@@ -152,21 +152,6 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], r
     ? block.settings.layoutStyle 
     : [block.settings.layoutStyle];
 
-  // Create weighted pool
-  let layoutPool: KineticLayoutStyle[] = [];
-  if (block.settings.layoutMultiSelect && layoutStyles.length > 0) {
-    const weights = block.settings.layoutWeights || {};
-    layoutStyles.forEach(style => {
-      const weight = weights[style] ?? 1;
-      for (let i = 0; i < weight; i++) {
-        layoutPool.push(style);
-      }
-    });
-  }
-  if (layoutPool.length === 0) {
-    layoutPool = layoutStyles;
-  }
-
   const chunks: typeof allWords[] = [];
   let currentChunk: typeof allWords = [];
 
@@ -191,6 +176,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], r
   }
 
   let globalWordIndex = 0;
+  let chunkIndex = 0;
 
   for (const chunk of chunks) {
     // Map to ProcessedWords
@@ -205,26 +191,21 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], r
       };
     });
 
-    // Select layout style from weighted pool
-    let layoutStyle: KineticLayoutStyle;
-    if (block.settings.layoutMultiSelect) {
-      layoutStyle = layoutPool[Math.floor(Math.random() * layoutPool.length)];
-    } else {
-      layoutStyle = layoutStyles[0];
-    }
+    // Select layout style cyclically
+    const layoutStyle = layoutStyles[chunkIndex % layoutStyles.length];
     
     // Generate layout for this scene
     let geometricWords: any[] = [];
     switch (layoutStyle) {
       case 'pop-in-place':
-        geometricWords = generatePopInPlace(processedWords, block.settings, resolution);
+        geometricWords = generatePopInPlace(processedWords, block.settings);
         break;
       case 'karaoke':
-        geometricWords = generateKaraoke(processedWords, block.settings, resolution);
+        geometricWords = generateKaraoke(processedWords, block.settings);
         break;
       case 'dynamic-collage':
       default:
-        geometricWords = generateDynamicCollage(processedWords, block.settings, false, resolution);
+        geometricWords = generateDynamicCollage(processedWords, block.settings, false);
         break;
     }
     
@@ -253,6 +234,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], r
     kineticWords.push(...sceneWords);
 
     globalWordIndex += chunk.length;
+    chunkIndex++;
   }
 
   return kineticWords;

@@ -82,10 +82,9 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         // Fallback to word's own timing if clip not found (e.g. single layout preview)
         let isActive = false;
         let isPast = false;
-        let liveSceneEndTime = word.sceneEndTime;
 
         if (clip && meta) {
-          //  Calculate word's position within the clip to find its live timing
+          // Calculate word's position within the clip to find its live timing
           const wordDuration = clip.duration / Math.max(1, meta.total);
           
           const liveStartTime = clip.startTime + (meta.index * wordDuration);
@@ -93,10 +92,6 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           
           isActive = currentTime >= liveStartTime && currentTime <= liveEndTime;
           isPast = currentTime > liveEndTime;
-          
-          // Calculate live scene end time based on the offset from the word's original end time
-          const sceneOffset = word.sceneEndTime - word.endTime;
-          liveSceneEndTime = liveEndTime + sceneOffset;
         } else {
           isActive = currentTime >= word.startTime && currentTime <= word.endTime;
           isPast = currentTime > word.endTime;
@@ -105,9 +100,10 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop);
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
+          settings.keepPreviousWordsVisible; // fallback for old projects
 
-        const isSceneDone = currentTime > liveSceneEndTime;
+        const isSceneDone = currentTime > word.sceneEndTime;
         if (isSceneDone) return null;
 
         const shouldShow = isActive || (isPast && isKeepVisible);
@@ -139,13 +135,6 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const isStretchX = word.stretchX;
         const isStretchY = word.stretchY;
 
-        let transformValue = undefined;
-        if (word.isCentered) {
-          if (!isStretchX && !isStretchY) transformValue = 'translate(-50%, -50%)';
-          else if (isStretchX && !isStretchY) transformValue = 'translateY(-50%)';
-          else if (!isStretchX && isStretchY) transformValue = 'translateX(-50%)';
-        }
-
         return (
           <span
             key={word.id}
@@ -158,7 +147,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
               display: (isStretchX || isStretchY) ? 'flex' : 'block',
               alignItems: isStretchY ? 'center' : undefined,
               justifyContent: isStretchX ? 'center' : undefined,
-              transform: transformValue,
+              transform: (word.isCentered && !isStretchX && !isStretchY) ? 'translate(-50%, -50%)' : undefined,
               opacity: opacityValue,
               transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
               zIndex: isActive ? 10 : 1,

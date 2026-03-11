@@ -31,7 +31,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const requestRef = useRef<number>(null);
   const lastTimeRef = useRef<number>(performance.now());
   const containerRef = useRef<HTMLDivElement>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
   
   // Zoom & Pan State
   const [scale, setScale] = useState(1);
@@ -39,51 +38,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [showTransform, setShowTransform] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  // --- Auto-Fit Logic ---
-  useEffect(() => {
-    if (!playerContainerRef.current) return;
-    
-    const updateScale = () => {
-      const containerWidth = playerContainerRef.current!.clientWidth;
-      const containerHeight = playerContainerRef.current!.clientHeight;
-      const padding = isFullscreen ? 0 : 80;
-      
-      const fitScale = Math.min(
-        (containerWidth - padding) / project.resolution.width,
-        (containerHeight - padding) / project.resolution.height
-      );
-      
-      setScale(fitScale);
-      setPan({ x: 0, y: 0 });
-    };
-
-    updateScale();
-    const observer = new ResizeObserver(updateScale);
-    observer.observe(playerContainerRef.current);
-    return () => observer.disconnect();
-  }, [project.resolution.width, project.resolution.height, isFullscreen]);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      playerContainerRef.current?.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable fullscreen: ${err.message}`);
-      });
-      resetView();
-    } else {
-      document.exitFullscreen();
-      resetView();
-    }
-  };
 
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
@@ -138,16 +92,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   };
 
   const resetView = () => {
-    if (!playerContainerRef.current) return;
-    const containerWidth = playerContainerRef.current.clientWidth;
-    const containerHeight = playerContainerRef.current.clientHeight;
-    const padding = isFullscreen ? 0 : 80;
-    
-    const fitScale = Math.min(
-      (containerWidth - padding) / project.resolution.width,
-      (containerHeight - padding) / project.resolution.height
-    );
-    setScale(fitScale);
+    setScale(1);
     setPan({ x: 0, y: 0 });
   };
 
@@ -485,9 +430,9 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
         
-        const element = activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current;
-        const activeMedia = activeVideoClip && element ? {
-            element,
+        // Apply Live Overrides
+        const activeMedia = activeVideoClip && (videoRef.current || imageRef.current) ? {
+            element: (activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current) as HTMLVideoElement | HTMLImageElement,
             clipId: activeVideoClip.id,
             asset: activeVideoAsset
         } : undefined;
@@ -573,14 +518,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      
-      // Prevent global 'f' shortcut from triggering when interacting with the player
-      if (e.key.toLowerCase() === 'f') {
-        e.stopPropagation();
-        toggleFullscreen();
-        return;
-      }
-
       if (!selectedClip || !updateSubtitle) return;
 
       const step = e.shiftKey ? 0.05 : 0.005;
@@ -617,28 +554,23 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        ref={playerContainerRef}
-        className={`relative flex items-center justify-center w-full h-full min-h-[400px] bg-[#1a1a1a] overflow-hidden cursor-crosshair ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-8'}`}
+        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#18181b]"
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
-        onDoubleClick={toggleFullscreen}
       >
         <div 
           ref={containerRef}
-          className={`absolute origin-center overflow-hidden transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-[0_0_50px_rgba(0,0,0,0.5)] border border-zinc-700/30'}`}
+          className="w-full max-w-4xl rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
           style={{ 
-            width: project.resolution.width,
-            height: project.resolution.height,
-            left: '50%',
-            top: '50%',
-            transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+            transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
             backgroundColor: project.backgroundColor || '#000000',
+            aspectRatio: `${project.resolution.width} / ${project.resolution.height}`
           }}
         >
-          {/* Hidden Media Container for Canvas Source - using opacity-0 instead of hidden to keep media active */}
-          <div className="absolute inset-0 pointer-events-none opacity-0 -z-50 overflow-hidden">
+          {/* Hidden Media Container for Canvas Source */}
+          <div className="hidden">
             {activeVideoAsset && activeVideoClip && (
                 activeVideoAsset.type === 'VIDEO' ? (
                     <video 
@@ -646,7 +578,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                       ref={videoRef} 
                       src={activeVideoAsset.url} 
                       playsInline
-                      className="absolute inset-0 w-full h-full object-contain"
                       muted={isVideoSilenceNeeded}
                       onLoadedMetadata={() => {
                          // Force update to ensure dimensions are ready
@@ -658,7 +589,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                       key={activeVideoAsset.id}
                       ref={imageRef}
                       src={activeVideoAsset.url} 
-                      className="absolute inset-0 w-full h-full"
                       referrerPolicy="no-referrer" 
                       onLoad={() => {
                          if (imageRef.current) setFps(f => f + 1);
@@ -848,10 +778,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            <div className="w-px h-4 bg-zinc-800" />
            <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">
              <button onClick={() => setIsLooping(!isLooping)} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
-           </Tooltip>
-           <div className="w-px h-4 bg-zinc-800" />
-           <Tooltip text="Fullscreen" position="top">
-             <button onClick={toggleFullscreen} className="hover:text-white transition-colors"><Maximize size={16} /></button>
            </Tooltip>
         </div>
       </div>

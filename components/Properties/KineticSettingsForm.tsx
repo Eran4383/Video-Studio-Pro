@@ -183,27 +183,9 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                 )}
                 <p className="text-[10px] text-zinc-500 italic leading-tight px-1">
                   {settings.layoutMultiSelect 
-                    ? "Multiple layouts selected. Adjust weights below to control frequency."
+                    ? "Multiple layouts selected. They will rotate per scene."
                     : (LAYOUT_DESCRIPTIONS[settings.layoutStyle as string] || "Select a layout style.")}
                 </p>
-
-                {settings.layoutMultiSelect && Array.isArray(settings.layoutStyle) && settings.layoutStyle.length > 1 && (
-                  <div className="mt-2 flex flex-col gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
-                    <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Layout Weights (Frequency)</span>
-                    {settings.layoutStyle.map(style => (
-                      <ProSlider
-                        key={style}
-                        label={style.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                        value={settings.layoutWeights?.[style] ?? 1}
-                        onChange={(v) => onChange({ layoutWeights: { ...settings.layoutWeights, [style]: v } })}
-                        min={1}
-                        max={10}
-                        step={1}
-                        unit=""
-                      />
-                    ))}
-                  </div>
-                )}
               </div>
 
               {/* Animation Style */}

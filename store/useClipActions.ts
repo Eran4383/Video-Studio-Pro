@@ -4,9 +4,7 @@ import { Project, Asset, Clip, MediaType } from '../types';
 export const useClipActions = (
   setProject: React.Dispatch<React.SetStateAction<Project>>,
   pushToHistory: (p: Project) => void,
-  assets: Asset[],
-  selectedClipIds: string[],
-  setSelectedClipIds: React.Dispatch<React.SetStateAction<string[]>>
+  assets: Asset[]
 ) => {
   const addClips = useCallback((trackId: string, newClips: Clip[]) => {
     setProject(prev => {
@@ -54,30 +52,10 @@ export const useClipActions = (
     }));
   }, [setProject]);
 
-  const deleteClip = useCallback((clipId: string) => { 
-      setProject(prev => {
-        const next = {...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))};
-        pushToHistory(next);
-        return next;
-      });
-      setSelectedClipIds(prev => prev.filter(id => id !== clipId));
-  }, [setProject, pushToHistory, setSelectedClipIds]);
-
-  const deleteSelectedClips = useCallback(() => {
-      if (selectedClipIds.length === 0) return;
-      setProject(prev => {
-        const next = {
-          ...prev, 
-          tracks: prev.tracks.map(t => ({
-            ...t, 
-            clips: t.clips.filter(c => !selectedClipIds.includes(c.id) && (!c.linkedClipId || !selectedClipIds.includes(c.linkedClipId)))
-          }))
-        };
-        pushToHistory(next);
-        return next;
-      });
+  const deleteClip = useCallback((clipId: string, setSelectedClipIds: (ids: string[]) => void) => { 
+      setProject(prev => ({...prev, tracks: prev.tracks.map(t => ({...t, clips: t.clips.filter(c => c.id !== clipId && c.linkedClipId !== clipId)}))}));
       setSelectedClipIds([]);
-  }, [setProject, pushToHistory, selectedClipIds, setSelectedClipIds]);
+  }, [setProject]);
 
   const updateClipProperties = useCallback((clipId: string, updates: Partial<Clip>) => {
     setProject(prev => {
@@ -93,5 +71,5 @@ export const useClipActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { addClips, addClipAtPosition, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties };
+  return { addClips, addClipAtPosition, resizeClip, deleteClip, updateClipProperties };
 };

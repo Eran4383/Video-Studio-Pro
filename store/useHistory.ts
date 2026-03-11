@@ -7,10 +7,6 @@ export const useHistory = (setProject: (p: Project) => void, initialProject: Pro
 
   const pushToHistory = useCallback((newProject: Project) => {
     const currentHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
-    const lastState = currentHistory[currentHistory.length - 1];
-    if (JSON.stringify(lastState) === JSON.stringify(newProject)) {
-      return; // Prevent history spam if project state hasn't actually changed
-    }
     const updatedHistory = [...currentHistory, JSON.parse(JSON.stringify(newProject))];
     if (updatedHistory.length > 50) updatedHistory.shift();
     historyRef.current = updatedHistory;

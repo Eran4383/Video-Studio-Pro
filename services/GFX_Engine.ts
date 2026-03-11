@@ -36,8 +36,6 @@ export class GFX_Engine {
              if (activeMedia && clip.id === activeMedia.clipId) {
                  const asset = activeMedia.asset;
                  const element = activeMedia.element;
-                 const isReady = element instanceof HTMLImageElement ? element.complete : element.readyState >= 2;
-                 if (!isReady) return;
                  
                  const assetAspect = (asset.width || 1920) / (asset.height || 1080);
                  const canvasAspect = ctx.canvas.width / ctx.canvas.height;

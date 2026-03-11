@@ -4,15 +4,14 @@ import { ProcessedWord } from '../KineticLayoutManager';
 
 export const generatePopInPlace = (
   words: ProcessedWord[],
-  settings: KineticSettings,
-  resolution: { width: number, height: number } = { width: 1920, height: 1080 }
+  settings: KineticSettings
 ): any[] => {
   if (words.length === 0) return [];
 
   const { boundingBox } = settings;
 
   // Screen aspect ratio constant
-  const SCREEN_AR = resolution.width / resolution.height;
+  const SCREEN_AR = 1920 / 1080;
   
   // Bounding box aspect ratio in screen space
   const boxAR = (boundingBox.width * SCREEN_AR) / boundingBox.height;
@@ -37,15 +36,15 @@ export const generatePopInPlace = (
   
   const calculatedFontSize = Math.min(100, 100 * (boxAR / maxWordAR));
   
-  // Apply 100% width usage with a 0.85 safety margin
-  const finalFontSize = calculatedFontSize * 0.85;
+  // Apply 100% width usage with a 0.95 safety margin
+  const finalFontSize = calculatedFontSize * 0.95;
 
   return words.map((w) => ({
     text: w.text,
     x: 50, // Center X in percentage (50% of box width)
     y: 50, // Center Y in percentage (50% of box height)
     fontSize: finalFontSize,
-    width: 100 * 0.85,
+    width: 100 * 0.95,
     isCentered: true
   }));
 };

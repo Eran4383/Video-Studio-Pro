@@ -67,7 +67,7 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
       const content = selectedClip.content || '';
       const duration = selectedClip.duration;
       const fallbackFont = selectedClip.font || 'Inter, sans-serif';
-      const generatedWords = generateKineticLayout(content, duration, currentSettings, fallbackFont, store.project.resolution);
+      const generatedWords = generateKineticLayout(content, duration, currentSettings, fallbackFont);
       updateData(selectedClip.id, { words: generatedWords });
     }
   };
