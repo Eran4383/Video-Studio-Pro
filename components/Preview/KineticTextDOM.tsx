@@ -85,7 +85,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         let liveSceneEndTime = word.sceneEndTime;
 
         if (clip && meta) {
-          // Calculate word's position within the clip to find its live timing
+          //  Calculate word's position within the clip to find its live timing
           const wordDuration = clip.duration / Math.max(1, meta.total);
           
           const liveStartTime = clip.startTime + (meta.index * wordDuration);
