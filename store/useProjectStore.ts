@@ -37,7 +37,7 @@ export const useProjectStore = () => {
   const { pushToHistory, undo, redo, historyIndexRef } = useHistory(setProject, INITIAL_PROJECT);
   
   const trackActions = useTrackActions(setProject, pushToHistory);
-  const clipActions = useClipActions(setProject, pushToHistory, assets);
+  const clipActions = useClipActions(setProject, pushToHistory, assets, selectedClipIds, setSelectedClipIds);
   const kineticActions = useKineticActions(setProject, pushToHistory, lastKineticBox, setLastKineticBox);
   const moveActions = useMoveActions(setProject, setSelectedClipIds, selectedClipIds, isMagnetEnabled, currentTime);
   const subtitleActions = useSubtitleActions(setProject, pushToHistory, assets, currentTime, setSelectedClipIds, selectedClipIds);
@@ -50,7 +50,7 @@ export const useProjectStore = () => {
     });
   }, [pushToHistory]);
 
-  const setProjectResolution = useCallback((width: number, height: number) => {
+  const setResolution = useCallback((width: number, height: number) => {
     setProject(prev => {
       const next = { ...prev, resolution: { width, height } };
       pushToHistory(next);
@@ -66,7 +66,7 @@ export const useProjectStore = () => {
 
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode, lastKineticBox,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setKineticDrawMode, setBackgroundColor, setProjectResolution, addAsset,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setKineticDrawMode, setBackgroundColor, setResolution, addAsset,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

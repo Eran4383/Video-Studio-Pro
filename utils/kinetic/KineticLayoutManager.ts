@@ -199,6 +199,15 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
   let globalWordIndex = 0;
   let chunkIndex = 0;
 
+  // Create weighted pool for layout selection
+  const weightedPool: KineticLayoutStyle[] = [];
+  layoutStyles.forEach(style => {
+    const weight = block.settings.layoutWeights?.[style] ?? 1;
+    for (let i = 0; i < weight; i++) {
+      weightedPool.push(style as KineticLayoutStyle);
+    }
+  });
+
   for (const chunk of chunks) {
     // Map to ProcessedWords
     const processedWords: ProcessedWord[] = chunk.map((w, j) => {
@@ -212,8 +221,10 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       };
     });
 
-    // Select layout style cyclically
-    const layoutStyle = layoutStyles[chunkIndex % layoutStyles.length];
+    // Select layout style from weighted pool
+    const layoutStyle = weightedPool.length > 0 
+      ? weightedPool[Math.floor(Math.random() * weightedPool.length)]
+      : layoutStyles[chunkIndex % layoutStyles.length];
     
     // Generate layout for this scene
     let geometricWords: any[] = [];

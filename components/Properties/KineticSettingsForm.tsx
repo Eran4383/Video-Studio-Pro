@@ -1,5 +1,5 @@
 import React from 'react';
-import { KineticSettings, KineticAnimationStyle } from '../../types/kinetic';
+import { KineticSettings, KineticAnimationStyle, KineticLayoutStyle } from '../../types/kinetic';
 import { KINETIC_PALETTES } from '../../config/kineticPalettes';
 import { ProSlider } from '../UI/ProSlider';
 import { Check, Info, ChevronUp, ChevronDown, RotateCw, ListChecks, Plus, Trash2, Maximize2, Target } from 'lucide-react';
@@ -141,13 +141,16 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                 </div>
                 <select
                   multiple={!!settings.layoutMultiSelect}
-                  value={Array.isArray(settings.layoutStyle) ? settings.layoutStyle : [settings.layoutStyle as any]}
+                  value={settings.layoutMultiSelect 
+                    ? (Array.isArray(settings.layoutStyle) ? settings.layoutStyle : [settings.layoutStyle])
+                    : (Array.isArray(settings.layoutStyle) ? settings.layoutStyle[0] : settings.layoutStyle)
+                  }
                   onChange={(e) => {
-                    const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value as any);
                     if (settings.layoutMultiSelect) {
+                      const values = Array.from(e.target.selectedOptions).map(opt => (opt as HTMLOptionElement).value as KineticLayoutStyle);
                       onChange({ layoutStyle: values });
                     } else {
-                      onChange({ layoutStyle: values[0] });
+                      onChange({ layoutStyle: e.target.value as KineticLayoutStyle });
                     }
                   }}
                   className="bg-[#080808] border border-zinc-800 rounded-md p-2 text-[11px] text-white outline-none focus:border-indigo-500/50 transition-colors cursor-pointer min-h-[40px]"
