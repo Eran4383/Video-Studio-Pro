@@ -102,7 +102,26 @@ export const useKineticActions = (
       if (!block) return prev;
 
       const allClips = prev.tracks.flatMap(t => t.clips);
-      const updatedWords = generateBlockLayout(block, allClips);
+      const newWords = generateBlockLayout(block, allClips);
+
+      // Preserve manual edits
+      const existingWordsMap = new Map<string, any>(block.words?.map(w => [w.sourceClipId, w]) || []);
+      const updatedWords = newWords.map(newWord => {
+        const existingWord = existingWordsMap.get(newWord.sourceClipId);
+        if (existingWord) {
+          return {
+            ...newWord,
+            color: existingWord.color,
+            stretchX: existingWord.stretchX,
+            stretchY: existingWord.stretchY,
+            fontFamily: existingWord.fontFamily,
+            fontWeight: existingWord.fontWeight,
+            textCase: existingWord.textCase,
+            animation: existingWord.animation
+          };
+        }
+        return newWord;
+      });
 
       const next = {
         ...prev,

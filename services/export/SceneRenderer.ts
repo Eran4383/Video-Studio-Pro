@@ -78,7 +78,7 @@ export class SceneRenderer {
       allClips.forEach(c => clipMap[c.id] = c);
 
       this.cachedKineticBlocks = project.kineticBlocks.map(block => {
-        const words = generateBlockLayout(block, allClips);
+        const words = block.words && block.words.length > 0 ? block.words : generateBlockLayout(block, allClips);
         
         // Pre-calculate word indices and counts per clip for O(1) timing calculation
         const metadata: Record<string, { index: number, total: number }> = {};
@@ -133,6 +133,7 @@ export class SceneRenderer {
         
         let isActive = false;
         let isPast = false;
+        let liveSceneEndTime = word.sceneEndTime;
 
         if (clip && meta) {
           const wordDuration = clip.duration / Math.max(1, meta.total);
@@ -141,6 +142,9 @@ export class SceneRenderer {
           
           isActive = time >= liveStartTime && time <= liveEndTime;
           isPast = time > liveEndTime;
+          
+          const sceneOffset = word.sceneEndTime - word.endTime;
+          liveSceneEndTime = liveEndTime + sceneOffset;
         } else {
           isActive = time >= word.startTime && time <= word.endTime;
           isPast = time > word.endTime;
@@ -151,7 +155,7 @@ export class SceneRenderer {
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
           (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop);
 
-        const isSceneDone = time > word.sceneEndTime;
+        const isSceneDone = time > liveSceneEndTime;
         if (isSceneDone) return;
 
         const shouldShow = isActive || (isPast && isKeepVisible);
@@ -198,6 +202,11 @@ export class SceneRenderer {
         this.ctx.textBaseline = 'top';
         this.ctx.textAlign = 'left';
 
+        if (word.isCentered) {
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+        }
+
         if (isStretchX) {
           this.ctx.textAlign = 'center';
           wordX = boxX + (boxWidth / 2);
@@ -206,12 +215,6 @@ export class SceneRenderer {
         if (isStretchY) {
           this.ctx.textBaseline = 'middle';
           wordY = boxY + (boxHeight / 2);
-        }
-
-        if (word.isCentered && !isStretchX && !isStretchY) {
-          this.ctx.textAlign = 'center';
-          this.ctx.textBaseline = 'middle';
-          // wordX and wordY are already centered in pop-in-place layout (50%, 50%)
         }
 
         this.ctx.fillText(textToDraw, wordX, wordY);
