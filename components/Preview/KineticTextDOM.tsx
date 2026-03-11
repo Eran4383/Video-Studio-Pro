@@ -97,7 +97,13 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           isPast = currentTime > word.endTime;
         }
 
-        const shouldShow = isActive || (isPast && settings.keepPreviousWordsVisible);
+        const isKeepVisible = 
+          (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
+          (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
+          settings.keepPreviousWordsVisible; // fallback for old projects
+
+        const shouldShow = isActive || (isPast && isKeepVisible);
 
         if (!shouldShow) return null;
 
@@ -107,9 +113,8 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
         const fadeDuration = settings.pastWordsFadeDuration || 0.5;
         
-        const isKeepVisible = settings.keepPreviousWordsVisible;
         const opacityValue = isPast 
-          ? (settings.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
+          ? (word.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
           : 1;
 
         // CSS Ghosting Fix: Hard cutoff if not keeping previous words

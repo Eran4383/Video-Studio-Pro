@@ -29,6 +29,7 @@ export interface KineticWord {
   stretchX?: boolean;
   stretchY?: boolean;
   isCentered?: boolean;
+  layoutStyle?: KineticLayoutStyle;
 }
 
 export interface KineticSettings {
@@ -47,8 +48,11 @@ export interface KineticSettings {
   maxWordsVisible?: number; // 0 means unlimited
   showBox?: boolean;
   customColors?: string[];
-  keepPreviousWordsVisible?: boolean;
+  keepPastInCollage?: boolean;
+  keepPastInKaraoke?: boolean;
+  keepPastInPop?: boolean;
   karaokeMode?: 'single-line' | 'multi-line';
+  karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
   animationMultiSelect?: boolean;
   fontMultiSelect?: boolean;
   fonts?: string[]; // Array of selected fonts
@@ -60,6 +64,7 @@ export interface KineticSettings {
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
+  keepPreviousWordsVisible?: boolean; // Keep for backward compatibility during migration
 }
 
 export interface KineticBlock {

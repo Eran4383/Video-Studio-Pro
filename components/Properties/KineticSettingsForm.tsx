@@ -167,6 +167,18 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                       <option value="multi-line">Multi Line</option>
                       <option value="single-line">Single Line</option>
                     </select>
+                    
+                    <label className="text-[8px] text-zinc-600 font-mono uppercase mt-1">Size Pattern</label>
+                    <select
+                      value={settings.karaokeSizePattern || 'uniform'}
+                      onChange={(e) => onChange({ karaokeSizePattern: e.target.value as any })}
+                      className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none"
+                    >
+                      <option value="uniform">Uniform</option>
+                      <option value="random">Random</option>
+                      <option value="ascending">Ascending</option>
+                      <option value="descending">Descending</option>
+                    </select>
                   </div>
                 )}
                 <p className="text-[10px] text-zinc-500 italic leading-tight px-1">
@@ -412,17 +424,41 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
             {summary('Advanced')}
             <div className="p-3 flex flex-col gap-5 bg-black/20">
               <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800">
-                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter">Keep Previous Words</span>
-                  <button 
-                    onClick={() => onChange({ keepPreviousWordsVisible: !settings.keepPreviousWordsVisible })}
-                    className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPreviousWordsVisible ? 'bg-indigo-600' : 'bg-zinc-700'}`}
-                  >
-                    <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPreviousWordsVisible ? 'left-4.5' : 'left-0.5'}`} />
-                  </button>
+                <div className="flex flex-col gap-2 bg-zinc-900/50 p-2 rounded-lg border border-zinc-800">
+                  <span className="text-[9px] font-black text-zinc-400 uppercase tracking-tighter mb-1">Keep Previous Words</span>
+                  
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500">In Collage</span>
+                    <button 
+                      onClick={() => onChange({ keepPastInCollage: !settings.keepPastInCollage })}
+                      className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInCollage ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInCollage ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500">In Karaoke</span>
+                    <button 
+                      onClick={() => onChange({ keepPastInKaraoke: !settings.keepPastInKaraoke })}
+                      className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInKaraoke ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInKaraoke ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500">In Pop In Place</span>
+                    <button 
+                      onClick={() => onChange({ keepPastInPop: !settings.keepPastInPop })}
+                      className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInPop ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInPop ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
                 </div>
 
-                {settings.keepPreviousWordsVisible && (
+                {(settings.keepPastInCollage || settings.keepPastInKaraoke || settings.keepPastInPop) && (
                   <div className="flex flex-col gap-4 pl-2 border-l border-zinc-800 ml-1">
                     <ProSlider
                       label="Past Words Opacity"

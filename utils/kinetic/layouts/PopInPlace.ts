@@ -36,15 +36,15 @@ export const generatePopInPlace = (
   
   const calculatedFontSize = Math.min(100, 100 * (boxAR / maxWordAR));
   
-  // Apply 100% width usage
-  const finalFontSize = calculatedFontSize;
+  // Apply 100% width usage with a 0.95 safety margin
+  const finalFontSize = calculatedFontSize * 0.95;
 
   return words.map((w) => ({
     text: w.text,
     x: 50, // Center X in percentage (50% of box width)
     y: 50, // Center Y in percentage (50% of box height)
     fontSize: finalFontSize,
-    width: 100,
+    width: 100 * 0.95,
     isCentered: true
   }));
 };

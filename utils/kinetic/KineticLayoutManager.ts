@@ -112,7 +112,8 @@ export const generateKineticLayout = (content: string, duration: number, setting
     fontWeight: processedWords[index].fontWeight,
     textCase: processedWords[index].textCase,
     animation: getWordAnimation(settings.animationStyle, index),
-    isCentered: gw.isCentered
+    isCentered: gw.isCentered,
+    layoutStyle: layoutStyle
   }));
 
   // 4. Assign Colors
@@ -149,23 +150,46 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     ? block.settings.layoutStyle 
     : [block.settings.layoutStyle];
 
-  for (let i = 0; i < allWords.length; i += maxWords) {
-    const chunk = allWords.slice(i, i + maxWords);
+  const chunks: typeof allWords[] = [];
+  let currentChunk: typeof allWords = [];
+
+  for (let i = 0; i < allWords.length; i++) {
+    const currentWord = allWords[i];
     
+    if (currentChunk.length > 0) {
+      const previousWord = currentChunk[currentChunk.length - 1];
+      const gap = currentWord.startTime - previousWord.endTime;
+      
+      if (currentChunk.length >= maxWords || gap > 1.0) {
+        chunks.push(currentChunk);
+        currentChunk = [];
+      }
+    }
+    
+    currentChunk.push(currentWord);
+  }
+  if (currentChunk.length > 0) {
+    chunks.push(currentChunk);
+  }
+
+  let globalWordIndex = 0;
+  let chunkIndex = 0;
+
+  for (const chunk of chunks) {
     // Map to ProcessedWords
     const processedWords: ProcessedWord[] = chunk.map((w, j) => {
       const textCase = getWordTextCase(block.settings);
       return {
         originalText: w.text,
         text: applyCase(w.text, textCase),
-        fontFamily: getWordFont(block.settings, i + j),
+        fontFamily: getWordFont(block.settings, globalWordIndex + j),
         fontWeight: getWordWeight(block.settings),
         textCase
       };
     });
 
     // Select layout style cyclically
-    const layoutStyle = layoutStyles[Math.floor(i / maxWords) % layoutStyles.length];
+    const layoutStyle = layoutStyles[chunkIndex % layoutStyles.length];
     
     // Generate layout for this scene
     let geometricWords: any[] = [];
@@ -184,7 +208,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
     
     // Assign colors
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
-      id: `kw-${Date.now()}-${i + j}`,
+      id: `kw-${Date.now()}-${globalWordIndex + j}`,
       text: gw.text,
       startTime: chunk[j].startTime,
       endTime: chunk[j].endTime,
@@ -196,12 +220,16 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       fontFamily: processedWords[j].fontFamily,
       fontWeight: processedWords[j].fontWeight,
       textCase: processedWords[j].textCase,
-      animation: getWordAnimation(block.settings.animationStyle, i + j),
-      isCentered: gw.isCentered
+      animation: getWordAnimation(block.settings.animationStyle, globalWordIndex + j),
+      isCentered: gw.isCentered,
+      layoutStyle: layoutStyle
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
     kineticWords.push(...sceneWords);
+
+    globalWordIndex += chunk.length;
+    chunkIndex++;
   }
 
   return kineticWords;

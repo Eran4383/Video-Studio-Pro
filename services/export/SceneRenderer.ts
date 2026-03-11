@@ -6,6 +6,12 @@ export class SceneRenderer {
   private ctx: CanvasRenderingContext2D;
   private width: number;
   private height: number;
+  private cachedKineticBlocks: {
+    block: any;
+    words: any[];
+    metadata: Record<string, { index: number, total: number }>;
+    clipMap: Record<string, Clip>;
+  }[] | null = null;
 
   constructor(ctx: CanvasRenderingContext2D, width: number, height: number) {
     this.ctx = ctx;
@@ -44,9 +50,12 @@ export class SceneRenderer {
 
     // 5. Draw Subtitles (Topmost layer)
     const subtitleTracks = project.tracks.filter(t => t.type === 'subtitle' && t.isVisible);
+    const kineticClipIds = new Set(project.kineticBlocks?.flatMap(b => b.clipIds) || []);
+
     for (const track of subtitleTracks) {
       const clip = track.clips.find(c => time >= c.startTime && time < c.startTime + c.duration);
       if (clip && clip.content) {
+        if (kineticClipIds.has(clip.id)) continue;
         this.drawSubtitle(clip, time);
       }
     }
@@ -55,44 +64,49 @@ export class SceneRenderer {
   private drawKineticBlocks(project: Project, time: number) {
     if (!project.kineticBlocks || project.kineticBlocks.length === 0) return;
 
-    // Collect all clips from visual tracks for layout generation
-    const allClips: Clip[] = [];
-    project.tracks.forEach(t => {
-      if (t.type === 'video' || t.type === 'subtitle') { // Kinetic blocks usually link to subtitle clips or video clips with content
-        allClips.push(...t.clips);
-      }
-    });
+    if (!this.cachedKineticBlocks) {
+      // Collect all clips from visual tracks for layout generation
+      const allClips: Clip[] = [];
+      project.tracks.forEach(t => {
+        if (t.type === 'video' || t.type === 'subtitle') { // Kinetic blocks usually link to subtitle clips or video clips with content
+          allClips.push(...t.clips);
+        }
+      });
 
-    // Create clip map for fast lookup
-    const clipMap: Record<string, Clip> = {};
-    allClips.forEach(c => clipMap[c.id] = c);
+      // Create clip map for fast lookup
+      const clipMap: Record<string, Clip> = {};
+      allClips.forEach(c => clipMap[c.id] = c);
 
-    for (const block of project.kineticBlocks) {
+      this.cachedKineticBlocks = project.kineticBlocks.map(block => {
+        const words = generateBlockLayout(block, allClips);
+        
+        // Pre-calculate word indices and counts per clip for O(1) timing calculation
+        const metadata: Record<string, { index: number, total: number }> = {};
+        const clipWordCounts: Record<string, number> = {};
+        const clipWordIndices: Record<string, number> = {};
+
+        words.forEach(w => {
+          if (w.sourceClipId) {
+            clipWordCounts[w.sourceClipId] = (clipWordCounts[w.sourceClipId] || 0) + 1;
+          }
+        });
+
+        words.forEach(w => {
+          if (w.sourceClipId) {
+            const idx = clipWordIndices[w.sourceClipId] || 0;
+            metadata[w.id] = { index: idx, total: clipWordCounts[w.sourceClipId] };
+            clipWordIndices[w.sourceClipId] = idx + 1;
+          }
+        });
+
+        return { block, words, metadata, clipMap };
+      });
+    }
+
+    for (const cached of this.cachedKineticBlocks) {
+      const { block, words, metadata, clipMap } = cached;
       const { settings } = block;
-      if (!settings) continue;
-
-      // Generate words layout
-      const words = generateBlockLayout(block, allClips);
-      if (words.length === 0) continue;
-
-      // Pre-calculate word indices and counts per clip for O(1) timing calculation
-      const metadata: Record<string, { index: number, total: number }> = {};
-      const clipWordCounts: Record<string, number> = {};
-      const clipWordIndices: Record<string, number> = {};
-
-      words.forEach(w => {
-        if (w.sourceClipId) {
-          clipWordCounts[w.sourceClipId] = (clipWordCounts[w.sourceClipId] || 0) + 1;
-        }
-      });
-
-      words.forEach(w => {
-        if (w.sourceClipId) {
-          const idx = clipWordIndices[w.sourceClipId] || 0;
-          metadata[w.id] = { index: idx, total: clipWordCounts[w.sourceClipId] };
-          clipWordIndices[w.sourceClipId] = idx + 1;
-        }
-      });
+      if (!settings || words.length === 0) continue;
 
       const box = settings.boundingBox || { x: 0, y: 0, width: 1, height: 1 };
       const boxX = box.x * this.width;
@@ -132,14 +146,19 @@ export class SceneRenderer {
           isPast = time > word.endTime;
         }
 
-        const isKeepVisible = settings.keepPreviousWordsVisible;
+        const isKeepVisible = 
+          (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
+          (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
+          settings.keepPreviousWordsVisible; // fallback for old projects
+
         const shouldShow = isActive || (isPast && isKeepVisible);
 
         if (!shouldShow) return;
 
         const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
         const opacityValue = isPast 
-          ? (settings.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
+          ? (word.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
           : 1;
 
         if (opacityValue <= 0) return;

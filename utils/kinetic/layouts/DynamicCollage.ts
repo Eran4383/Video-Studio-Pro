@@ -137,7 +137,7 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
   const contentHeight = Math.max(targetHeight, totalHeight + addedGap);
   const scaleW = boxAR;
   const scaleH = 100 / contentHeight;
-  const S = Math.min(scaleW, scaleH);
+  const S = Math.min(scaleW, scaleH) * 0.95; // 0.95 safety margin
 
   const offsetX_cqh = (100 * boxAR - 100 * S) / 2;
   const offsetY_cqh = (100 - contentHeight * S) / 2;

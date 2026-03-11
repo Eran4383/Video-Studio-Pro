@@ -14,45 +14,61 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   const REF_FONT_SIZE = 100;
   const baseFontSizeCqh = 15; // 15% of box height as requested
 
-  const wordData = words.map(w => {
+  const pattern = settings.karaokeSizePattern || 'uniform';
+  
+  const wordData = words.map((w, i) => {
     const fullFont = `${w.fontWeight} ${REF_FONT_SIZE}px ${w.fontFamily}`;
     const { width, height } = measureText(w.text, fullFont, REF_FONT_SIZE);
     const wordAR = width / height;
-    return { text: w.text, ar: wordAR };
+    
+    let multiplier = 1;
+    if (pattern === 'random') {
+      multiplier = 0.7 + Math.random() * 0.6; // 0.7 to 1.3
+    } else if (pattern === 'ascending') {
+      multiplier = words.length > 1 ? 0.7 + (0.6 * (i / (words.length - 1))) : 1;
+    } else if (pattern === 'descending') {
+      multiplier = words.length > 1 ? 1.3 - (0.6 * (i / (words.length - 1))) : 1;
+    }
+    
+    return { text: w.text, ar: wordAR, multiplier };
   });
 
+  const SAFETY_MARGIN = 0.95;
+
   if (karaokeMode === 'single-line') {
-    const totalAR = wordData.reduce((sum, w) => sum + w.ar, 0) + (words.length - 1) * 0.2;
-    const multiplier = Math.min(1, boxAR / totalAR);
-    const finalFontSize = baseFontSizeCqh * multiplier;
+    const totalAR = wordData.reduce((sum, w) => sum + (w.ar * w.multiplier), 0) + (words.length - 1) * 0.2;
+    const sizeMultiplier = Math.min(1, boxAR / totalAR) * SAFETY_MARGIN;
+    const finalBaseFontSize = baseFontSizeCqh * sizeMultiplier;
     
-    const totalWidth = wordData.reduce((sum, w) => sum + (finalFontSize * w.ar / boxAR), 0) + (words.length - 1) * 2;
+    const totalWidth = wordData.reduce((sum, w) => sum + (finalBaseFontSize * w.multiplier * w.ar / boxAR), 0) + (words.length - 1) * 2;
     const offsetX = (100 - totalWidth) / 2;
     
     let currentX = isRtl ? 100 - offsetX : offsetX;
     return wordData.map(w => {
-      const wWidth = (finalFontSize * w.ar / boxAR);
+      const fontSize = finalBaseFontSize * w.multiplier;
+      const wWidth = (fontSize * w.ar / boxAR);
       const x = isRtl ? currentX - wWidth : currentX;
       currentX = isRtl ? currentX - (wWidth + 2) : currentX + (wWidth + 2);
-      return { text: w.text, x: isRtl ? x + wWidth : x, y: 50, fontSize: finalFontSize, width: wWidth };
+      return { text: w.text, x: isRtl ? x + wWidth : x, y: 50, fontSize, width: wWidth };
     });
   }
 
   // Multi-line mode
-  const lines: { text: string, ar: number, width: number }[][] = [];
-  let currentLine: { text: string, ar: number, width: number }[] = [];
+  const lines: { text: string, ar: number, width: number, fontSize: number }[][] = [];
+  let currentLine: { text: string, ar: number, width: number, fontSize: number }[] = [];
   let currentLineWidth = 0;
   const spacing = 2; // 2% spacing
 
   wordData.forEach(w => {
-    const wordWidth = (baseFontSizeCqh * w.ar / boxAR);
+    const fontSize = baseFontSizeCqh * w.multiplier * SAFETY_MARGIN;
+    const wordWidth = (fontSize * w.ar / boxAR);
     
     if (currentLineWidth + wordWidth + (currentLine.length > 0 ? spacing : 0) > 100 && currentLine.length > 0) {
       lines.push(currentLine);
-      currentLine = [{ text: w.text, ar: w.ar, width: wordWidth }];
+      currentLine = [{ text: w.text, ar: w.ar, width: wordWidth, fontSize }];
       currentLineWidth = wordWidth;
     } else {
-      currentLine.push({ text: w.text, ar: w.ar, width: wordWidth });
+      currentLine.push({ text: w.text, ar: w.ar, width: wordWidth, fontSize });
       currentLineWidth += wordWidth + (currentLine.length > 1 ? spacing : 0);
     }
   });
@@ -61,29 +77,32 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   }
 
   const result: any[] = [];
-  const totalHeight = lines.length * baseFontSizeCqh + (lines.length - 1) * gap;
+  // Approximate total height using baseFontSizeCqh for simplicity, or we could find max font size per line
+  const lineHeights = lines.map(line => Math.max(...line.map(w => w.fontSize)));
+  const totalHeight = lineHeights.reduce((sum, h) => sum + h, 0) + (lines.length - 1) * gap;
   const offsetY = (100 - totalHeight) / 2;
 
   let currentY = offsetY;
 
-  lines.forEach(line => {
+  lines.forEach((line, i) => {
     const lineWidth = line.reduce((sum, w) => sum + w.width, 0) + (line.length - 1) * spacing;
     const offsetX = (100 - lineWidth) / 2;
     let currentX = isRtl ? 100 - offsetX : offsetX;
+    const lineHeight = lineHeights[i];
 
     line.forEach(w => {
       const x = isRtl ? currentX - w.width : currentX;
       result.push({
         text: w.text,
         x: isRtl ? x + w.width : x,
-        y: currentY + (baseFontSizeCqh / 2),
-        fontSize: baseFontSizeCqh,
+        y: currentY + (lineHeight / 2),
+        fontSize: w.fontSize,
         width: w.width
       });
       currentX = isRtl ? currentX - (w.width + spacing) : currentX + (w.width + spacing);
     });
 
-    currentY += baseFontSizeCqh + gap;
+    currentY += lineHeight + gap;
   });
 
   return result;
