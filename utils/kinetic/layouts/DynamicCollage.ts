@@ -2,7 +2,7 @@ import { KineticSettings } from '../../../types/kinetic';
 import { measureText } from '../kineticTextMeasure';
 import { ProcessedWord } from '../KineticLayoutManager';
 
-export const generateDynamicCollage = (words: ProcessedWord[], settings: KineticSettings, isRtl: boolean): any[] => {
+export const generateDynamicCollage = (words: ProcessedWord[], settings: KineticSettings, isRtl: boolean, resolution: { width: number, height: number } = { width: 1920, height: 1080 }): any[] => {
   const wordsWithAR = words.map(w => {
     const fullFont = `${w.fontWeight} 100px ${w.fontFamily}`;
     const size = measureText(w.text, fullFont, 100);
@@ -10,7 +10,7 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
     return { text: w.text, ar };
   });
 
-  const assumedScreenAR = 1920 / 1080;
+  const assumedScreenAR = resolution.width / resolution.height;
   const bw = settings.boundingBox?.width || 0.5;
   const bh = settings.boundingBox?.height || 0.5;
   const boxAR = (bw * assumedScreenAR) / bh;

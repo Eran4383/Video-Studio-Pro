@@ -102,7 +102,7 @@ export const useKineticActions = (
       if (!block) return prev;
 
       const allClips = prev.tracks.flatMap(t => t.clips);
-      const newWords = generateBlockLayout(block, allClips);
+      const newWords = generateBlockLayout(block, allClips, prev.resolution);
 
       // Preserve manual edits
       const existingWordsMap = new Map<string, any>(block.words?.map(w => [w.sourceClipId, w]) || []);

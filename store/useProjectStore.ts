@@ -8,6 +8,8 @@ import { useKineticActions } from './useKineticActions';
 import { useMoveActions } from './useMoveActions';
 import { useSubtitleActions } from './useSubtitleActions';
 
+import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
+
 const INITIAL_PROJECT: Project = {
   id: 'proj-1',
   name: 'New Project',
@@ -37,7 +39,7 @@ export const useProjectStore = () => {
   const { pushToHistory, undo, redo, historyIndexRef } = useHistory(setProject, INITIAL_PROJECT);
   
   const trackActions = useTrackActions(setProject, pushToHistory);
-  const clipActions = useClipActions(setProject, pushToHistory, assets);
+  const clipActions = useClipActions(setProject, pushToHistory, assets, selectedClipIds, setSelectedClipIds);
   const kineticActions = useKineticActions(setProject, pushToHistory, lastKineticBox, setLastKineticBox);
   const moveActions = useMoveActions(setProject, setSelectedClipIds, selectedClipIds, isMagnetEnabled, currentTime);
   const subtitleActions = useSubtitleActions(setProject, pushToHistory, assets, currentTime, setSelectedClipIds, selectedClipIds);
@@ -53,6 +55,16 @@ export const useProjectStore = () => {
   const setResolution = useCallback((width: number, height: number) => {
     setProject(prev => {
       const next = { ...prev, resolution: { width, height } };
+      
+      // Recalculate kinetic blocks with new resolution
+      if (next.kineticBlocks && next.kineticBlocks.length > 0) {
+        const allClips = next.tracks.flatMap(t => t.clips);
+        next.kineticBlocks = next.kineticBlocks.map(block => ({
+          ...block,
+          words: generateBlockLayout(block, allClips, { width, height })
+        }));
+      }
+
       pushToHistory(next);
       return next;
     });
@@ -74,10 +86,13 @@ export const useProjectStore = () => {
     ...subtitleActions,
     detachAudio,
     undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < 50,
-    finalizeMove: () => pushToHistory(project),
+    finalizeMove: () => setProject(prev => {
+      pushToHistory(prev);
+      return prev;
+    }),
     setProject,
     selectClips: setSelectedClipIds,
-    updateSubtitle: clipActions.updateClipProperties,
+    updateSubtitle: subtitleActions.updateSubtitle,
     setApplyToAll,
     applyToAll
   };

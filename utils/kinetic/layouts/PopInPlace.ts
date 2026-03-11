@@ -4,14 +4,15 @@ import { ProcessedWord } from '../KineticLayoutManager';
 
 export const generatePopInPlace = (
   words: ProcessedWord[],
-  settings: KineticSettings
+  settings: KineticSettings,
+  resolution: { width: number, height: number } = { width: 1920, height: 1080 }
 ): any[] => {
   if (words.length === 0) return [];
 
   const { boundingBox } = settings;
 
   // Screen aspect ratio constant
-  const SCREEN_AR = 1920 / 1080;
+  const SCREEN_AR = resolution.width / resolution.height;
   
   // Bounding box aspect ratio in screen space
   const boxAR = (boundingBox.width * SCREEN_AR) / boundingBox.height;

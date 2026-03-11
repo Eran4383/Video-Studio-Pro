@@ -585,7 +585,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       
       <div 
         ref={playerContainerRef}
-        className={`flex-1 flex items-center justify-center overflow-hidden cursor-crosshair relative bg-[#18181b] ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-6'}`}
+        className={`flex-1 flex items-center justify-center overflow-hidden w-full h-full cursor-crosshair relative bg-[#18181b] ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-6'}`}
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -594,13 +594,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       >
         <div 
           ref={containerRef}
-          className={`flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out ${isFullscreen ? 'w-full h-full rounded-none border-none object-contain' : 'w-full h-full max-w-full max-h-full rounded shadow-2xl border border-white/5'}`}
+          className={`flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out ${isFullscreen ? 'rounded-none border-none' : 'rounded shadow-2xl border border-white/5'}`}
           style={{ 
             transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
             backgroundColor: project.backgroundColor || '#000000',
             aspectRatio: `${project.resolution.width} / ${project.resolution.height}`,
-            maxHeight: isFullscreen ? '100%' : '100%',
-            maxWidth: isFullscreen ? '100%' : '100%',
+            maxHeight: '100%',
+            maxWidth: '100%',
             objectFit: 'contain'
           }}
         >
