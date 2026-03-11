@@ -44,6 +44,7 @@ export const generatePopInPlace = (
     x: 50, // Center X in percentage (50% of box width)
     y: 50, // Center Y in percentage (50% of box height)
     fontSize: finalFontSize,
-    width: 100
+    width: 100,
+    isCentered: true
   }));
 };

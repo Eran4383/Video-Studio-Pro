@@ -139,7 +139,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
               display: (isStretchX || isStretchY) ? 'flex' : 'block',
               alignItems: isStretchY ? 'center' : undefined,
               justifyContent: isStretchX ? 'center' : undefined,
-              transform: (settings.layoutStyle === 'pop-in-place' && !isStretchX && !isStretchY) ? 'translate(-50%, -50%)' : undefined,
+              transform: (word.isCentered && !isStretchX && !isStretchY) ? 'translate(-50%, -50%)' : undefined,
               opacity: opacityValue,
               transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
               zIndex: isActive ? 10 : 1,

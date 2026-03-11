@@ -1,5 +1,6 @@
 import { Project, Asset, Clip } from '../../types';
 import { GFX_Engine } from '../GFX_Engine';
+import { generateBlockLayout } from '../../utils/kinetic/KineticLayoutManager';
 
 export class SceneRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -38,13 +39,164 @@ export class SceneRenderer {
     // 3. Draw GFX (Overlays)
     GFX_Engine.render(this.ctx, project, time);
 
-    // 4. Draw Subtitles (Topmost layer)
+    // 4. Draw Kinetic Blocks
+    this.drawKineticBlocks(project, time);
+
+    // 5. Draw Subtitles (Topmost layer)
     const subtitleTracks = project.tracks.filter(t => t.type === 'subtitle' && t.isVisible);
     for (const track of subtitleTracks) {
       const clip = track.clips.find(c => time >= c.startTime && time < c.startTime + c.duration);
       if (clip && clip.content) {
         this.drawSubtitle(clip, time);
       }
+    }
+  }
+
+  private drawKineticBlocks(project: Project, time: number) {
+    if (!project.kineticBlocks || project.kineticBlocks.length === 0) return;
+
+    // Collect all clips from visual tracks for layout generation
+    const allClips: Clip[] = [];
+    project.tracks.forEach(t => {
+      if (t.type === 'video' || t.type === 'subtitle') { // Kinetic blocks usually link to subtitle clips or video clips with content
+        allClips.push(...t.clips);
+      }
+    });
+
+    // Create clip map for fast lookup
+    const clipMap: Record<string, Clip> = {};
+    allClips.forEach(c => clipMap[c.id] = c);
+
+    for (const block of project.kineticBlocks) {
+      const { settings } = block;
+      if (!settings) continue;
+
+      // Generate words layout
+      const words = generateBlockLayout(block, allClips);
+      if (words.length === 0) continue;
+
+      // Pre-calculate word indices and counts per clip for O(1) timing calculation
+      const metadata: Record<string, { index: number, total: number }> = {};
+      const clipWordCounts: Record<string, number> = {};
+      const clipWordIndices: Record<string, number> = {};
+
+      words.forEach(w => {
+        if (w.sourceClipId) {
+          clipWordCounts[w.sourceClipId] = (clipWordCounts[w.sourceClipId] || 0) + 1;
+        }
+      });
+
+      words.forEach(w => {
+        if (w.sourceClipId) {
+          const idx = clipWordIndices[w.sourceClipId] || 0;
+          metadata[w.id] = { index: idx, total: clipWordCounts[w.sourceClipId] };
+          clipWordIndices[w.sourceClipId] = idx + 1;
+        }
+      });
+
+      const box = settings.boundingBox || { x: 0, y: 0, width: 1, height: 1 };
+      const boxX = box.x * this.width;
+      const boxY = box.y * this.height;
+      const boxWidth = box.width * this.width;
+      const boxHeight = box.height * this.height;
+
+      this.ctx.save();
+
+      // Draw Box Overlay (if enabled)
+      if (settings.showBox) {
+        this.ctx.strokeStyle = 'rgba(234, 179, 8, 0.5)'; // Yellow-500
+        this.ctx.lineWidth = 2;
+        this.ctx.setLineDash([5, 5]);
+        this.ctx.strokeRect(boxX, boxY, boxWidth, boxHeight);
+        this.ctx.fillStyle = 'rgba(234, 179, 8, 0.1)';
+        this.ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+        this.ctx.setLineDash([]);
+      }
+
+      words.forEach(word => {
+        const clip = clipMap[word.sourceClipId];
+        const meta = metadata[word.id];
+        
+        let isActive = false;
+        let isPast = false;
+
+        if (clip && meta) {
+          const wordDuration = clip.duration / Math.max(1, meta.total);
+          const liveStartTime = clip.startTime + (meta.index * wordDuration);
+          const liveEndTime = liveStartTime + wordDuration;
+          
+          isActive = time >= liveStartTime && time <= liveEndTime;
+          isPast = time > liveEndTime;
+        } else {
+          isActive = time >= word.startTime && time <= word.endTime;
+          isPast = time > word.endTime;
+        }
+
+        const isKeepVisible = settings.keepPreviousWordsVisible;
+        const shouldShow = isActive || (isPast && isKeepVisible);
+
+        if (!shouldShow) return;
+
+        const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
+        const opacityValue = isPast 
+          ? (settings.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
+          : 1;
+
+        if (opacityValue <= 0) return;
+
+        const isStretchX = word.stretchX;
+        const isStretchY = word.stretchY;
+
+        // Calculate Position relative to Box
+        let wordX = boxX + (word.position.x * boxWidth);
+        let wordY = boxY + (word.position.y * boxHeight);
+
+        // Calculate Font Size
+        let fontSizePx = (word.fontSize || 0.1) * boxHeight;
+        if (isStretchX) fontSizePx = boxWidth; // 100cqw
+        if (isStretchY) fontSizePx = boxHeight; // 100cqh
+
+        this.ctx.globalAlpha = opacityValue;
+        
+        const fontWeight = word.fontWeight || settings.fontWeight || '900';
+        const fontFamily = word.fontFamily || settings.primaryFont || 'Inter, sans-serif';
+        this.ctx.font = `${fontWeight} ${fontSizePx}px ${fontFamily}`;
+        this.ctx.fillStyle = word.color;
+        
+        // Shadow
+        this.ctx.shadowColor = 'rgba(0,0,0,0.5)';
+        this.ctx.shadowBlur = 0;
+        this.ctx.shadowOffsetX = 2;
+        this.ctx.shadowOffsetY = 2;
+
+        let textToDraw = word.text;
+        const textCase = word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none';
+        if (textCase === 'uppercase') textToDraw = textToDraw.toUpperCase();
+        if (textCase === 'lowercase') textToDraw = textToDraw.toLowerCase();
+
+        this.ctx.textBaseline = 'top';
+        this.ctx.textAlign = 'left';
+
+        if (isStretchX) {
+          this.ctx.textAlign = 'center';
+          wordX = boxX + (boxWidth / 2);
+        }
+
+        if (isStretchY) {
+          this.ctx.textBaseline = 'middle';
+          wordY = boxY + (boxHeight / 2);
+        }
+
+        if (word.isCentered && !isStretchX && !isStretchY) {
+          this.ctx.textAlign = 'center';
+          this.ctx.textBaseline = 'middle';
+          // wordX and wordY are already centered in pop-in-place layout (50%, 50%)
+        }
+
+        this.ctx.fillText(textToDraw, wordX, wordY);
+      });
+
+      this.ctx.restore();
     }
   }
 
@@ -101,7 +253,7 @@ export class SceneRenderer {
   private drawSubtitle(clip: Clip, time: number) {
     if (!clip.content) return;
 
-    // KINETIC TYPOGRAPHY RENDERER
+    // KINETIC TYPOGRAPHY RENDERER (Legacy support for old clips)
     if (clip.kineticData && clip.kineticData.words && clip.kineticData.words.length > 0) {
       const { settings, words } = clip.kineticData;
       const { boundingBox } = settings;

@@ -111,7 +111,8 @@ export const generateKineticLayout = (content: string, duration: number, setting
     fontFamily: processedWords[index].fontFamily,
     fontWeight: processedWords[index].fontWeight,
     textCase: processedWords[index].textCase,
-    animation: getWordAnimation(settings.animationStyle, index)
+    animation: getWordAnimation(settings.animationStyle, index),
+    isCentered: gw.isCentered
   }));
 
   // 4. Assign Colors
@@ -195,7 +196,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[]): 
       fontFamily: processedWords[j].fontFamily,
       fontWeight: processedWords[j].fontWeight,
       textCase: processedWords[j].textCase,
-      animation: getWordAnimation(block.settings.animationStyle, i + j)
+      animation: getWordAnimation(block.settings.animationStyle, i + j),
+      isCentered: gw.isCentered
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);

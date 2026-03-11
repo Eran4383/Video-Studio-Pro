@@ -3,7 +3,7 @@ export const measureText = (text: string, font: string, fontSize: number): { wid
   const ctx = canvas.getContext('2d');
   if (!ctx) return { width: 0, height: 0 };
 
-  ctx.font = `${fontSize}px ${font}`;
+  ctx.font = font;
   const metrics = ctx.measureText(text);
 
   const width = metrics.width;

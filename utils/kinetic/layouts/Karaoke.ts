@@ -26,7 +26,10 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
     const multiplier = Math.min(1, boxAR / totalAR);
     const finalFontSize = baseFontSizeCqh * multiplier;
     
-    let currentX = isRtl ? 100 : 0;
+    const totalWidth = wordData.reduce((sum, w) => sum + (finalFontSize * w.ar / boxAR), 0) + (words.length - 1) * 2;
+    const offsetX = (100 - totalWidth) / 2;
+    
+    let currentX = isRtl ? 100 - offsetX : offsetX;
     return wordData.map(w => {
       const wWidth = (finalFontSize * w.ar / boxAR);
       const x = isRtl ? currentX - wWidth : currentX;
@@ -36,31 +39,52 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   }
 
   // Multi-line mode
-  let currentX = isRtl ? 100 : 0;
-  let currentY = 0;
+  const lines: { text: string, ar: number, width: number }[][] = [];
+  let currentLine: { text: string, ar: number, width: number }[] = [];
+  let currentLineWidth = 0;
   const spacing = 2; // 2% spacing
 
-  return wordData.map(w => {
+  wordData.forEach(w => {
     const wordWidth = (baseFontSizeCqh * w.ar / boxAR);
     
-    // Check overflow
-    const wouldOverflow = isRtl ? (currentX - wordWidth < 0) : (currentX + wordWidth > 100);
-    
-    if (wouldOverflow && currentX !== (isRtl ? 100 : 0)) {
-      currentY += baseFontSizeCqh + gap;
-      currentX = isRtl ? 100 : 0;
+    if (currentLineWidth + wordWidth + (currentLine.length > 0 ? spacing : 0) > 100 && currentLine.length > 0) {
+      lines.push(currentLine);
+      currentLine = [{ text: w.text, ar: w.ar, width: wordWidth }];
+      currentLineWidth = wordWidth;
+    } else {
+      currentLine.push({ text: w.text, ar: w.ar, width: wordWidth });
+      currentLineWidth += wordWidth + (currentLine.length > 1 ? spacing : 0);
     }
-
-    const x = isRtl ? currentX - wordWidth : currentX;
-    const result = { 
-      text: w.text, 
-      x: isRtl ? x + wordWidth : x, 
-      y: currentY + (baseFontSizeCqh / 2), 
-      fontSize: baseFontSizeCqh, 
-      width: wordWidth 
-    };
-
-    currentX = isRtl ? currentX - (wordWidth + spacing) : currentX + (wordWidth + spacing);
-    return result;
   });
+  if (currentLine.length > 0) {
+    lines.push(currentLine);
+  }
+
+  const result: any[] = [];
+  const totalHeight = lines.length * baseFontSizeCqh + (lines.length - 1) * gap;
+  const offsetY = (100 - totalHeight) / 2;
+
+  let currentY = offsetY;
+
+  lines.forEach(line => {
+    const lineWidth = line.reduce((sum, w) => sum + w.width, 0) + (line.length - 1) * spacing;
+    const offsetX = (100 - lineWidth) / 2;
+    let currentX = isRtl ? 100 - offsetX : offsetX;
+
+    line.forEach(w => {
+      const x = isRtl ? currentX - w.width : currentX;
+      result.push({
+        text: w.text,
+        x: isRtl ? x + w.width : x,
+        y: currentY + (baseFontSizeCqh / 2),
+        fontSize: baseFontSizeCqh,
+        width: w.width
+      });
+      currentX = isRtl ? currentX - (w.width + spacing) : currentX + (w.width + spacing);
+    });
+
+    currentY += baseFontSizeCqh + gap;
+  });
+
+  return result;
 };

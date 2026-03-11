@@ -28,6 +28,7 @@ export interface KineticWord {
   animation: KineticAnimationStyle;
   stretchX?: boolean;
   stretchY?: boolean;
+  isCentered?: boolean;
 }
 
 export interface KineticSettings {

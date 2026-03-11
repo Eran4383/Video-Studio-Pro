@@ -255,7 +255,8 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                           : settings.primaryFont === font;
                         
                         return (
-                          <button
+                          <div
+                            role="button"
                             key={font}
                             onClick={() => {
                               if (settings.fontMultiSelect) {
@@ -269,14 +270,14 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                                 setIsFontDropdownOpen(false);
                               }
                             }}
-                            className={`w-full px-3 py-2 text-left text-[11px] hover:bg-zinc-800 flex items-center justify-between transition-colors ${isSelected ? 'bg-indigo-600/20 text-indigo-400' : 'text-zinc-300'}`}
+                            className={`w-full px-3 py-2 text-left text-[11px] hover:bg-zinc-800 flex items-center justify-between transition-colors cursor-pointer ${isSelected ? 'bg-indigo-600/20 text-indigo-400' : 'text-zinc-300'}`}
                           >
                             <div className="flex items-center gap-2">
                               {isSelected && <Check size={12} className="text-indigo-500" />}
                               <span className="font-sans">{font}</span>
                             </div>
                             <span style={{ fontFamily: font }} className="text-[14px]">Shay</span>
-                          </button>
+                          </div>
                         );
                       })}
                     </div>
@@ -338,10 +339,11 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                     const colors = palette.id === 'Custom' && settings.customColors?.length ? settings.customColors : palette.colors;
                     
                     return (
-                      <button
+                      <div
+                        role="button"
                         key={palette.id}
                         onClick={() => onChange({ paletteId: palette.id })}
-                        className={`flex flex-col gap-2 p-2.5 rounded-lg border transition-all text-left ${isSelected ? 'bg-zinc-800/80 border-zinc-600 ring-1 ring-zinc-500/30' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'}`}
+                        className={`flex flex-col gap-2 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${isSelected ? 'bg-zinc-800/80 border-zinc-600 ring-1 ring-zinc-500/30' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'}`}
                       >
                         <div className="flex items-center justify-between">
                           <span className={`text-[10px] font-black uppercase tracking-tight ${isSelected ? 'text-white' : 'text-zinc-500'}`}>{palette.name}</span>
@@ -396,7 +398,7 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                             </div>
                           )}
                         </div>
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

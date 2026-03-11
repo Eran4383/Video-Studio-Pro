@@ -10,14 +10,69 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
     return { text: w.text, ar };
   });
 
-  const lines: typeof wordsWithAR[] = [];
-  let i = 0;
-  while (i < wordsWithAR.length) {
-    const numWords = (Math.random() > 0.5 && i < wordsWithAR.length - 1) ? 2 : 1;
-    lines.push(wordsWithAR.slice(i, i + numWords));
-    i += numWords;
+  const assumedScreenAR = 1920 / 1080;
+  const bw = settings.boundingBox?.width || 0.5;
+  const bh = settings.boundingBox?.height || 0.5;
+  const boxAR = (bw * assumedScreenAR) / bh;
+
+  type WordWithAR = { text: string; ar: number };
+  
+  // Find the best partition of words into lines to match boxAR
+  let bestLines: WordWithAR[][] = [];
+  let bestDiff = Infinity;
+
+  const n = wordsWithAR.length;
+  
+  if (n <= 12) {
+    const numPartitions = 1 << (n - 1);
+
+    for (let p = 0; p < numPartitions; p++) {
+      const currentLines: WordWithAR[][] = [];
+      let currentLine: WordWithAR[] = [wordsWithAR[0]];
+
+      for (let j = 0; j < n - 1; j++) {
+        if ((p & (1 << j)) !== 0) {
+          // Break line
+          currentLines.push(currentLine);
+          currentLine = [wordsWithAR[j + 1]];
+        } else {
+          // Continue line
+          currentLine.push(wordsWithAR[j + 1]);
+        }
+      }
+      currentLines.push(currentLine);
+
+      // Calculate total height for this partition
+      let totalH = 0;
+      currentLines.forEach(line => {
+        const sumAR = line.reduce((sum, w) => sum + w.ar, 0);
+        const totalGapsAR = (line.length - 1) * ((settings.gap ?? 2) / 100);
+        const lineTotalAR = sumAR + totalGapsAR;
+        totalH += 100 / lineTotalAR;
+      });
+
+      // Add gaps between rows
+      totalH += (currentLines.length - 1) * (settings.gap ?? 2);
+
+      const currentAR = 100 / totalH;
+      const diff = Math.abs(currentAR - boxAR);
+
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        bestLines = currentLines;
+      }
+    }
+  } else {
+    // Fallback for large n: simple greedy approach or random
+    let i = 0;
+    while (i < wordsWithAR.length) {
+      const numWords = (Math.random() > 0.5 && i < wordsWithAR.length - 1) ? 2 : 1;
+      bestLines.push(wordsWithAR.slice(i, i + numWords));
+      i += numWords;
+    }
   }
 
+  const lines = bestLines;
   const gap = settings.gap ?? 2;
   const positionedWords: any[] = [];
   let currentY = 0;
@@ -44,23 +99,27 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
         currentX += wordWidth + gapWidth;
       }
     });
-    currentY += lineHeight + (lineHeight * (gap / 100));
+    currentY += lineHeight + gap;
   });
 
   // Vertical stretching logic
-  const totalHeight = currentY;
+  const totalHeight = currentY - gap; // Remove last gap
   let verticalOffset = 0;
   let rowGap = 0;
 
-  if (totalHeight < 100 && lines.length > 1) {
-    const remainingSpace = 100 - totalHeight;
+  // We want to fill the box as much as possible. 
+  // If the content is shorter than the box, we can stretch the gaps.
+  // The box height in our logical units (where width=100) is 100 / boxAR.
+  const targetHeight = 100 / boxAR;
+
+  if (totalHeight < targetHeight && lines.length > 1) {
+    const remainingSpace = targetHeight - totalHeight;
     rowGap = remainingSpace / (lines.length - 1);
-  } else if (totalHeight < 100 && lines.length === 1) {
-    verticalOffset = (100 - totalHeight) / 2;
+  } else if (totalHeight < targetHeight && lines.length === 1) {
+    verticalOffset = (targetHeight - totalHeight) / 2;
   }
 
   // Apply vertical stretching to positionedWords
-  let currentRowY = 0;
   let lastY = -1;
   let addedGap = 0;
 
@@ -75,14 +134,7 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
   });
 
   // Object-fit: contain logic inside bounding box
-  const assumedScreenAR = 1920 / 1080;
-  const bw = settings.boundingBox?.width || 0.5;
-  const bh = settings.boundingBox?.height || 0.5;
-  const boxAR = (bw * assumedScreenAR) / bh;
-
-  // We now assume the content height is roughly 100 (due to stretching)
-  // But width is still 100.
-  const contentHeight = Math.max(100, totalHeight + addedGap);
+  const contentHeight = Math.max(targetHeight, totalHeight + addedGap);
   const scaleW = boxAR;
   const scaleH = 100 / contentHeight;
   const S = Math.min(scaleW, scaleH);
