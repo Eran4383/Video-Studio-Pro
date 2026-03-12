@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Project, Clip, Track, Asset, MediaType } from '../../types';
+import { Project, Clip, Track, Asset } from '../../types';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
 import { MagneticAnchorService } from '../../services/MagneticAnchorService';
@@ -33,6 +33,7 @@ interface TimelineProps {
   selectedClipIds: string[];
   onSelectClip: (id: string | null, multi?: boolean) => void;
   onSelectClips: (ids: string[]) => void;
+  onSelectAllTrack: (trackId: string) => void;
   onAddAsset: (asset: Asset) => void;
   onSyncToAnchors: (onlySelected?: boolean) => void;
   onImportSubtitles: (file: File) => void;
@@ -53,7 +54,7 @@ interface DragState {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onAddAsset, onSyncToAnchors, onImportSubtitles
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -171,7 +172,6 @@ export const Timeline: React.FC<TimelineProps> = ({
         if (!clip) return;
         const asset = assets.find(a => a.id === clip.assetId);
         const assetDuration = asset ? asset.duration : 100;
-        const isUnlimited = asset?.type === MediaType.IMAGE || asset?.type === MediaType.TEXT || track.type === 'subtitle';
 
         if (dragging.mode === 'MOVE') {
             let targetTrack = track;
@@ -199,6 +199,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             // New duration = original duration + delta
             // Max duration = asset length - offset (only for video/audio)
             let newDur = Math.max(0.1, originalState.duration + deltaSeconds);
+            const isUnlimited = clip.type === 'image' || clip.type === 'text';
             
             if (!isUnlimited && originalState.offset + newDur > assetDuration) {
                 newDur = assetDuration - originalState.offset;
@@ -212,8 +213,9 @@ export const Timeline: React.FC<TimelineProps> = ({
             let newOffset = originalState.offset + deltaSeconds;
 
             // Constraints
-            if (newOffset < 0 && !isUnlimited) {
-               // Cannot start before asset starts (except for unlimited assets like images/subtitles)
+            const isSubtitle = track.type === 'subtitle';
+            if (newOffset < 0 && !isSubtitle) {
+               // Cannot start before asset starts (except for subtitles which have no fixed asset start)
                const correction = 0 - newOffset;
                newOffset = 0;
                newStart += correction; // Push start back
@@ -417,6 +419,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               onSetTrackHeight={onSetTrackHeight}
               onDrop={handleDrop}
               onSelectClip={onSelectClip}
+              onSelectAllTrack={onSelectAllTrack}
               onContextMenu={handleContextMenu}
               onClipMouseDown={handleClipMouseDown}
               onClipMouseMove={handleClipMouseMove}

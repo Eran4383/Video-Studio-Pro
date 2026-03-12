@@ -14,13 +14,14 @@ interface TimelineTracksProps {
   onSetTrackHeight: (trackId: string, height: number) => void;
   onDrop: (e: React.DragEvent, trackId: string) => void;
   onSelectClip: (id: string | null) => void;
+  onSelectAllTrack: (trackId: string) => void;
   onContextMenu: (e: React.MouseEvent, clipId: string, assetType: string) => void;
   onClipMouseDown: (e: React.MouseEvent, clip: Clip, trackId: string) => void;
   onClipMouseMove: (e: React.MouseEvent, clip: Clip) => void;
 }
 
 export const TimelineTracks = memo(({
-  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onContextMenu, onClipMouseDown, onClipMouseMove
+  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onSelectAllTrack, onContextMenu, onClipMouseDown, onClipMouseMove
 }: TimelineTracksProps) => {
   const pxPerSec = zoom * 10;
 
@@ -34,7 +35,7 @@ export const TimelineTracks = memo(({
           className={`flex border-b border-zinc-800 group/track relative ${track.isVisible ? '' : 'opacity-60'}`}
           style={{ height: track.height || 72 }}
         >
-          <TrackHeader track={track} onToggle={onToggleTrack} onSetHeight={onSetTrackHeight} />
+          <TrackHeader track={track} onToggle={onToggleTrack} onSetHeight={onSetTrackHeight} onSelectAll={() => onSelectAllTrack(track.id)} />
           <div className="flex-1 relative bg-[#0a0a0a] min-w-[5000px]" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
             {track.clips.map(clip => {
               const isSelected = selectedClipIds.includes(clip.id);

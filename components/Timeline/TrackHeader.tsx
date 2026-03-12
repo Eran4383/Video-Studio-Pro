@@ -1,6 +1,6 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type } from 'lucide-react';
+import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type, CheckSquare } from 'lucide-react';
 import { Track } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
 
@@ -8,9 +8,10 @@ interface TrackHeaderProps {
   track: Track;
   onToggle: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
   onSetHeight: (trackId: string, height: number) => void;
+  onSelectAll: () => void;
 }
 
-export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight }) => {
+export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll }) => {
   const isExpanded = (track.height || 72) > 80;
   const [isResizing, setIsResizing] = useState(false);
 
@@ -64,6 +65,9 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSet
           </Tooltip>
           <Tooltip text={track.isLocked ? "Unlock Track" : "Lock Track"} position="bottom">
             <button onClick={() => onToggle(track.id, 'isLocked')} className={`p-1 rounded hover:bg-zinc-800 transition-colors ${track.isLocked ? 'text-orange-500' : 'text-zinc-400'}`}>{track.isLocked ? <Lock size={12} /> : <Unlock size={12} />}</button>
+          </Tooltip>
+          <Tooltip text="Select All Clips" position="bottom">
+            <button onClick={onSelectAll} className="p-1 rounded hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-indigo-400"><CheckSquare size={12} /></button>
           </Tooltip>
         </div>
       </div>

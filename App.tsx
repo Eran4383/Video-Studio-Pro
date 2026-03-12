@@ -295,6 +295,12 @@ const App: React.FC = () => {
             onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack}
             onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
             selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
+            onSelectAllTrack={(trackId: string) => {
+              const track = store.project.tracks.find(t => t.id === trackId);
+              if (track) {
+                store.selectClips(track.clips.map(c => c.id));
+              }
+            }}
             onAddAsset={store.addAsset}
             onSyncToAnchors={store.syncClipsToAnchors}
             onImportSubtitles={handleImportSubtitles}
