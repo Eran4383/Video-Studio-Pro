@@ -166,7 +166,7 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
-  const updateWordOverride = useCallback((blockId: string, wordId: string, updates: Partial<Clip>) => {
+  const updateWordOverride = useCallback((blockId: string, wordId: string, updates: Partial<KineticWord>) => {
     setProject(prev => {
       const block = prev.kineticBlocks?.find(b => b.id === blockId);
       if (!block) return prev;

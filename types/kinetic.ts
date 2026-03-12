@@ -81,5 +81,5 @@ export interface KineticBlock {
   clipIds: string[];
   settings: KineticSettings;
   words: KineticWord[];
-  wordOverrides?: Record<string, Partial<Clip>>;
+  wordOverrides?: Record<string, Partial<KineticWord>>;
 }

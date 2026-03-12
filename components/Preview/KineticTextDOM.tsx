@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { KineticBlock } from '../../types/kinetic';
 import { useProjectStore } from '../../store/useProjectStore';
 import { Clip } from '../../types';
+import { KineticDraggableWord } from './KineticDraggableWord';
 
 interface KineticTextDOMProps {
   block: KineticBlock;
@@ -9,7 +10,8 @@ interface KineticTextDOMProps {
 }
 
 export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime }) => {
-  const { project } = useProjectStore();
+  const store = useProjectStore();
+  const { project } = store;
   const { settings, words } = block;
   
   if (!settings) return null;
@@ -26,7 +28,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
   }, [project.tracks]);
 
   const box = settings.boundingBox || { x: 0, y: 0, width: 1, height: 1 };
-  const { fontFamily, showBox } = settings;
+  const { showBox } = settings;
 
   // Pre-calculate word indices and counts per clip for O(1) timing calculation
   const wordMetadata = useMemo(() => {
@@ -74,7 +76,10 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
       style={containerStyle} 
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >
-      {words.map((word) => {
+      {words.map((baseWord) => {
+        // Merge with overrides
+        const word = { ...baseWord, ...(block.wordOverrides?.[baseWord.id] || {}) };
+        
         // Live Time Sync: Use the current clip state from the map
         const clip = clipMap[word.sourceClipId];
         const meta = wordMetadata[word.id];
@@ -105,7 +110,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop);
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) || false;
 
         const isSceneDone = currentTime > liveSceneEndTime;
         if (isSceneDone) return null;
@@ -124,69 +129,24 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           ? (word.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
           : 1;
 
-        // CSS Ghosting Fix: Hard cutoff if not keeping previous words
-        const hardCutoffStyles: React.CSSProperties = (isPast && !isKeepVisible) ? {
-          opacity: 0,
-          transition: 'none !important',
-          animation: 'none !important',
-          pointerEvents: 'none'
-        } : {};
-
         const wordDuration = word.endTime - word.startTime;
         const animDuration = Math.min(0.5, wordDuration);
 
-        // Stretch logic
-        const isStretchX = word.stretchX;
-        const isStretchY = word.stretchY;
-
-        let transformValue = undefined;
-        if (word.isCentered) {
-          if (!isStretchX && !isStretchY) transformValue = 'translate(-50%, -50%)';
-          else if (isStretchX && !isStretchY) transformValue = 'translateY(-50%)';
-          else if (!isStretchX && isStretchY) transformValue = 'translateX(-50%)';
-        }
-
         return (
-          <span
+          <KineticDraggableWord
             key={word.id}
-            className="absolute"
-            style={{
-              left: isStretchX ? 0 : `${word.position.x * 100}%`,
-              top: isStretchY ? 0 : `${word.position.y * 100}%`,
-              width: isStretchX ? '100%' : undefined,
-              height: isStretchY ? '100%' : undefined,
-              display: (isStretchX || isStretchY) ? 'flex' : 'block',
-              alignItems: isStretchY ? 'center' : undefined,
-              justifyContent: isStretchX ? 'center' : undefined,
-              transform: transformValue,
-              opacity: opacityValue,
-              transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
-              zIndex: isActive ? 10 : 1,
-              ...hardCutoffStyles
-            }}
-          >
-            <span
-              className={animClass}
-              style={{
-                display: 'block',
-                color: word.color,
-                fontFamily: word.fontFamily || fontFamily || 'Inter, sans-serif',
-                fontSize: isStretchX ? '100cqw' : (isStretchY ? '100cqh' : `${(word.fontSize || 0.1) * 100}cqh`),
-                lineHeight: settings.lineHeight || 1,
-                whiteSpace: (isStretchX || isStretchY) ? 'normal' : 'nowrap',
-                fontWeight: word.fontWeight || settings.fontWeight || '900',
-                textTransform: word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none',
-                textAlign: isStretchX ? 'center' : 'left',
-                textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
-                transformOrigin: 'center center',
-                animationDuration: `${animDuration}s`,
-                width: isStretchX ? '100%' : undefined,
-                height: isStretchY ? '100%' : undefined,
-              }}
-            >
-              {word.text}
-            </span>
-          </span>
+            word={word}
+            blockId={block.id}
+            store={store}
+            isActive={isActive}
+            isPast={isPast}
+            isKeepVisible={isKeepVisible}
+            opacityValue={opacityValue}
+            fadeDuration={fadeDuration}
+            animClass={animClass}
+            animDuration={animDuration}
+            settings={settings}
+          />
         );
       })}
     </div>
