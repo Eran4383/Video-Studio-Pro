@@ -23,7 +23,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({ onClose, project, asse
     setError(null);
 
     try {
-      // Use the new ExportController (mp4-muxer based)
+      //  Use the new ExportController (mp4-muxer based)
       const controller = new ExportController(project.resolution.width, project.resolution.height);
       const blob = await controller.export(project, assets, p => setProgress(p));
       
