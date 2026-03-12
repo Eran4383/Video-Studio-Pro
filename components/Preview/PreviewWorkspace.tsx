@@ -83,6 +83,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
       onMouseUp={handleCanvasMouseUp}
       onMouseLeave={handleCanvasMouseUp}
       onDoubleClick={toggleFullscreen}
+      onClick={() => store.setSelectedKineticWordId(null)}
     >
       <div 
         ref={containerRef}
@@ -167,7 +168,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
         })}
 
         {activeKineticBlocks.map((block: any) => (
-          <KineticTextDOM key={block.id} block={block} currentTime={renderTime} />
+          <KineticTextDOM key={block.id} block={block} currentTime={renderTime} store={store} />
         ))}
 
         {snapGuides.x && (

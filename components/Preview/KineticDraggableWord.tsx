@@ -13,6 +13,8 @@ interface KineticDraggableWordProps {
   animClass: string;
   animDuration: number;
   settings: KineticSettings;
+  isSelected: boolean;
+  onSelect: (id: string) => void;
 }
 
 export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
@@ -26,7 +28,9 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   fadeDuration,
   animClass,
   animDuration,
-  settings
+  settings,
+  isSelected,
+  onSelect
 }) => {
   const spanRef = useRef<HTMLSpanElement>(null);
   const isDragging = useRef(false);
@@ -35,6 +39,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
+    onSelect(word.id);
     isDragging.current = true;
     startMouse.current = { x: e.clientX, y: e.clientY };
     startPos.current = { x: word.position.x, y: word.position.y };
@@ -104,7 +109,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     <span
       ref={spanRef}
       onMouseDown={handleMouseDown}
-      className="absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto"
+      className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${isSelected ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
       style={{
         left: isStretchX ? 0 : `${word.position.x * 100}%`,
         top: isStretchY ? 0 : `${word.position.y * 100}%`,
@@ -130,7 +135,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
           lineHeight: settings.lineHeight || 1,
           whiteSpace: (isStretchX || isStretchY) ? 'normal' : 'nowrap',
           fontWeight: word.fontWeight || settings.fontWeight || '900',
-          textTransform: word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none',
+          textTransform: word.textCase === 'original' ? 'none' : (word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none'),
           textAlign: isStretchX ? 'center' : 'left',
           textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
           transformOrigin: 'center center',

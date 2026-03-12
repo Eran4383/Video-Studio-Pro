@@ -1,16 +1,15 @@
 import React, { useMemo } from 'react';
 import { KineticBlock } from '../../types/kinetic';
-import { useProjectStore } from '../../store/useProjectStore';
 import { Clip } from '../../types';
 import { KineticDraggableWord } from './KineticDraggableWord';
 
 interface KineticTextDOMProps {
   block: KineticBlock;
   currentTime: number;
+  store: any;
 }
 
-export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime }) => {
-  const store = useProjectStore();
+export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime, store }) => {
   const { project } = store;
   const { settings, words } = block;
   
@@ -146,6 +145,8 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
             animClass={animClass}
             animDuration={animDuration}
             settings={settings}
+            isSelected={store.selectedKineticWordId === word.id}
+            onSelect={store.setSelectedKineticWordId}
           />
         );
       })}

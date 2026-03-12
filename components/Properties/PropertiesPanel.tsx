@@ -4,6 +4,7 @@ import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
 
 import { KineticControls } from './KineticControls';
+import { KineticWordEditor } from './KineticWordEditor';
 
 const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => (
   <div className="border-b border-zinc-800/50">
@@ -66,6 +67,24 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
           </button>
         </div>
         <div className="p-2">
+          {store.selectedKineticWordId && selectedKineticBlock.words?.length > 0 && (
+            <div className="mb-4 bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Type size={12} className="text-purple-400" />
+                <span className="text-[10px] font-bold uppercase text-purple-300">Editing Word</span>
+              </div>
+              <KineticWordEditor 
+                clipId={selectedKineticBlock.id}
+                words={selectedKineticBlock.words.map((w: any) => ({ ...w, ...(selectedKineticBlock.wordOverrides?.[w.id] || {}) }))} 
+                selectedWordId={store.selectedKineticWordId}
+                onSelectWord={store.setSelectedKineticWordId}
+                onUpdateWord={(wordId, updates) => {
+                  store.updateWordOverride(selectedKineticBlock.id, wordId, updates);
+                }} 
+                settings={selectedKineticBlock.settings}
+              />
+            </div>
+          )}
           <KineticControls selectedClip={{ id: selectedKineticBlock.id, kineticData: selectedKineticBlock }} store={store} isBlock={true} />
         </div>
       </div>
@@ -169,6 +188,24 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
       {/* Kinetic Tab Content */}
       {isSubtitle && activeTab === 'kinetic' && (
         <div className="p-2">
+           {store.selectedKineticWordId && selectedClip.kineticData?.words?.length > 0 && (
+             <div className="mb-4 bg-purple-500/10 border border-purple-500/30 rounded-lg p-3">
+               <div className="flex items-center gap-2 mb-2">
+                 <Type size={12} className="text-purple-400" />
+                 <span className="text-[10px] font-bold uppercase text-purple-300">Editing Word</span>
+               </div>
+               <KineticWordEditor 
+                 clipId={selectedClip.id}
+                 words={selectedClip.kineticData.words.map((w: any) => ({ ...w, ...(selectedClip.kineticData.wordOverrides?.[w.id] || {}) }))} 
+                 selectedWordId={store.selectedKineticWordId}
+                 onSelectWord={store.setSelectedKineticWordId}
+                 onUpdateWord={(wordId, updates) => {
+                   store.updateKineticWord(selectedClip.id, wordId, updates);
+                 }} 
+                 settings={selectedClip.kineticData.settings}
+               />
+             </div>
+           )}
            <KineticControls selectedClip={selectedClip} store={store} />
         </div>
       )}

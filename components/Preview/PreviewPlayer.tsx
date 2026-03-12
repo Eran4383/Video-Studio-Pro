@@ -648,7 +648,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
           {/* Kinetic Blocks Overlay */}
           {activeKineticBlocks.map((block: any) => (
-            <KineticTextDOM key={block.id} block={block} currentTime={renderTime} />
+            <KineticTextDOM key={block.id} block={block} currentTime={renderTime} store={store} />
           ))}
 
           {/* Snap Guides */}
