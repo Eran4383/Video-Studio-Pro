@@ -15,7 +15,7 @@ interface KineticDraggableWordProps {
   settings: KineticSettings;
   isSelected: boolean;
   onSelect: (id: string) => void;
-  showTransform?: boolean;
+  showTransformControls?: boolean;
 }
 
 export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
@@ -32,7 +32,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   settings,
   isSelected,
   onSelect,
-  showTransform = true
+  showTransformControls = true
 }) => {
   const spanRef = useRef<HTMLSpanElement>(null);
   const isDragging = useRef(false);
@@ -192,7 +192,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     <span
       ref={spanRef}
       onMouseDown={handleMouseDown}
-      className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${(isSelected && showTransform) ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
+      className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${(isSelected && showTransformControls) ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
       style={{
         left: isStretchX ? 0 : `${word.position.x * 100}%`,
         top: isStretchY ? 0 : `${word.position.y * 100}%`,

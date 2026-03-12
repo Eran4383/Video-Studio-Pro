@@ -7,10 +7,10 @@ interface KineticTextDOMProps {
   block: KineticBlock;
   currentTime: number;
   store: any;
-  showTransform?: boolean;
+  showTransformControls?: boolean;
 }
 
-export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime, store, showTransform }) => {
+export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime, store, showTransformControls }) => {
   const { project } = store;
   const { settings, words } = block;
   
@@ -158,7 +158,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
             settings={settings}
             isSelected={store.selectedKineticWordId === word.id}
             onSelect={store.setSelectedKineticWordId}
-            showTransform={showTransform}
+            showTransformControls={showTransformControls}
           />
         );
       })}

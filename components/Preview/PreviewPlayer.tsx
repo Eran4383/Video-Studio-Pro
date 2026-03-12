@@ -22,7 +22,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
     selectedClipIds, selectClip, setProject, finalizeMove, applyToAll,
-    isCanvasMagnetEnabled, setIsCanvasMagnetEnabled
+    isCanvasMagnetEnabled, setIsCanvasMagnetEnabled,
+    showTransformControls, setShowTransformControls
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -38,7 +39,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
-  const [showTransform, setShowTransform] = useState(true);
 
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
@@ -649,7 +649,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
           {/* Kinetic Blocks Overlay */}
           {activeKineticBlocks.map((block: any) => (
-            <KineticTextDOM key={block.id} block={block} currentTime={renderTime} store={store} />
+            <KineticTextDOM 
+              key={block.id} 
+              block={block} 
+              currentTime={renderTime} 
+              store={store} 
+              showTransformControls={showTransformControls} 
+            />
           ))}
 
           {/* Snap Guides */}
@@ -661,7 +667,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           )}
 
           {/* Transform Overlay for Selected Clip (Video/Image/Subtitle) */}
-          {showTransform && selectedClip && (
+          {showTransformControls && selectedClip && (
             // Check if clip is visual and visible at current time
             (() => {
               const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
@@ -750,8 +756,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            <div className="pointer-events-auto">
              <Tooltip text="Toggle Transform Controls" position="right">
                <button 
-                 onClick={() => setShowTransform(!showTransform)} 
-                 className={`p-2 rounded-lg transition-all ${showTransform ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
+                 onClick={() => setShowTransformControls(!showTransformControls)} 
+                 className={`p-2 rounded-lg transition-all ${showTransformControls ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
                >
                  <Scan size={16} />
                </button>
