@@ -553,11 +553,12 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
       
       <div 
-        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-crosshair relative bg-[#18181b]"
+        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-default relative bg-[#18181b]"
         onWheel={handleWheel}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
+        onClick={() => store.setSelectedKineticWordId(null)}
       >
         <div 
           ref={containerRef}

@@ -121,6 +121,15 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
   // 4. Assign Colors
   assignColors(kineticWords, settings.paletteId, settings.randomMode, settings.customColors);
 
+  // Post-processing: Clamp word width to 95% of screen width
+  kineticWords.forEach(word => {
+    if (word.width > 0.95) {
+      const scaleFactor = 0.95 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.95;
+    }
+  });
+
   return kineticWords;
 };
 
@@ -269,6 +278,15 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     globalWordIndex += chunk.length;
     chunkIndex++;
   }
+
+  // Post-processing: Clamp word width to 95% of screen width
+  kineticWords.forEach(word => {
+    if (word.width > 0.95) {
+      const scaleFactor = 0.95 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.95;
+    }
+  });
 
   return kineticWords;
 };
