@@ -202,6 +202,11 @@ export const useKineticActions = (
 
       const currentWordOverride = { ...block.wordOverrides[wordId] };
       delete currentWordOverride[propertyKey];
+      
+      // If we're resetting position, also reset anchor
+      if (propertyKey === 'position') {
+        delete currentWordOverride['anchor'];
+      }
 
       const next = {
         ...prev,

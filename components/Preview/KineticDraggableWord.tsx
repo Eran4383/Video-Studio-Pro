@@ -91,12 +91,15 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   const isStretchX = word.stretchX;
   const isStretchY = word.stretchY;
 
-  let transformValue = undefined;
-  if (word.isCentered) {
-    if (!isStretchX && !isStretchY) transformValue = 'translate(-50%, -50%)';
-    else if (isStretchX && !isStretchY) transformValue = 'translateY(-50%)';
-    else if (!isStretchX && isStretchY) transformValue = 'translateX(-50%)';
-  }
+  const anchorX = word.anchor?.x ?? (word.isCentered ? 0.5 : 0);
+  const anchorY = word.anchor?.y ?? (word.isCentered ? 0.5 : 0);
+  const scale = word.scale ?? 1;
+
+  let transformValue = `translate(-${anchorX * 100}%, -${anchorY * 100}%) scale(${scale})`;
+  
+  if (isStretchX && isStretchY) transformValue = `scale(${scale})`;
+  else if (isStretchX) transformValue = `translateY(-${anchorY * 100}%) scale(${scale})`;
+  else if (isStretchY) transformValue = `translateX(-${anchorX * 100}%) scale(${scale})`;
 
   const hardCutoffStyles: React.CSSProperties = (isPast && !isKeepVisible) ? {
     opacity: 0,
@@ -139,7 +142,6 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
           textAlign: isStretchX ? 'center' : 'left',
           textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
           transformOrigin: 'center center',
-          transform: `scale(${word.scale ?? 1})`,
           animationDuration: `${animDuration}s`,
           width: isStretchX ? '100%' : undefined,
           height: isStretchY ? '100%' : undefined,

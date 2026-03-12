@@ -23,6 +23,7 @@ export interface KineticWord {
   };
   fontSize: number; // in percentage relative to bounding box height
   scale?: number;
+  anchor?: { x: number; y: number };
   width?: number; // optional pre-calculated width percentage
   color: string;
   fontFamily: string;
