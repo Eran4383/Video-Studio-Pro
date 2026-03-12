@@ -1,3 +1,5 @@
+import { Clip } from '../types';
+
 export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke';
 export type KineticAnimationStyle = 'pop' | 'slide-up' | 'scale' | 'fade';
 
@@ -79,4 +81,5 @@ export interface KineticBlock {
   clipIds: string[];
   settings: KineticSettings;
   words: KineticWord[];
+  wordOverrides?: Record<string, Partial<Clip>>;
 }

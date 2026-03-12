@@ -166,5 +166,33 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { createKineticBlock, updateKineticBlock, deleteKineticBlock, applySettingsToAllKineticBlocks, generateBlockAnimation, updateKineticData, updateKineticWord };
+  const updateWordOverride = useCallback((blockId: string, wordId: string, updates: Partial<Clip>) => {
+    setProject(prev => {
+      const block = prev.kineticBlocks?.find(b => b.id === blockId);
+      if (!block) return prev;
+
+      const currentOverrides = block.wordOverrides || {};
+      const currentWordOverride = currentOverrides[wordId] || {};
+
+      const next = {
+        ...prev,
+        kineticBlocks: prev.kineticBlocks?.map(b => 
+          b.id === blockId ? {
+            ...b,
+            wordOverrides: {
+              ...currentOverrides,
+              [wordId]: {
+                ...currentWordOverride,
+                ...updates
+              }
+            }
+          } : b
+        )
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { createKineticBlock, updateKineticBlock, deleteKineticBlock, applySettingsToAllKineticBlocks, generateBlockAnimation, updateKineticData, updateKineticWord, updateWordOverride };
 };
