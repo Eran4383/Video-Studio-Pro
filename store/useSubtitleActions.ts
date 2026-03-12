@@ -155,7 +155,7 @@ export const useSubtitleActions = (
       const next = {
         ...prev,
         tracks: prev.tracks.map(track => {
-          if (track.type !== 'subtitle') return track;
+          if (track.type === 'audio') return track;
           return {
             ...track,
             clips: track.clips.map(clip => {

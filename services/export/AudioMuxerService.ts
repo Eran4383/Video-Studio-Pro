@@ -43,12 +43,13 @@ export class AudioMuxerService {
     );
 
     // 3. Schedule Audio Clips
-    const audioTracks = project.tracks.filter(t => t.type === 'audio' && !t.isMuted);
+    const audioTracks = project.tracks.filter(t => (t.type === 'audio' || t.type === 'video') && !t.isMuted);
     
     for (const track of audioTracks) {
       for (const clip of track.clips) {
+        if (clip.isSilent) continue;
         const asset = assets.find(a => a.id === clip.assetId);
-        if (!asset || asset.type !== 'AUDIO') continue;
+        if (!asset || (asset.type !== 'AUDIO' && asset.type !== 'VIDEO')) continue;
 
         try {
           // Fetch and decode audio data

@@ -117,6 +117,14 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
       </summary>
     );
 
+    const layoutValue = settings.layoutMultiSelect 
+      ? (Array.isArray(settings.layoutStyle) ? settings.layoutStyle : (settings.layoutStyle ? [settings.layoutStyle as string] : []))
+      : (Array.isArray(settings.layoutStyle) ? (settings.layoutStyle[0] || 'dynamic-collage') : (settings.layoutStyle || 'dynamic-collage'));
+
+    const animationValue = settings.animationMultiSelect
+      ? (Array.isArray(settings.animationStyle) ? settings.animationStyle : (settings.animationStyle ? [settings.animationStyle as string] : []))
+      : (Array.isArray(settings.animationStyle) ? (settings.animationStyle[0] || 'random') : (settings.animationStyle || 'random'));
+
     switch (id) {
       case 'Layout':
         return (
@@ -140,8 +148,9 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   </div>
                 </div>
                 <select
+                  key={`layout-select-${!!settings.layoutMultiSelect}`}
                   multiple={!!settings.layoutMultiSelect}
-                  value={settings.layoutMultiSelect ? (Array.isArray(settings.layoutStyle) ? settings.layoutStyle : [settings.layoutStyle]) : (settings.layoutStyle || '')}
+                  value={layoutValue}
                   onChange={(e) => {
                     const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value as any);
                     if (settings.layoutMultiSelect) {
@@ -221,8 +230,9 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   </div>
                 </div>
                 <select
+                  key={`anim-select-${!!settings.animationMultiSelect}`}
                   multiple={!!settings.animationMultiSelect}
-                  value={settings.animationMultiSelect ? (Array.isArray(settings.animationStyle) ? settings.animationStyle : [settings.animationStyle]) : (settings.animationStyle || '')}
+                  value={animationValue}
                   onChange={(e) => {
                     const values = Array.from(e.target.selectedOptions).map((opt: any) => opt.value as KineticAnimationStyle);
                     if (settings.animationMultiSelect) {
