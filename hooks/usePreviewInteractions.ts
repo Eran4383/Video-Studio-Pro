@@ -8,7 +8,7 @@ interface UsePreviewInteractionsProps {
   project: any;
   selectedClipIds: string[];
   selectClip: (id: string) => void;
-  updateSubtitle: any;
+  updateClip: any;
   applyToAll: boolean;
   finalizeMove: () => void;
   setProject: any;
@@ -24,7 +24,7 @@ export const usePreviewInteractions = ({
   project,
   selectedClipIds,
   selectClip,
-  updateSubtitle,
+  updateClip,
   applyToAll,
   finalizeMove,
   setProject,
@@ -162,7 +162,7 @@ export const usePreviewInteractions = ({
   };
 
   const handleSubMouseMove = (e: React.MouseEvent) => {
-    if (isDraggingSub && editingSubId && updateSubtitle) {
+    if (isDraggingSub && editingSubId && updateClip) {
       const containerRect = gfxCanvasRef.current?.parentElement?.getBoundingClientRect();
       if (!containerRect) return;
 
@@ -173,13 +173,13 @@ export const usePreviewInteractions = ({
       const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
       lastSubPosRef.current = { x: newX, y: newY };
 
-      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
+      updateClip(editingSubId, { position: { x: newX, y: newY } }, false, applyToAll);
     }
   };
 
   const handleSubMouseUp = () => {
-    if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
-      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
+    if (isDraggingSub && editingSubId && updateClip && lastSubPosRef.current) {
+      updateClip(editingSubId, { position: lastSubPosRef.current }, true, applyToAll);
       lastSubPosRef.current = null;
     }
     setIsDraggingSub(false);
@@ -197,8 +197,8 @@ export const usePreviewInteractions = ({
 
   const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
     if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
-    if (editingSubId && updateSubtitle) {
-      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
+    if (editingSubId && updateClip) {
+      updateClip(editingSubId, { content: editingText }, false, false);
     }
     setEditingSubId(null);
   };
@@ -211,7 +211,7 @@ export const usePreviewInteractions = ({
         toggleFullscreen();
         return;
       }
-      if (!selectedClip || !updateSubtitle) return;
+      if (!selectedClip || !updateClip) return;
       const step = e.shiftKey ? 0.05 : 0.005;
       let dx = 0; let dy = 0;
       if (e.key === 'ArrowUp') dy = -step;
@@ -222,12 +222,12 @@ export const usePreviewInteractions = ({
         e.preventDefault();
         const currentX = selectedClip.position?.x ?? 0.5;
         const currentY = selectedClip.position?.y ?? (selectedClip.content ? 0.9 : 0.5);
-        updateSubtitle(selectedClip.id, undefined, { x: currentX + dx, y: currentY + dy }, applyToAll, undefined, undefined, scale, 0, 1, 1, undefined, undefined, undefined, undefined, true);
+        updateClip(selectedClip.id, { position: { x: currentX + dx, y: currentY + dy }, scale }, true, applyToAll);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClip, updateSubtitle, applyToAll, toggleFullscreen, scale]);
+  }, [selectedClip, updateClip, applyToAll, toggleFullscreen, scale]);
 
   return {
     isPanning,

@@ -33,7 +33,7 @@ interface PreviewWorkspaceProps {
   handleSubMouseDown: (e: React.MouseEvent, id: string, pos: any) => void;
   handleSubDoubleClick: (e: React.MouseEvent, id: string, content: string) => void;
   toggleFullscreen: () => void;
-  updateSubtitle: any;
+  updateClip: any;
   applyToAll: boolean;
   setSnapGuides: (guides: any) => void;
   store: any;
@@ -69,7 +69,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
   handleSubMouseDown,
   handleSubDoubleClick,
   toggleFullscreen,
-  updateSubtitle,
+  updateClip,
   applyToAll,
   setSnapGuides,
   store
@@ -214,14 +214,20 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
                   if (Math.abs(newPos.x - 0.5) < snapThreshold) { newPos.x = 0.5; guides.x = true; }
                   if (Math.abs(newPos.y - 0.5) < snapThreshold) { newPos.y = 0.5; guides.y = true; }
                   setSnapGuides(guides);
-                  if (updateSubtitle) {
-                    updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, undefined, undefined, undefined, undefined, false);
+                  if (updateClip) {
+                    updateClip(selectedClip.id, { 
+                      position: newPos, 
+                      scale, 
+                      rotation: rot, 
+                      scaleX, 
+                      scaleY 
+                    }, false, applyToAll);
                   }
                 }}
                 onFinalize={() => {
                   setSnapGuides({ x: false, y: false });
-                  if (updateSubtitle) {
-                    updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
+                  if (updateClip) {
+                    updateClip(selectedClip.id, {}, true, applyToAll);
                   }
                 }}
               />

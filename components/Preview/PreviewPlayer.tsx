@@ -20,7 +20,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   // Destructure what we need from the store prop
   const { 
     project, assets, isPlaying, isLooping, currentTime, 
-    setIsPlaying, setIsLooping, setCurrentTime, updateSubtitle, 
+    setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
     selectedClipIds, selectClip, setProject, finalizeMove, applyToAll 
   } = store;
 
@@ -238,7 +238,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   };
 
   const handleSubMouseMove = (e: React.MouseEvent) => {
-    if (isDraggingSub && editingSubId && updateSubtitle) {
+    if (isDraggingSub && editingSubId && updateClip) {
       const containerRect = gfxCanvasRef.current?.parentElement?.getBoundingClientRect();
       if (!containerRect) return;
 
@@ -249,13 +249,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
       lastSubPosRef.current = { x: newX, y: newY };
 
-      updateSubtitle(editingSubId, undefined, { x: newX, y: newY }, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
+      updateClip(editingSubId, { position: { x: newX, y: newY } }, false, applyToAll);
     }
   };
 
   const handleSubMouseUp = () => {
-    if (isDraggingSub && editingSubId && updateSubtitle && lastSubPosRef.current) {
-      updateSubtitle(editingSubId, undefined, lastSubPosRef.current, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
+    if (isDraggingSub && editingSubId && updateClip && lastSubPosRef.current) {
+      updateClip(editingSubId, { position: lastSubPosRef.current }, true, applyToAll);
       lastSubPosRef.current = null;
     }
     setIsDraggingSub(false);
@@ -273,8 +273,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
   const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
     if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
-    if (editingSubId && updateSubtitle) {
-      updateSubtitle(editingSubId, editingText, undefined, false, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, false);
+    if (editingSubId && updateClip) {
+      updateClip(editingSubId, { content: editingText }, false, false);
     }
     setEditingSubId(null);
   };
@@ -518,7 +518,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (!selectedClip || !updateSubtitle) return;
+      if (!selectedClip || !updateClip) return;
 
       const step = e.shiftKey ? 0.05 : 0.005;
       let dx = 0;
@@ -534,20 +534,18 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         const currentX = selectedClip.position?.x ?? 0.5;
         const currentY = selectedClip.position?.y ?? (selectedClip.content ? 0.9 : 0.5);
         
-        updateSubtitle(
+        updateClip(
           selectedClip.id, 
-          undefined, 
-          { x: currentX + dx, y: currentY + dy }, 
-          applyToAll, 
-          undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, 
-          true // finalize immediately for keyboard
+          { position: { x: currentX + dx, y: currentY + dy } }, 
+          true,
+          applyToAll
         );
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClip, updateSubtitle, applyToAll]);
+  }, [selectedClip, updateClip, applyToAll]);
 
   return (
     <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50">
@@ -721,15 +719,21 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                         }
                         setSnapGuides(guides);
 
-                        if (updateSubtitle) {
-                          updateSubtitle(selectedClip.id, undefined, newPos, applyToAll, undefined, undefined, scale, rot, scaleX, scaleY, undefined, undefined, undefined, undefined, false);
+                        if (updateClip) {
+                          updateClip(selectedClip.id, { 
+                            position: newPos, 
+                            scale, 
+                            rotation: rot, 
+                            scaleX, 
+                            scaleY 
+                          }, false, applyToAll);
                         }
                       }}
                       onFinalize={() => {
                          setSnapGuides({ x: false, y: false });
-                         if (updateSubtitle) {
+                         if (updateClip) {
                            // Trigger finalize
-                           updateSubtitle(selectedClip.id, undefined, undefined, applyToAll, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, true);
+                           updateClip(selectedClip.id, {}, true, applyToAll);
                          }
                       }}
                     />

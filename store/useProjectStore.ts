@@ -77,7 +77,7 @@ export const useProjectStore = () => {
     finalizeMove: () => pushToHistory(project),
     setProject,
     selectClips: setSelectedClipIds,
-    updateSubtitle: clipActions.updateClipProperties,
+    updateClip: clipActions.updateClipProperties,
     setApplyToAll,
     applyToAll
   };

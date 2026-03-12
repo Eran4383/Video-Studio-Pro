@@ -79,19 +79,26 @@ export const useClipActions = (
       setSelectedClipIds([]);
   }, [setProject, pushToHistory, selectedClipIds, setSelectedClipIds]);
 
-  const updateClipProperties = useCallback((clipId: string, updates: Partial<Clip>) => {
+  const updateClipProperties = useCallback((clipId: string, updates: Partial<Clip>, finalize: boolean = true, applyToAll: boolean = false) => {
     setProject(prev => {
       const next = {
         ...prev,
         tracks: prev.tracks.map(track => ({
           ...track,
-          clips: track.clips.map(clip => clip.id === clipId ? { ...clip, ...updates } : clip)
+          clips: track.clips.map(clip => {
+            if (clip.id === clipId || (applyToAll && selectedClipIds.includes(clip.id))) {
+              return { ...clip, ...updates };
+            }
+            return clip;
+          })
         }))
       };
-      pushToHistory(next);
+      if (finalize) {
+        pushToHistory(next);
+      }
       return next;
     });
-  }, [setProject, pushToHistory]);
+  }, [setProject, pushToHistory, selectedClipIds]);
 
   return { addClips, addClipAtPosition, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties };
 };

@@ -22,7 +22,7 @@ const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => 
 );
 
 export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
-  const { selectedClipIds, project, setProject, finalizeMove, updateSubtitle, applyToAll, setApplyToAll } = store;
+  const { selectedClipIds, project, setProject, finalizeMove, updateClip: storeUpdateClip, applyToAll, setApplyToAll } = store;
   
   const primaryClipId = selectedClipIds[0];
   const isKineticBlock = primaryClipId?.startsWith('kb-');
@@ -113,22 +113,11 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
     const currentPos = selectedClip.position || { x: 0.5, y: (isSubtitle ? 0.9 : 0.5) };
     const newPos = updates.position !== undefined ? { ...currentPos, ...updates.position } : currentPos;
     
-    updateSubtitle(
+    storeUpdateClip(
       primaryClipId, 
-      updates.content, 
-      newPos, 
-      applyToAll, 
-      updates.color, 
-      updates.font, 
-      updates.scale, 
-      updates.rotation,
-      updates.scaleX, 
-      updates.scaleY, 
-      updates.opacity, 
-      updates.shadow, 
-      updates.fontWeight, 
-      updates.textAlign, 
-      finalize
+      { ...updates, position: newPos },
+      finalize,
+      applyToAll
     );
   };
 
