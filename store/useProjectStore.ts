@@ -30,6 +30,7 @@ export const useProjectStore = () => {
   const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
   const [zoom, setZoom] = useState(10);
   const [isMagnetEnabled, setIsMagnetEnabled] = useState(true);
+  const [isCanvasMagnetEnabled, setIsCanvasMagnetEnabled] = useState(true);
   const [applyToAll, setApplyToAll] = useState(false);
   const [kineticDrawMode, setKineticDrawMode] = useState(false);
   const [lastKineticBox, setLastKineticBox] = useState<KineticBoundingBox | null>(null);
@@ -66,8 +67,8 @@ export const useProjectStore = () => {
   const detachAudio = useCallback(() => { /* Placeholder */ }, []);
 
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, kineticDrawMode, lastKineticBox, selectedKineticWordId,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setKineticDrawMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, kineticDrawMode, lastKineticBox, selectedKineticWordId,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setKineticDrawMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

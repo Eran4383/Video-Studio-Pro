@@ -22,7 +22,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
     selectedClipIds, selectClip, setProject, finalizeMove, applyToAll,
-    isMagnetEnabled, setIsMagnetEnabled
+    isCanvasMagnetEnabled, setIsCanvasMagnetEnabled
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -761,8 +761,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            <div className="pointer-events-auto">
              <Tooltip text="Magnetic Snapping" position="right">
                <button 
-                 onClick={() => setIsMagnetEnabled(!isMagnetEnabled)} 
-                 className={`p-2 rounded-lg transition-all ${isMagnetEnabled ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
+                 onClick={() => setIsCanvasMagnetEnabled(!isCanvasMagnetEnabled)} 
+                 className={`p-2 rounded-lg transition-all ${isCanvasMagnetEnabled ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
                >
                  <Magnet size={16} />
                </button>

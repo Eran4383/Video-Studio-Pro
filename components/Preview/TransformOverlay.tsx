@@ -8,9 +8,10 @@ interface TransformOverlayProps {
   onFinalize: () => void;
   isVideo?: boolean;
   mediaDimensions?: { width: number, height: number };
+  isCanvasMagnetEnabled?: boolean;
 }
 
-export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize, isVideo, mediaDimensions }) => {
+export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize, isVideo, mediaDimensions, isCanvasMagnetEnabled = true }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<string | null>(null);
   const [liveOverrides, setLiveOverrides] = useState<Record<string, any>>({});
@@ -127,8 +128,35 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
       const shiftKey = e.shiftKey;
 
       if (dragMode === 'MOVE') {
-        const newX = Math.max(0, Math.min(1, startRef.current.clipX + (deltaX / containerRect.width)));
-        const newY = Math.max(0, Math.min(1, startRef.current.clipY + (deltaY / containerRect.height)));
+        let newX = startRef.current.clipX + (deltaX / containerRect.width);
+        let newY = startRef.current.clipY + (deltaY / containerRect.height);
+
+        const isSnappingActive = isCanvasMagnetEnabled && !e.ctrlKey;
+        if (isSnappingActive) {
+          const snapThreshold = 0.02;
+          const wPct = (dimensions.width * startRef.current.clipScaleX) / containerRect.width;
+          const hPct = (dimensions.height * startRef.current.clipScaleY) / containerRect.height;
+          
+          // Snapping to center
+          if (Math.abs(newX - 0.5) < snapThreshold) newX = 0.5;
+          if (Math.abs(newY - 0.5) < snapThreshold) newY = 0.5;
+
+          // Snapping to edges
+          const leftEdge = newX - (wPct / 2);
+          const rightEdge = newX + (wPct / 2);
+          const topEdge = newY - (hPct / 2);
+          const bottomEdge = newY + (hPct / 2);
+
+          if (Math.abs(leftEdge - 0) < snapThreshold) newX = wPct / 2;
+          else if (Math.abs(rightEdge - 1) < snapThreshold) newX = 1 - (wPct / 2);
+
+          if (Math.abs(topEdge - 0) < snapThreshold) newY = hPct / 2;
+          else if (Math.abs(bottomEdge - 1) < snapThreshold) newY = 1 - (hPct / 2);
+        }
+
+        newX = Math.max(0, Math.min(1, newX));
+        newY = Math.max(0, Math.min(1, newY));
+        
         onUpdate({ x: newX, y: newY }, startRef.current.clipScale, startRef.current.clipRotation, startRef.current.clipScaleX, startRef.current.clipScaleY, e);
       } else if (dragMode === 'ROTATE') {
         const centerX = containerRect.left + (startRef.current.clipX * containerRect.width);

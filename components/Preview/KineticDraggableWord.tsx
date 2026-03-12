@@ -15,6 +15,7 @@ interface KineticDraggableWordProps {
   settings: KineticSettings;
   isSelected: boolean;
   onSelect: (id: string) => void;
+  showTransform?: boolean;
 }
 
 export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
@@ -30,7 +31,8 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   animDuration,
   settings,
   isSelected,
-  onSelect
+  onSelect,
+  showTransform = true
 }) => {
   const spanRef = useRef<HTMLSpanElement>(null);
   const isDragging = useRef(false);
@@ -60,10 +62,24 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
       let newY = startPos.current.y + deltaY;
 
       // Magnetic Snapping Logic
-      const isSnappingActive = store.isMagnetEnabled && !e.ctrlKey;
+      const isSnappingActive = store.isCanvasMagnetEnabled && !e.ctrlKey;
       const threshold = 0.03;
       const guideX = document.getElementById('kinetic-guide-x');
       const guideY = document.getElementById('kinetic-guide-y');
+
+      const anchorX = word.anchor?.x ?? (word.isCentered ? 0.5 : 0);
+      const anchorY = word.anchor?.y ?? (word.isCentered ? 0.5 : 0);
+      
+      const wordRect = spanRef.current.getBoundingClientRect();
+      const parentRect = parent.getBoundingClientRect();
+      
+      const wPct = wordRect.width / parentRect.width;
+      const hPct = wordRect.height / parentRect.height;
+      
+      const leftEdge = newX - (anchorX * wPct);
+      const rightEdge = newX + ((1 - anchorX) * wPct);
+      const topEdge = newY - (anchorY * hPct);
+      const bottomEdge = newY + ((1 - anchorY) * hPct);
 
       // Snap X
       let snappedX = false;
@@ -71,8 +87,8 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
         if (Math.abs(newX - 0.5) < threshold) { newX = 0.5; snappedX = true; }
         else if (Math.abs(newX - 0.05) < threshold) { newX = 0.05; }
         else if (Math.abs(newX - 0.95) < threshold) { newX = 0.95; }
-        else if (Math.abs(newX - 0) < threshold) { newX = 0; }
-        else if (Math.abs(newX - 1) < threshold) { newX = 1; }
+        else if (Math.abs(leftEdge - 0) < threshold) { newX = anchorX * wPct; }
+        else if (Math.abs(rightEdge - 1) < threshold) { newX = 1 - ((1 - anchorX) * wPct); }
       }
 
       // Snap Y
@@ -81,8 +97,8 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
         if (Math.abs(newY - 0.5) < threshold) { newY = 0.5; snappedY = true; }
         else if (Math.abs(newY - 0.05) < threshold) { newY = 0.05; }
         else if (Math.abs(newY - 0.95) < threshold) { newY = 0.95; }
-        else if (Math.abs(newY - 0) < threshold) { newY = 0; }
-        else if (Math.abs(newY - 1) < threshold) { newY = 1; }
+        else if (Math.abs(topEdge - 0) < threshold) { newY = anchorY * hPct; }
+        else if (Math.abs(bottomEdge - 1) < threshold) { newY = 1 - ((1 - anchorY) * hPct); }
       }
 
       // Update Guides Visibility
@@ -114,20 +130,31 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
       let newY = startPos.current.y + deltaY;
 
       // Apply snapping to final state too
-      const isSnappingActive = store.isMagnetEnabled && !e.ctrlKey;
+      const isSnappingActive = store.isCanvasMagnetEnabled && !e.ctrlKey;
       const threshold = 0.03;
       if (isSnappingActive) {
+        const anchorX = word.anchor?.x ?? (word.isCentered ? 0.5 : 0);
+        const anchorY = word.anchor?.y ?? (word.isCentered ? 0.5 : 0);
+        const wordRect = spanRef.current.getBoundingClientRect();
+        const parentRect = parent.getBoundingClientRect();
+        const wPct = wordRect.width / parentRect.width;
+        const hPct = wordRect.height / parentRect.height;
+        const leftEdge = newX - (anchorX * wPct);
+        const rightEdge = newX + ((1 - anchorX) * wPct);
+        const topEdge = newY - (anchorY * hPct);
+        const bottomEdge = newY + ((1 - anchorY) * hPct);
+
         if (Math.abs(newX - 0.5) < threshold) newX = 0.5;
         else if (Math.abs(newX - 0.05) < threshold) newX = 0.05;
         else if (Math.abs(newX - 0.95) < threshold) newX = 0.95;
-        else if (Math.abs(newX - 0) < threshold) newX = 0;
-        else if (Math.abs(newX - 1) < threshold) newX = 1;
+        else if (Math.abs(leftEdge - 0) < threshold) newX = anchorX * wPct;
+        else if (Math.abs(rightEdge - 1) < threshold) newX = 1 - ((1 - anchorX) * wPct);
 
         if (Math.abs(newY - 0.5) < threshold) newY = 0.5;
         else if (Math.abs(newY - 0.05) < threshold) newY = 0.05;
         else if (Math.abs(newY - 0.95) < threshold) newY = 0.95;
-        else if (Math.abs(newY - 0) < threshold) newY = 0;
-        else if (Math.abs(newY - 1) < threshold) newY = 1;
+        else if (Math.abs(topEdge - 0) < threshold) newY = anchorY * hPct;
+        else if (Math.abs(bottomEdge - 1) < threshold) newY = 1 - ((1 - anchorY) * hPct);
       }
       
       store.updateWordOverride(blockId, word.id, { position: { x: newX, y: newY } });
@@ -165,7 +192,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     <span
       ref={spanRef}
       onMouseDown={handleMouseDown}
-      className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${isSelected ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
+      className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${(isSelected && showTransform) ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
       style={{
         left: isStretchX ? 0 : `${word.position.x * 100}%`,
         top: isStretchY ? 0 : `${word.position.y * 100}%`,
