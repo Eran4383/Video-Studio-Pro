@@ -1,4 +1,5 @@
 import React from 'react';
+import { RotateCcw } from 'lucide-react';
 import { KineticWord, KineticSettings } from '../../types/kinetic';
 import { ProSlider } from '../UI/ProSlider';
 
@@ -8,28 +9,40 @@ interface KineticWordEditorProps {
   selectedWordId: string | null;
   onSelectWord: (id: string | null) => void;
   onUpdateWord: (wordId: string, updates: Partial<KineticWord>) => void;
+  onResetWord?: (wordId: string) => void;
   settings?: KineticSettings;
 }
 
-export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words, selectedWordId, onSelectWord, onUpdateWord, settings }) => {
+export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words, selectedWordId, onSelectWord, onUpdateWord, onResetWord, settings }) => {
   const selectedWord = words.find(w => w.id === selectedWordId);
 
   return (
     <div className="flex flex-col gap-3 mt-2 border-t border-zinc-800/50 pt-3">
-      <div className="flex flex-col gap-1.5">
-        <label className="text-[9px] text-zinc-500 font-mono uppercase">Edit Word</label>
-        <select
-          value={selectedWordId || ''}
-          onChange={(e) => onSelectWord(e.target.value || null)}
-          className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none focus:border-purple-500/50 transition-colors"
-        >
-          <option value="">Select a word...</option>
-          {words.map((word, index) => (
-            <option key={word.id} value={word.id}>
-              {index + 1}. {word.text}
-            </option>
-          ))}
-        </select>
+      <div className="flex items-end gap-2">
+        <div className="flex-1 flex flex-col gap-1.5">
+          <label className="text-[9px] text-zinc-500 font-mono uppercase">Edit Word</label>
+          <select
+            value={selectedWordId || ''}
+            onChange={(e) => onSelectWord(e.target.value || null)}
+            className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none focus:border-purple-500/50 transition-colors"
+          >
+            <option value="">Select a word...</option>
+            {words.map((word, index) => (
+              <option key={word.id} value={word.id}>
+                {index + 1}. {word.text}
+              </option>
+            ))}
+          </select>
+        </div>
+        {selectedWordId && onResetWord && (
+          <button
+            onClick={() => onResetWord(selectedWordId)}
+            title="Reset word to default"
+            className="p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all"
+          >
+            <RotateCcw size={14} />
+          </button>
+        )}
       </div>
 
       {selectedWord && (

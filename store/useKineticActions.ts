@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { Project, Clip } from '../types';
-import { KineticBoundingBox, KineticSettings } from '../types/kinetic';
+import { KineticBoundingBox, KineticSettings, KineticWord } from '../types/kinetic';
 import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 
 export const useKineticActions = (
@@ -194,5 +194,53 @@ export const useKineticActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { createKineticBlock, updateKineticBlock, deleteKineticBlock, applySettingsToAllKineticBlocks, generateBlockAnimation, updateKineticData, updateKineticWord, updateWordOverride };
+  const clearWordOverride = useCallback((blockId: string, wordId: string) => {
+    setProject(prev => {
+      const block = prev.kineticBlocks?.find(b => b.id === blockId);
+      if (!block || !block.wordOverrides) return prev;
+
+      const { [wordId]: _, ...rest } = block.wordOverrides;
+
+      const next = {
+        ...prev,
+        kineticBlocks: prev.kineticBlocks?.map(b => 
+          b.id === blockId ? {
+            ...b,
+            wordOverrides: rest
+          } : b
+        )
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  const clearAllWordOverrides = useCallback((blockId: string) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        kineticBlocks: prev.kineticBlocks?.map(b => 
+          b.id === blockId ? {
+            ...b,
+            wordOverrides: {}
+          } : b
+        )
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { 
+    createKineticBlock, 
+    updateKineticBlock, 
+    deleteKineticBlock, 
+    applySettingsToAllKineticBlocks, 
+    generateBlockAnimation, 
+    updateKineticData, 
+    updateKineticWord, 
+    updateWordOverride,
+    clearWordOverride,
+    clearAllWordOverrides
+  };
 };

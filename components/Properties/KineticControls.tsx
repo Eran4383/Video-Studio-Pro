@@ -1,5 +1,5 @@
 import React from 'react';
-import { Wand2, Pencil, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Wand2, Pencil, Check, Eye, EyeOff, RefreshCw, RotateCcw } from 'lucide-react';
 import { Clip } from '../../types';
 import { generateKineticLayout } from '../../utils/kinetic/KineticLayoutManager';
 import { ProSlider } from '../UI/ProSlider';
@@ -14,7 +14,7 @@ interface KineticControlsProps {
 }
 
 export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store, isBlock }) => {
-  const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode, generateBlockAnimation } = store;
+  const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode, generateBlockAnimation, clearAllWordOverrides, setSelectedKineticWordId } = store;
   
   // If it's a block, we need to find the actual block object from project
   const activeBlock = isBlock ? store.project.kineticBlocks?.find((b: any) => b.id === selectedClip.id) : null;
@@ -26,6 +26,7 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
   const bbox = kineticData?.settings?.boundingBox || { x: 0, y: 0, width: 0, height: 0 };
   const settings = kineticData?.settings;
   const words = kineticData?.words || [];
+  const hasOverrides = isBlock && Object.keys(kineticData?.wordOverrides || {}).length > 0;
 
   const updateData = (clipId: string, data: any) => {
     if (isBlock) {
@@ -71,6 +72,13 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
       const screenAR = store.project.resolution.width / store.project.resolution.height;
       const generatedWords = generateKineticLayout(selectedClip.id, content, duration, currentSettings, fallbackFont, screenAR);
       updateData(selectedClip.id, { words: generatedWords });
+    }
+  };
+
+  const handleResetAll = () => {
+    if (isBlock) {
+      clearAllWordOverrides(selectedClip.id);
+      setSelectedKineticWordId(null);
     }
   };
 
@@ -167,6 +175,16 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
                </button>
              )}
            </div>
+
+           {hasOverrides && (
+             <button
+               onClick={handleResetAll}
+               className="flex items-center justify-center gap-2 mt-2 p-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-wide hover:bg-red-500/20 transition-all w-full"
+             >
+               <RotateCcw size={12} />
+               Reset All Custom Words
+             </button>
+           )}
         </div>
       )}
     </div>
