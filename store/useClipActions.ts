@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
 import { Project, Asset, Clip, MediaType } from '../types';
+import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 
 export const useClipActions = (
   setProject: React.Dispatch<React.SetStateAction<Project>>,
@@ -45,13 +46,30 @@ export const useClipActions = (
   }, [setProject, pushToHistory]);
 
   const resizeClip = useCallback((clipId: string, newStartTime: number, newDuration: number, newOffset: number) => {
-    setProject(prev => ({
-      ...prev,
-      tracks: prev.tracks.map(track => ({
+    setProject(prev => {
+      const nextTracks = prev.tracks.map(track => ({
         ...track,
         clips: track.clips.map(clip => clip.id === clipId ? { ...clip, startTime: newStartTime, duration: newDuration, offset: newOffset } : clip)
-      }))
-    }));
+      }));
+
+      let nextKineticBlocks = prev.kineticBlocks;
+      if (prev.kineticBlocks) {
+        const allNextClips = nextTracks.flatMap(t => t.clips);
+        const screenAR = prev.resolution.width / prev.resolution.height;
+        nextKineticBlocks = prev.kineticBlocks.map(block => {
+          if (block.clipIds.includes(clipId)) {
+            return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
+          }
+          return block;
+        });
+      }
+
+      return {
+        ...prev,
+        tracks: nextTracks,
+        kineticBlocks: nextKineticBlocks
+      };
+    });
   }, [setProject]);
 
   const deleteClip = useCallback((clipId: string) => { 
@@ -81,18 +99,37 @@ export const useClipActions = (
 
   const updateClipProperties = useCallback((clipId: string, updates: Partial<Clip>, finalize: boolean = true, applyToAll: boolean = false) => {
     setProject(prev => {
+      const nextTracks = prev.tracks.map(track => ({
+        ...track,
+        clips: track.clips.map(clip => {
+          if (clip.id === clipId || (applyToAll && selectedClipIds.includes(clip.id))) {
+            return { ...clip, ...updates };
+          }
+          return clip;
+        })
+      }));
+
+      const needsKineticRefresh = updates.content !== undefined || updates.duration !== undefined || updates.startTime !== undefined;
+      let nextKineticBlocks = prev.kineticBlocks;
+
+      if (needsKineticRefresh && prev.kineticBlocks) {
+        const allNextClips = nextTracks.flatMap(t => t.clips);
+        const screenAR = prev.resolution.width / prev.resolution.height;
+        nextKineticBlocks = prev.kineticBlocks.map(block => {
+          const isAffected = block.clipIds.includes(clipId) || (applyToAll && block.clipIds.some(id => selectedClipIds.includes(id)));
+          if (isAffected) {
+            return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
+          }
+          return block;
+        });
+      }
+
       const next = {
         ...prev,
-        tracks: prev.tracks.map(track => ({
-          ...track,
-          clips: track.clips.map(clip => {
-            if (clip.id === clipId || (applyToAll && selectedClipIds.includes(clip.id))) {
-              return { ...clip, ...updates };
-            }
-            return clip;
-          })
-        }))
+        tracks: nextTracks,
+        kineticBlocks: nextKineticBlocks
       };
+
       if (finalize) {
         pushToHistory(next);
       }

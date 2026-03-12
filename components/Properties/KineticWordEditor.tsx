@@ -162,17 +162,36 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({
 
           <div className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between">
-              <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Size</label>
-              <ResetButton property="fontSize" />
+              <label className="text-[9px] text-zinc-500 font-mono uppercase">Word Scale</label>
+              <ResetButton property="scale" />
             </div>
             <ProSlider 
-              value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%
-              onChange={(v) => onUpdateWord(selectedWord.id, { fontSize: v / 100 })}
-              min={1} 
-              max={100} 
+              value={(selectedWord.scale ?? 1) * 100} 
+              onChange={(v) => onUpdateWord(selectedWord.id, { scale: v / 100 })}
+              min={10} 
+              max={300} 
               step={1} 
               unit="%" 
             />
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[9px] text-zinc-500 font-mono uppercase">Quick Alignment</label>
+            <div className="grid grid-cols-3 gap-1 w-24 bg-zinc-900/50 p-1 rounded border border-zinc-800">
+              {[
+                { x: 0.1, y: 0.1 }, { x: 0.5, y: 0.1 }, { x: 0.9, y: 0.1 },
+                { x: 0.1, y: 0.5 }, { x: 0.5, y: 0.5 }, { x: 0.9, y: 0.5 },
+                { x: 0.1, y: 0.9 }, { x: 0.5, y: 0.9 }, { x: 0.9, y: 0.9 }
+              ].map((pos, i) => (
+                <button
+                  key={i}
+                  onClick={() => onUpdateWord(selectedWord.id, { position: pos, isCentered: true })}
+                  className="aspect-square bg-zinc-800 hover:bg-purple-500/30 border border-zinc-700 rounded-sm transition-colors flex items-center justify-center"
+                >
+                  <div className={`w-1 h-1 rounded-full ${selectedWord.position.x === pos.x && selectedWord.position.y === pos.y ? 'bg-purple-400' : 'bg-zinc-600'}`} />
+                </button>
+              ))}
+            </div>
           </div>
 
           {onResetWord && (

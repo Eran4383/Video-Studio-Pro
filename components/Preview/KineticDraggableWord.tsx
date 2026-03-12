@@ -139,6 +139,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
           textAlign: isStretchX ? 'center' : 'left',
           textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
           transformOrigin: 'center center',
+          transform: `scale(${word.scale ?? 1})`,
           animationDuration: `${animDuration}s`,
           width: isStretchX ? '100%' : undefined,
           height: isStretchY ? '100%' : undefined,
