@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan, Minimize } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan } from 'lucide-react';
 import { Project, Asset } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
 import { GFX_Engine } from '../../services/GFX_Engine';
@@ -38,7 +38,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
   const [showTransform, setShowTransform] = useState(true);
-  const [isFullscreen, setIsFullscreen] = useState(false);
 
   // GFX State
   const [isInteractingGFX, setIsInteractingGFX] = useState(false);
@@ -95,18 +94,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const resetView = () => {
     setScale(1);
     setPan({ x: 0, y: 0 });
-  };
-
-  const toggleFullscreen = () => {
-    if (!containerRef.current) return;
-    
-    if (!document.fullscreenElement) {
-      containerRef.current.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      document.exitFullscreen();
-    }
   };
 
   // --- GFX Interaction Handlers ---
@@ -205,17 +192,9 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
   const renderTime = isPlaying ? localTime : currentTime;
 
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
-
   // --- Media Sync ---
   const activeVideoClip = project.tracks.slice().reverse()
-    .filter(t => t.type === 'video' && t.isVisible)
+    .filter(t => (t.type === 'video' || t.type === 'image') && t.isVisible)
     .flatMap(t => t.clips)
     .find(c => {
       const asset = assets.find(a => a.id === c.assetId);
@@ -583,26 +562,17 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       >
         <div 
           ref={containerRef}
-          className={`rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out ${isFullscreen ? 'w-screen h-screen rounded-none border-none' : ''}`}
+          className="rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
           style={{ 
-            transform: isFullscreen ? 'none' : `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
+            transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
             backgroundColor: project.backgroundColor || '#000000',
-            aspectRatio: isFullscreen ? undefined : `${project.resolution.width} / ${project.resolution.height}`,
-            maxWidth: isFullscreen ? 'none' : '100%',
-            maxHeight: isFullscreen ? 'none' : '100%',
-            width: isFullscreen ? '100vw' : (project.resolution.width > project.resolution.height ? '100%' : 'auto'),
-            height: isFullscreen ? '100vh' : (project.resolution.height >= project.resolution.width ? '100%' : 'auto')
+            aspectRatio: `${project.resolution.width} / ${project.resolution.height}`,
+            maxWidth: '100%',
+            maxHeight: '100%',
+            width: project.resolution.width > project.resolution.height ? '100%' : 'auto',
+            height: project.resolution.height >= project.resolution.width ? '100%' : 'auto'
           }}
         >
-          {/* Fullscreen Exit Button (Only visible in fullscreen) */}
-          {isFullscreen && (
-            <button 
-              onClick={toggleFullscreen}
-              className="absolute top-6 right-6 z-[100] p-3 bg-black/50 hover:bg-black/80 text-white rounded-full transition-all backdrop-blur-sm border border-white/10"
-            >
-              <Scan size={24} />
-            </button>
-          )}
           {/* Hidden Media Container for Canvas Source */}
           <div className="hidden">
             {activeVideoAsset && activeVideoClip && (
@@ -812,12 +782,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
            <div className="w-px h-4 bg-zinc-800" />
            <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">
              <button onClick={() => setIsLooping(!isLooping)} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
-           </Tooltip>
-           <div className="w-px h-4 bg-zinc-800" />
-           <Tooltip text={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} position="top">
-             <button onClick={toggleFullscreen} className="hover:text-white transition-colors">
-               {isFullscreen ? <Minimize size={16} /> : <Maximize size={16} />}
-             </button>
            </Tooltip>
         </div>
       </div>
