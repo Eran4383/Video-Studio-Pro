@@ -35,11 +35,11 @@ export const useProjectStore = () => {
   const [lastKineticBox, setLastKineticBox] = useState<KineticBoundingBox | null>(null);
   const [selectedKineticWordId, setSelectedKineticWordId] = useState<string | null>(null);
 
-  const { pushToHistory, undo, redo, historyIndexRef } = useHistory(setProject, INITIAL_PROJECT);
+  const { pushToHistory, pushToHistoryDebounced, undo, redo, historyIndexRef, historyRef } = useHistory(setProject, INITIAL_PROJECT);
   
   const trackActions = useTrackActions(setProject, pushToHistory);
   const clipActions = useClipActions(setProject, pushToHistory, assets, selectedClipIds, setSelectedClipIds);
-  const kineticActions = useKineticActions(setProject, pushToHistory, lastKineticBox, setLastKineticBox);
+  const kineticActions = useKineticActions(setProject, pushToHistory, pushToHistoryDebounced, lastKineticBox, setLastKineticBox);
   const moveActions = useMoveActions(setProject, setSelectedClipIds, selectedClipIds, isMagnetEnabled, currentTime);
   const subtitleActions = useSubtitleActions(setProject, pushToHistory, assets, currentTime, setSelectedClipIds, selectedClipIds);
 
@@ -74,7 +74,10 @@ export const useProjectStore = () => {
     ...moveActions,
     ...subtitleActions,
     detachAudio,
-    undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < 50,
+    undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1,
+    pushToHistory,
+    pushToHistoryDebounced,
+    clearWordOverrideProperty: kineticActions.clearWordOverrideProperty,
     finalizeMove: () => pushToHistory(project),
     setProject,
     selectClips: setSelectedClipIds,

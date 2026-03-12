@@ -85,7 +85,11 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                   store.clearWordOverride(selectedKineticBlock.id, wordId);
                   store.setSelectedKineticWordId(null);
                 }}
+                onResetProperty={(wordId, property) => {
+                  store.clearWordOverrideProperty(selectedKineticBlock.id, wordId, property);
+                }}
                 settings={selectedKineticBlock.settings}
+                overrides={selectedKineticBlock.wordOverrides}
               />
             </div>
           )}

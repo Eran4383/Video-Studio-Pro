@@ -6,6 +6,7 @@ import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 export const useKineticActions = (
   setProject: React.Dispatch<React.SetStateAction<Project>>,
   pushToHistory: (p: Project) => void,
+  pushToHistoryDebounced: (p: Project, delay?: number) => void,
   lastKineticBox: KineticBoundingBox | null,
   setLastKineticBox: (box: KineticBoundingBox | null) => void
 ) => {
@@ -189,6 +190,31 @@ export const useKineticActions = (
           } : b
         )
       };
+      pushToHistoryDebounced(next);
+      return next;
+    });
+  }, [setProject, pushToHistoryDebounced]);
+
+  const clearWordOverrideProperty = useCallback((blockId: string, wordId: string, propertyKey: keyof KineticWord) => {
+    setProject(prev => {
+      const block = prev.kineticBlocks?.find(b => b.id === blockId);
+      if (!block || !block.wordOverrides || !block.wordOverrides[wordId]) return prev;
+
+      const currentWordOverride = { ...block.wordOverrides[wordId] };
+      delete currentWordOverride[propertyKey];
+
+      const next = {
+        ...prev,
+        kineticBlocks: prev.kineticBlocks?.map(b => 
+          b.id === blockId ? {
+            ...b,
+            wordOverrides: {
+              ...block.wordOverrides,
+              [wordId]: currentWordOverride
+            }
+          } : b
+        )
+      };
       pushToHistory(next);
       return next;
     });
@@ -240,6 +266,7 @@ export const useKineticActions = (
     updateKineticData, 
     updateKineticWord, 
     updateWordOverride,
+    clearWordOverrideProperty,
     clearWordOverride,
     clearAllWordOverrides
   };

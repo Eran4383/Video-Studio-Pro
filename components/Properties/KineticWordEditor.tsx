@@ -10,11 +10,37 @@ interface KineticWordEditorProps {
   onSelectWord: (id: string | null) => void;
   onUpdateWord: (wordId: string, updates: Partial<KineticWord>) => void;
   onResetWord?: (wordId: string) => void;
+  onResetProperty?: (wordId: string, property: keyof KineticWord) => void;
   settings?: KineticSettings;
+  overrides?: Record<string, Partial<KineticWord>>;
 }
 
-export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, words, selectedWordId, onSelectWord, onUpdateWord, onResetWord, settings }) => {
+export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ 
+  clipId, 
+  words, 
+  selectedWordId, 
+  onSelectWord, 
+  onUpdateWord, 
+  onResetWord, 
+  onResetProperty,
+  settings,
+  overrides = {}
+}) => {
   const selectedWord = words.find(w => w.id === selectedWordId);
+  const wordOverride = selectedWordId ? overrides[selectedWordId] : null;
+
+  const ResetButton = ({ property }: { property: keyof KineticWord }) => {
+    if (!wordOverride || wordOverride[property] === undefined || !onResetProperty || !selectedWordId) return null;
+    return (
+      <button
+        onClick={() => onResetProperty(selectedWordId, property)}
+        title={`Reset ${property}`}
+        className="p-1 rounded hover:bg-zinc-800 text-zinc-500 hover:text-purple-400 transition-colors"
+      >
+        <RotateCcw size={10} />
+      </button>
+    );
+  };
 
   return (
     <div className="flex flex-col gap-3 mt-2 border-t border-zinc-800/50 pt-3">
@@ -34,21 +60,15 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
             ))}
           </select>
         </div>
-        {selectedWordId && onResetWord && (
-          <button
-            onClick={() => onResetWord(selectedWordId)}
-            title="Reset word to default"
-            className="p-2 rounded-md border border-zinc-800 bg-zinc-900 text-zinc-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all"
-          >
-            <RotateCcw size={14} />
-          </button>
-        )}
       </div>
 
       {selectedWord && (
         <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
           <div className="flex items-center justify-between">
-             <span className="text-[9px] text-zinc-500 font-mono uppercase">Color</span>
+             <div className="flex items-center gap-2">
+               <span className="text-[9px] text-zinc-500 font-mono uppercase">Color</span>
+               <ResetButton property="color" />
+             </div>
              <div className="flex items-center gap-2">
                <span className="text-[10px] font-mono text-zinc-400">{selectedWord.color}</span>
                <input 
@@ -62,7 +82,10 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
 
           <div className="flex flex-col gap-2 bg-zinc-900/30 p-2 rounded border border-zinc-800/50">
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Horizontal</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Horizontal</span>
+                <ResetButton property="stretchX" />
+              </div>
               <button 
                 onClick={() => onUpdateWord(selectedWord.id, { stretchX: !selectedWord.stretchX })}
                 className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.stretchX ? 'bg-purple-600' : 'bg-zinc-700'}`}
@@ -71,7 +94,10 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
               </button>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Vertical</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-500 font-mono uppercase">Stretch Vertical</span>
+                <ResetButton property="stretchY" />
+              </div>
               <button 
                 onClick={() => onUpdateWord(selectedWord.id, { stretchY: !selectedWord.stretchY })}
                 className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.stretchY ? 'bg-purple-600' : 'bg-zinc-700'}`}
@@ -82,7 +108,10 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Family</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Family</label>
+              <ResetButton property="fontFamily" />
+            </div>
             <select
               value={selectedWord.fontFamily || settings?.primaryFont || 'Inter, sans-serif'}
               onChange={(e) => onUpdateWord(selectedWord.id, { fontFamily: e.target.value })}
@@ -98,7 +127,10 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Weight</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Weight</label>
+              <ResetButton property="fontWeight" />
+            </div>
             <select
               value={selectedWord.fontWeight || settings?.fontWeight || '900'}
               onChange={(e) => onUpdateWord(selectedWord.id, { fontWeight: e.target.value })}
@@ -113,7 +145,10 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label className="text-[9px] text-zinc-500 font-mono uppercase">Text Case</label>
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] text-zinc-500 font-mono uppercase">Text Case</label>
+              <ResetButton property="textCase" />
+            </div>
             <select
               value={selectedWord.textCase || (settings?.textCase !== 'random' ? settings?.textCase : undefined) || 'original'}
               onChange={(e) => onUpdateWord(selectedWord.id, { textCase: e.target.value as any })}
@@ -125,15 +160,33 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ clipId, wo
             </select>
           </div>
 
-          <ProSlider 
-            label="Font Size" 
-            value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%
-            onChange={(v) => onUpdateWord(selectedWord.id, { fontSize: v / 100 })}
-            min={1} 
-            max={100} 
-            step={1} 
-            unit="%" 
-          />
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[9px] text-zinc-500 font-mono uppercase">Font Size</label>
+              <ResetButton property="fontSize" />
+            </div>
+            <ProSlider 
+              value={selectedWord.fontSize * 100} // Convert 0-1 to 0-100%
+              onChange={(v) => onUpdateWord(selectedWord.id, { fontSize: v / 100 })}
+              min={1} 
+              max={100} 
+              step={1} 
+              unit="%" 
+            />
+          </div>
+
+          {onResetWord && (
+            <button
+              onClick={() => {
+                onResetWord(selectedWord.id);
+                onSelectWord(null);
+              }}
+              className="mt-2 w-full py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 rounded text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+            >
+              <RotateCcw size={12} />
+              Reset Entire Word
+            </button>
+          )}
         </div>
       )}
     </div>

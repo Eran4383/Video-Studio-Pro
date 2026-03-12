@@ -131,6 +131,16 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
         </div>
       </div>
 
+      {hasOverrides && (
+        <button
+          onClick={handleResetAll}
+          className="flex items-center justify-center gap-2 mb-2 p-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-wide hover:bg-red-500/20 transition-all w-full animate-in fade-in slide-in-from-top-1"
+        >
+          <RotateCcw size={12} />
+          Reset All Custom Words
+        </button>
+      )}
+
       {hasKinetic && settings && (
         <div className="flex flex-col gap-3 animate-in slide-in-from-top-2 duration-200">
            
@@ -176,15 +186,6 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
              )}
            </div>
 
-           {hasOverrides && (
-             <button
-               onClick={handleResetAll}
-               className="flex items-center justify-center gap-2 mt-2 p-2 rounded-md border border-red-500/30 bg-red-500/10 text-red-400 text-[10px] font-bold uppercase tracking-wide hover:bg-red-500/20 transition-all w-full"
-             >
-               <RotateCcw size={12} />
-               Reset All Custom Words
-             </button>
-           )}
         </div>
       )}
     </div>
