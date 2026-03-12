@@ -68,7 +68,7 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
     const topY = yPos - (fontSizePx * 0.8);
     
     kineticWords.push({
-      id: `word-${index}-${Date.now()}`,
+      id: `${clip.id}-word-${index}`,
       text: word,
       startTime: index * durationPerWord, // Relative to clip start
       endTime: (index + 1) * durationPerWord, // Relative to clip start

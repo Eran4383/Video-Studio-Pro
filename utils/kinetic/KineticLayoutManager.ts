@@ -54,7 +54,7 @@ const getWordTextCase = (settings: KineticSettings): 'uppercase' | 'lowercase' |
   return settings.textCase || 'original';
 };
 
-export const generateKineticLayout = (content: string, duration: number, settings: KineticSettings, fallbackFont: string, screenAR: number): KineticWord[] => {
+export const generateKineticLayout = (clipId: string, content: string, duration: number, settings: KineticSettings, fallbackFont: string, screenAR: number): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
   
@@ -100,11 +100,11 @@ export const generateKineticLayout = (content: string, duration: number, setting
     // 3. Construct KineticWords
   const currentSceneEndTime = duration;
   const kineticWords: KineticWord[] = geometricWords.map((gw, index) => ({
-    id: `kw-${index}-${Date.now()}`,
+    id: `${clipId}-word-${index}`,
     text: gw.text,
     startTime: index * wordDuration, // Relative time 0-based
     endTime: (index + 1) * wordDuration,
-    sourceClipId: '', // Will be set in block layout
+    sourceClipId: clipId, // Will be set in block layout
     position: { x: gw.x / 100, y: gw.y / 100 }, // Normalize 0-100 to 0-1
     fontSize: gw.fontSize / 100, // Normalize 0-100 to 0-1
     width: gw.width / 100, // Normalize 0-100 to 0-1
@@ -131,7 +131,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
 
   if (clips.length === 0) return [];
 
-  const allWords: { text: string, startTime: number, endTime: number, clipId: string }[] = [];
+  const allWords: { text: string, startTime: number, endTime: number, clipId: string, wordIndexInClip: number }[] = [];
   clips.forEach(clip => {
     const words = (clip.content || '').split(/\s+/).filter(w => w.length > 0);
     const wordDuration = clip.duration / words.length;
@@ -140,7 +140,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
         text,
         startTime: clip.startTime + (i * wordDuration),
         endTime: clip.startTime + ((i + 1) * wordDuration),
-        clipId: clip.id
+        clipId: clip.id,
+        wordIndexInClip: i
       });
     });
   });
@@ -244,7 +245,7 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     // Assign colors
     const currentSceneEndTime = chunk[chunk.length - 1].endTime;
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
-      id: `kw-${Date.now()}-${globalWordIndex + j}`,
+      id: `${chunk[j].clipId}-word-${chunk[j].wordIndexInClip}`,
       text: gw.text,
       startTime: chunk[j].startTime,
       endTime: chunk[j].endTime,
