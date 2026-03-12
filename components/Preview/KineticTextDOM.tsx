@@ -75,6 +75,16 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
       style={containerStyle} 
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >
+      {/* Magnetic Snapping Guides */}
+      <div 
+        id="kinetic-guide-x" 
+        className="absolute left-1/2 top-0 bottom-0 w-[1px] bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)] z-[100] pointer-events-none opacity-0 transition-opacity duration-150"
+      />
+      <div 
+        id="kinetic-guide-y" 
+        className="absolute top-1/2 left-0 right-0 h-[1px] bg-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.8)] z-[100] pointer-events-none opacity-0 transition-opacity duration-150"
+      />
+
       {words.map((baseWord) => {
         // Merge with overrides
         const word = { ...baseWord, ...(block.wordOverrides?.[baseWord.id] || {}) };

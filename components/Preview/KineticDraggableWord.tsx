@@ -56,8 +56,38 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
       const deltaX = (e.clientX - startMouse.current.x) / rect.width;
       const deltaY = (e.clientY - startMouse.current.y) / rect.height;
       
-      const newX = startPos.current.x + deltaX;
-      const newY = startPos.current.y + deltaY;
+      let newX = startPos.current.x + deltaX;
+      let newY = startPos.current.y + deltaY;
+
+      // Magnetic Snapping Logic
+      const isSnappingActive = store.isMagnetEnabled && !e.ctrlKey;
+      const threshold = 0.03;
+      const guideX = document.getElementById('kinetic-guide-x');
+      const guideY = document.getElementById('kinetic-guide-y');
+
+      // Snap X
+      let snappedX = false;
+      if (isSnappingActive) {
+        if (Math.abs(newX - 0.5) < threshold) { newX = 0.5; snappedX = true; }
+        else if (Math.abs(newX - 0.05) < threshold) { newX = 0.05; }
+        else if (Math.abs(newX - 0.95) < threshold) { newX = 0.95; }
+        else if (Math.abs(newX - 0) < threshold) { newX = 0; }
+        else if (Math.abs(newX - 1) < threshold) { newX = 1; }
+      }
+
+      // Snap Y
+      let snappedY = false;
+      if (isSnappingActive) {
+        if (Math.abs(newY - 0.5) < threshold) { newY = 0.5; snappedY = true; }
+        else if (Math.abs(newY - 0.05) < threshold) { newY = 0.05; }
+        else if (Math.abs(newY - 0.95) < threshold) { newY = 0.95; }
+        else if (Math.abs(newY - 0) < threshold) { newY = 0; }
+        else if (Math.abs(newY - 1) < threshold) { newY = 1; }
+      }
+
+      // Update Guides Visibility
+      if (guideX) guideX.style.opacity = (isSnappingActive && snappedX) ? '1' : '0';
+      if (guideY) guideY.style.opacity = (isSnappingActive && snappedY) ? '1' : '0';
       
       if (!word.stretchX) spanRef.current.style.left = `${newX * 100}%`;
       if (!word.stretchY) spanRef.current.style.top = `${newY * 100}%`;
@@ -66,6 +96,12 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     const handleMouseUp = (e: MouseEvent) => {
       if (!isDragging.current || !spanRef.current) return;
       isDragging.current = false;
+
+      // Hide Guides
+      const guideX = document.getElementById('kinetic-guide-x');
+      const guideY = document.getElementById('kinetic-guide-y');
+      if (guideX) guideX.style.opacity = '0';
+      if (guideY) guideY.style.opacity = '0';
       
       const parent = spanRef.current.parentElement;
       if (!parent) return;
@@ -74,8 +110,25 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
       const deltaX = (e.clientX - startMouse.current.x) / rect.width;
       const deltaY = (e.clientY - startMouse.current.y) / rect.height;
       
-      const newX = startPos.current.x + deltaX;
-      const newY = startPos.current.y + deltaY;
+      let newX = startPos.current.x + deltaX;
+      let newY = startPos.current.y + deltaY;
+
+      // Apply snapping to final state too
+      const isSnappingActive = store.isMagnetEnabled && !e.ctrlKey;
+      const threshold = 0.03;
+      if (isSnappingActive) {
+        if (Math.abs(newX - 0.5) < threshold) newX = 0.5;
+        else if (Math.abs(newX - 0.05) < threshold) newX = 0.05;
+        else if (Math.abs(newX - 0.95) < threshold) newX = 0.95;
+        else if (Math.abs(newX - 0) < threshold) newX = 0;
+        else if (Math.abs(newX - 1) < threshold) newX = 1;
+
+        if (Math.abs(newY - 0.5) < threshold) newY = 0.5;
+        else if (Math.abs(newY - 0.05) < threshold) newY = 0.05;
+        else if (Math.abs(newY - 0.95) < threshold) newY = 0.95;
+        else if (Math.abs(newY - 0) < threshold) newY = 0;
+        else if (Math.abs(newY - 1) < threshold) newY = 1;
+      }
       
       store.updateWordOverride(blockId, word.id, { position: { x: newX, y: newY } });
     };

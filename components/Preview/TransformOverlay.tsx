@@ -4,7 +4,7 @@ import { Clip } from '../../types';
 interface TransformOverlayProps {
   clip: Clip;
   containerRef: React.RefObject<HTMLDivElement>;
-  onUpdate: (position: { x: number, y: number }, scale: number, rotation: number, scaleX?: number, scaleY?: number) => void;
+  onUpdate: (position: { x: number, y: number }, scale: number, rotation: number, scaleX?: number, scaleY?: number, event?: MouseEvent) => void;
   onFinalize: () => void;
   isVideo?: boolean;
   mediaDimensions?: { width: number, height: number };
@@ -129,13 +129,13 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
       if (dragMode === 'MOVE') {
         const newX = Math.max(0, Math.min(1, startRef.current.clipX + (deltaX / containerRect.width)));
         const newY = Math.max(0, Math.min(1, startRef.current.clipY + (deltaY / containerRect.height)));
-        onUpdate({ x: newX, y: newY }, startRef.current.clipScale, startRef.current.clipRotation, startRef.current.clipScaleX, startRef.current.clipScaleY);
+        onUpdate({ x: newX, y: newY }, startRef.current.clipScale, startRef.current.clipRotation, startRef.current.clipScaleX, startRef.current.clipScaleY, e);
       } else if (dragMode === 'ROTATE') {
         const centerX = containerRect.left + (startRef.current.clipX * containerRect.width);
         const centerY = containerRect.top + (startRef.current.clipY * containerRect.height);
         const angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * (180 / Math.PI);
         const newRotation = (angle + 90) % 360;
-        onUpdate({ x: startRef.current.clipX, y: startRef.current.clipY }, startRef.current.clipScale, newRotation, startRef.current.clipScaleX, startRef.current.clipScaleY);
+        onUpdate({ x: startRef.current.clipX, y: startRef.current.clipY }, startRef.current.clipScale, newRotation, startRef.current.clipScaleX, startRef.current.clipScaleY, e);
       } else {
         // Resizing logic
         // Rotate delta back to local space
@@ -170,7 +170,8 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
             Math.max(newScaleX, newScaleY), // Update master scale to max of both
             startRef.current.clipRotation,
             newScaleX,
-            newScaleY
+            newScaleY,
+            e
         );
       }
     };

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan, Magnet } from 'lucide-react';
 import { Project, Asset } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
 import { GFX_Engine } from '../../services/GFX_Engine';
@@ -21,7 +21,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const { 
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
-    selectedClipIds, selectClip, setProject, finalizeMove, applyToAll 
+    selectedClipIds, selectClip, setProject, finalizeMove, applyToAll,
+    isMagnetEnabled, setIsMagnetEnabled
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -753,6 +754,17 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
                  className={`p-2 rounded-lg transition-all ${showTransform ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
                >
                  <Scan size={16} />
+               </button>
+             </Tooltip>
+           </div>
+
+           <div className="pointer-events-auto">
+             <Tooltip text="Magnetic Snapping" position="right">
+               <button 
+                 onClick={() => setIsMagnetEnabled(!isMagnetEnabled)} 
+                 className={`p-2 rounded-lg transition-all ${isMagnetEnabled ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
+               >
+                 <Magnet size={16} />
                </button>
              </Tooltip>
            </div>

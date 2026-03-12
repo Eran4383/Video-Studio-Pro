@@ -208,12 +208,26 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
                 containerRef={containerRef}
                 isVideo={isVideo}
                 mediaDimensions={mediaDimensions}
-                onUpdate={(pos, scale, rot, scaleX, scaleY) => {
+                onUpdate={(pos, scale, rot, scaleX, scaleY, e) => {
                   let newPos = { ...pos };
+                  const isSnappingActive = store.isMagnetEnabled && !e?.ctrlKey;
                   const snapThreshold = 0.02;
                   const guides = { x: false, y: false };
-                  if (Math.abs(newPos.x - 0.5) < snapThreshold) { newPos.x = 0.5; guides.x = true; }
-                  if (Math.abs(newPos.y - 0.5) < snapThreshold) { newPos.y = 0.5; guides.y = true; }
+                  
+                  if (isSnappingActive) {
+                    if (Math.abs(newPos.x - 0.5) < snapThreshold) { newPos.x = 0.5; guides.x = true; }
+                    else if (Math.abs(newPos.x - 0.05) < snapThreshold) { newPos.x = 0.05; }
+                    else if (Math.abs(newPos.x - 0.95) < snapThreshold) { newPos.x = 0.95; }
+                    else if (Math.abs(newPos.x - 0) < snapThreshold) { newPos.x = 0; }
+                    else if (Math.abs(newPos.x - 1) < snapThreshold) { newPos.x = 1; }
+
+                    if (Math.abs(newPos.y - 0.5) < snapThreshold) { newPos.y = 0.5; guides.y = true; }
+                    else if (Math.abs(newPos.y - 0.05) < snapThreshold) { newPos.y = 0.05; }
+                    else if (Math.abs(newPos.y - 0.95) < snapThreshold) { newPos.y = 0.95; }
+                    else if (Math.abs(newPos.y - 0) < snapThreshold) { newPos.y = 0; }
+                    else if (Math.abs(newPos.y - 1) < snapThreshold) { newPos.y = 1; }
+                  }
+                  
                   setSnapGuides(guides);
                   if (updateClip) {
                     updateClip(selectedClip.id, { 
