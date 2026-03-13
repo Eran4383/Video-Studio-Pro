@@ -192,8 +192,6 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     <span
       ref={spanRef}
       onMouseDown={handleMouseDown}
-      onMouseUp={(e) => e.stopPropagation()}
-      onClick={(e) => e.stopPropagation()}
       className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${(isSelected && showTransformControls) ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
       style={{
         left: isStretchX ? 0 : `${word.position.x * 100}%`,
