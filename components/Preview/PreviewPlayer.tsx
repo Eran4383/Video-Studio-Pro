@@ -558,7 +558,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
-        onClick={() => store.setSelectedKineticWordId(null)}
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            store.setSelectedKineticWordId(null);
+          }
+        }}
       >
         <div 
           ref={containerRef}

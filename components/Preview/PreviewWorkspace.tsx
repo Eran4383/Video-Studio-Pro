@@ -83,7 +83,11 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
       onMouseUp={handleCanvasMouseUp}
       onMouseLeave={handleCanvasMouseUp}
       onDoubleClick={toggleFullscreen}
-      onClick={() => store.setSelectedKineticWordId(null)}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) {
+          store.setSelectedKineticWordId(null);
+        }
+      }}
     >
       <div 
         ref={containerRef}
