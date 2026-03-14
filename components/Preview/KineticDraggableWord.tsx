@@ -41,6 +41,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (e.button !== 0) return;
     onSelect(word.id);
     isDragging.current = true;
     startMouse.current = { x: e.clientX, y: e.clientY };

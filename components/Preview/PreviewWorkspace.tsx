@@ -77,7 +77,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
   return (
     <div 
       ref={playerContainerRef}
-      className={`relative flex-1 flex items-center justify-center bg-[#1a1a1a] overflow-hidden cursor-crosshair ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-8'}`}
+      className={`relative flex-1 flex items-center justify-center bg-[#1a1a1a] overflow-hidden cursor-default ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-8'}`}
       onWheel={handleWheel}
       onMouseMove={handleCanvasMouseMove}
       onMouseUp={handleCanvasMouseUp}

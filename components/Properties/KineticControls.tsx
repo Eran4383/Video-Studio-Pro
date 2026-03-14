@@ -131,6 +131,26 @@ export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, 
         </div>
       </div>
 
+      {hasKinetic && (
+        <button
+          onClick={() => {
+            const randomSettings = {
+              fonts: ['Inter, sans-serif', 'Playfair Display, serif', 'JetBrains Mono, monospace', 'Space Grotesk, sans-serif', 'Outfit, sans-serif'],
+              fontMultiSelect: true,
+              animationStyle: ['pop', 'slide-up', 'scale', 'fade'],
+              animationMultiSelect: true,
+              customColors: ['#ffffff', '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'],
+              randomMode: true,
+              textCase: 'random' as any
+            };
+            updateData(selectedClip.id, { settings: { ...settings, ...randomSettings } });
+          }}
+          className="flex items-center justify-center gap-2 mb-2 p-2 rounded-md border border-indigo-500/30 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase tracking-wide hover:bg-indigo-500/20 transition-all w-full"
+        >
+          🎲 Randomize & Select All
+        </button>
+      )}
+
       {hasOverrides && (
         <button
           onClick={handleResetAll}

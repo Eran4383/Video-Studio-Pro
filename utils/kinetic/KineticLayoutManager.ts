@@ -121,6 +121,24 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
   // 4. Assign Colors
   assignColors(kineticWords, settings.paletteId, settings.randomMode, settings.customColors);
 
+  // Post-processing: Clamp word width to 95% of screen width and keep within bounds
+  kineticWords.forEach(word => {
+    if (word.width > 0.95) {
+      const scaleFactor = 0.95 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.95;
+    }
+
+    const halfW = word.width / 2;
+    const halfH = (word.fontSize || 0.1) / 2;
+
+    if (word.position.x - halfW < 0.05) word.position.x = halfW + 0.05;
+    if (word.position.x + halfW > 0.95) word.position.x = 0.95 - halfW;
+
+    if (word.position.y - halfH < 0.05) word.position.y = halfH + 0.05;
+    if (word.position.y + halfH > 0.95) word.position.y = 0.95 - halfH;
+  });
+
   return kineticWords;
 };
 
@@ -269,6 +287,24 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     globalWordIndex += chunk.length;
     chunkIndex++;
   }
+
+  // Post-processing: Clamp word width to 95% of screen width and keep within bounds
+  kineticWords.forEach(word => {
+    if (word.width > 0.95) {
+      const scaleFactor = 0.95 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.95;
+    }
+
+    const halfW = word.width / 2;
+    const halfH = (word.fontSize || 0.1) / 2;
+
+    if (word.position.x - halfW < 0.05) word.position.x = halfW + 0.05;
+    if (word.position.x + halfW > 0.95) word.position.x = 0.95 - halfW;
+
+    if (word.position.y - halfH < 0.05) word.position.y = halfH + 0.05;
+    if (word.position.y + halfH > 0.95) word.position.y = 0.95 - halfH;
+  });
 
   return kineticWords;
 };
