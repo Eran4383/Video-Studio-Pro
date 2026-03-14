@@ -99,6 +99,11 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
   // --- GFX Interaction Handlers ---
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1) {
+      handleMouseDown(e);
+      return;
+    }
+
     if (!gfxCanvasRef.current || !selectedClip) {
       handleMouseDown(e); 
       return;
@@ -225,6 +230,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const activeSub = activeSubs[0]; // For the editor panel
 
   const handleSubMouseDown = (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => {
+    if (e.button === 1) return;
     e.stopPropagation();
     setIsDraggingSub(true);
     setEditingSubId(subId);
@@ -555,6 +561,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       <div 
         className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-default relative bg-[#18181b]"
         onWheel={handleWheel}
+        onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
         onMouseLeave={handleCanvasMouseUp}
@@ -605,7 +612,6 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
             ref={gfxCanvasRef} 
             width={project.resolution?.width || 1920} 
             height={project.resolution?.height || 1080} 
-            onMouseDown={handleCanvasMouseDown}
             className={`absolute inset-0 w-full h-full z-10 ${isInteractingGFX ? 'cursor-grabbing' : isPanning ? 'cursor-move' : 'cursor-default'}`} 
             style={{ imageRendering: 'auto' }}
           />

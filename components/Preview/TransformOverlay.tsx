@@ -89,6 +89,7 @@ export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, contai
   }, [clip.content, clip.font, containerRef.current?.clientHeight, isVideo, mediaDimensions?.width, mediaDimensions?.height]);
 
   const handleMouseDown = (e: React.MouseEvent, mode: string) => {
+    if (e.button === 1) return;
     e.stopPropagation();
     e.preventDefault();
     if (!containerRef.current) return;

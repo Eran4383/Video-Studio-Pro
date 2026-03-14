@@ -72,6 +72,11 @@ export const usePreviewInteractions = ({
   };
 
   const handleCanvasMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1) {
+      handleMouseDown(e);
+      return;
+    }
+
     if (!gfxCanvasRef.current || !selectedClip) {
       handleMouseDown(e); 
       return;
@@ -148,6 +153,7 @@ export const usePreviewInteractions = ({
   };
 
   const handleSubMouseDown = (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => {
+    if (e.button === 1) return;
     e.stopPropagation();
     setIsDraggingSub(true);
     setEditingSubId(subId);

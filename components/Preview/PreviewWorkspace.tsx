@@ -79,6 +79,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
       ref={playerContainerRef}
       className={`relative flex-1 flex items-center justify-center bg-[#1a1a1a] overflow-hidden cursor-default ${isFullscreen ? 'p-0 w-screen h-screen' : 'p-8'}`}
       onWheel={handleWheel}
+      onMouseDown={handleCanvasMouseDown}
       onMouseMove={handleCanvasMouseMove}
       onMouseUp={handleCanvasMouseUp}
       onMouseLeave={handleCanvasMouseUp}
@@ -125,7 +126,6 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
           ref={gfxCanvasRef} 
           width={project.resolution?.width || 1920} 
           height={project.resolution?.height || 1080} 
-          onMouseDown={handleCanvasMouseDown}
           className={`absolute inset-0 w-full h-full z-10 ${isInteractingGFX ? 'cursor-grabbing' : isPanning ? 'cursor-move' : 'cursor-default'}`} 
           style={{ imageRendering: 'auto' }}
         />

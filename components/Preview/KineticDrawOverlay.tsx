@@ -17,6 +17,7 @@ export const KineticDrawOverlay: React.FC<{ store: any }> = ({ store }) => {
   if (!kineticDrawMode || !targetId) return null;
 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.button === 1) return;
     e.stopPropagation();
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
