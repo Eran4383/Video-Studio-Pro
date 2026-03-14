@@ -47,6 +47,9 @@ export const useClipActions = (
 
   const resizeClip = useCallback((clipId: string, newStartTime: number, newDuration: number, newOffset: number) => {
     setProject(prev => {
+      const oldClip = prev.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
+      if (!oldClip) return prev;
+
       const nextTracks = prev.tracks.map(track => ({
         ...track,
         clips: track.clips.map(clip => clip.id === clipId ? { ...clip, startTime: newStartTime, duration: newDuration, offset: newOffset } : clip)
@@ -54,11 +57,24 @@ export const useClipActions = (
 
       let nextKineticBlocks = prev.kineticBlocks;
       if (prev.kineticBlocks) {
-        const allNextClips = nextTracks.flatMap(t => t.clips);
-        const screenAR = prev.resolution.width / prev.resolution.height;
         nextKineticBlocks = prev.kineticBlocks.map(block => {
           if (block.clipIds.includes(clipId)) {
-            return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
+            const updatedWords = block.words.map(word => {
+              if (word.sourceClipId === clipId) {
+                const relStart = (word.startTime - oldClip.startTime) / oldClip.duration;
+                const relEnd = (word.endTime - oldClip.startTime) / oldClip.duration;
+                const relSceneEnd = (word.sceneEndTime - oldClip.startTime) / oldClip.duration;
+                
+                return {
+                  ...word,
+                  startTime: newStartTime + relStart * newDuration,
+                  endTime: newStartTime + relEnd * newDuration,
+                  sceneEndTime: newStartTime + relSceneEnd * newDuration
+                };
+              }
+              return word;
+            });
+            return { ...block, words: updatedWords };
           }
           return block;
         });
@@ -109,16 +125,45 @@ export const useClipActions = (
         })
       }));
 
-      const needsKineticRefresh = updates.content !== undefined || updates.duration !== undefined || updates.startTime !== undefined;
+      const contentChanged = updates.content !== undefined;
+      const timeChanged = updates.duration !== undefined || updates.startTime !== undefined;
+      
       let nextKineticBlocks = prev.kineticBlocks;
 
-      if (needsKineticRefresh && prev.kineticBlocks) {
+      if ((contentChanged || timeChanged) && prev.kineticBlocks) {
         const allNextClips = nextTracks.flatMap(t => t.clips);
         const screenAR = prev.resolution.width / prev.resolution.height;
+        
         nextKineticBlocks = prev.kineticBlocks.map(block => {
           const isAffected = block.clipIds.includes(clipId) || (applyToAll && block.clipIds.some(id => selectedClipIds.includes(id)));
+          
           if (isAffected) {
-            return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
+            if (contentChanged) {
+               return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
+            } else if (timeChanged) {
+               const updatedWords = block.words.map(word => {
+                 const targetClipId = word.sourceClipId;
+                 if (targetClipId === clipId || (applyToAll && selectedClipIds.includes(targetClipId))) {
+                    const oldClip = prev.tracks.flatMap(t => t.clips).find(c => c.id === targetClipId);
+                    const newClip = allNextClips.find(c => c.id === targetClipId);
+                    
+                    if (oldClip && newClip) {
+                      const relStart = (word.startTime - oldClip.startTime) / oldClip.duration;
+                      const relEnd = (word.endTime - oldClip.startTime) / oldClip.duration;
+                      const relSceneEnd = (word.sceneEndTime - oldClip.startTime) / oldClip.duration;
+                      
+                      return {
+                        ...word,
+                        startTime: newClip.startTime + relStart * newClip.duration,
+                        endTime: newClip.startTime + relEnd * newClip.duration,
+                        sceneEndTime: newClip.startTime + relSceneEnd * newClip.duration
+                      };
+                    }
+                 }
+                 return word;
+               });
+               return { ...block, words: updatedWords };
+            }
           }
           return block;
         });

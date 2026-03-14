@@ -40,6 +40,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   const startMouse = useRef({ x: 0, y: 0 });
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 1) return; // Allow middle click to propagate for panning
     e.stopPropagation();
     if (e.button !== 0) return;
     onSelect(word.id);
