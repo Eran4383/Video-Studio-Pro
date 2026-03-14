@@ -242,6 +242,9 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       case 'karaoke':
         geometricWords = generateKaraoke(processedWords, block.settings, screenAR);
         break;
+      case 'tetris':
+        geometricWords = generateTetrisLayout(processedWords, block.settings, false, screenAR);
+        break;
       case 'dynamic-collage':
       default:
         geometricWords = generateDynamicCollage(processedWords, block.settings, false, screenAR);
@@ -265,8 +268,10 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       textCase: processedWords[j].textCase,
       animation: getWordAnimation(block.settings.animationStyle, globalWordIndex + j),
       isCentered: gw.isCentered,
+      anchor: gw.anchor,
       layoutStyle: layoutStyle,
-      sceneEndTime: currentSceneEndTime
+      sceneEndTime: currentSceneEndTime,
+      rotation: gw.rotation
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
