@@ -35,6 +35,16 @@ export interface KineticWord {
   isCentered?: boolean;
   layoutStyle?: KineticLayoutStyle;
   sceneEndTime: number;
+  // Advanced styling
+  strokeWidth?: number;
+  strokeColor?: string;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  rotation?: number;
 }
 
 export interface KineticSettings {
@@ -70,6 +80,17 @@ export interface KineticSettings {
   textCase?: 'uppercase' | 'lowercase' | 'original' | 'random';
   lineHeight?: number; // default 1
   
+  // Advanced styling
+  strokeWidth?: number;
+  strokeColor?: string;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  rotation?: number;
+
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
 }

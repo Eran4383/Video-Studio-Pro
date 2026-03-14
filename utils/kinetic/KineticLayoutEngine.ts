@@ -1,11 +1,24 @@
 import { Clip } from '../../types';
 import { KineticWord, KineticBlock } from '../../types/kinetic';
-import { measureText } from './kineticTextMeasure';
+import { calculateVisualBounds } from './visualBoundsCalculator';
 
 export const generateKineticLayout = (clip: Clip, preset: { colors: string[], animation: string }): KineticWord[] => {
   if (!clip.content || !clip.kineticData?.settings?.boundingBox) return [];
 
-  const { boundingBox, primaryFont, direction } = clip.kineticData.settings;
+  const { 
+    boundingBox, 
+    primaryFont, 
+    direction,
+    fontWeight,
+    textCase,
+    strokeWidth,
+    shadowBlur,
+    shadowOffsetX,
+    shadowOffsetY,
+    backgroundPadding,
+    rotation
+  } = clip.kineticData.settings;
+  
   const words = clip.content.split(/\s+/).filter(w => w.length > 0);
   if (words.length === 0) return [];
 
@@ -37,7 +50,21 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
   const kineticWords: KineticWord[] = [];
 
   words.forEach((word, index) => {
-    const { width } = measureText(word, primaryFont || 'Inter, sans-serif', fontSizePx);
+    const visualBounds = calculateVisualBounds({
+      text: word,
+      fontFamily: primaryFont || 'Inter, sans-serif',
+      fontSize: fontSizePx,
+      fontWeight: fontWeight,
+      textCase: textCase as any,
+      strokeWidth: strokeWidth,
+      shadowBlur: shadowBlur,
+      shadowOffsetX: shadowOffsetX,
+      shadowOffsetY: shadowOffsetY,
+      backgroundPadding: backgroundPadding,
+      rotation: rotation
+    });
+    
+    const { width, offsetX, offsetY } = visualBounds;
     
     let xPos = 0;
     let yPos = currentY;
@@ -65,7 +92,10 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
     }
 
     // Convert back to percentage (0-1) relative to screen
-    const topY = yPos - (fontSizePx * 0.8);
+    // Adjust yPos by offsetY to ensure the visual bounds stay within the line
+    const topY = yPos - (fontSizePx * 0.8) + offsetY;
+    // Adjust xPos by offsetX to align the visual bounds correctly
+    const finalXPos = xPos + offsetX;
     
     kineticWords.push({
       id: `${clip.id}-word-${index}`,
@@ -76,12 +106,23 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
       fontSize: fontSizePx / CANVAS_HEIGHT, // Store as percentage of screen height
       color: preset.colors[index % preset.colors.length],
       fontFamily: primaryFont || 'Inter, sans-serif',
+      fontWeight: fontWeight,
+      textCase: textCase as any,
       animation: preset.animation as any,
       position: { 
-        x: xPos / CANVAS_WIDTH, 
+        x: finalXPos / CANVAS_WIDTH, 
         y: topY / CANVAS_HEIGHT 
       },
-      sceneEndTime: clip.duration
+      sceneEndTime: clip.duration,
+      strokeWidth,
+      strokeColor,
+      shadowColor,
+      shadowBlur,
+      shadowOffsetX,
+      shadowOffsetY,
+      backgroundColor,
+      backgroundPadding,
+      rotation
     });
   });
 
