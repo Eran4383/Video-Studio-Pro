@@ -118,6 +118,7 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     textCase: processedWords[index].textCase,
     animation: getWordAnimation(settings.animationStyle, index),
     isCentered: gw.isCentered,
+    anchor: gw.anchor,
     layoutStyle: layoutStyle,
     sceneEndTime: currentSceneEndTime,
     rotation: gw.rotation

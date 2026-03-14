@@ -161,11 +161,12 @@ export const generateTetrisLayout = (
     
     geometricWords.push({
       text: verticalWord.text,
-      x: finalVX,
-      y: finalVY,
+      x: finalVX + (vBounds.width * vScale / 2) / boxAR, // Center X
+      y: finalVY + (vBounds.height * vScale / 2),        // Center Y
       fontSize: REF_FONT_SIZE * vScale,
       width: scaledVWidth,
-      isCentered: false,
+      isCentered: true,
+      anchor: { x: 0.5, y: 0.5 },
       rotation,
     });
 
