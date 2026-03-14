@@ -1,6 +1,6 @@
 import { Clip } from '../types';
 
-export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke';
+export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke' | 'tetris';
 export type KineticAnimationStyle = 'pop' | 'slide-up' | 'scale' | 'fade';
 
 export interface KineticBoundingBox {

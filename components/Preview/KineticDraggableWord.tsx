@@ -178,6 +178,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   const scale = word.scale ?? 1;
 
   let transformValue = `translate(-${anchorX * 100}%, -${anchorY * 100}%) scale(${scale})`;
+  if (word.rotation) transformValue += ` rotate(${word.rotation}deg)`;
   
   if (isStretchX && isStretchY) transformValue = `scale(${scale})`;
   else if (isStretchX) transformValue = `translateY(-${anchorY * 100}%) scale(${scale})`;
@@ -189,6 +190,18 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
     animation: 'none !important',
     pointerEvents: 'none'
   } : {};
+
+  // Advanced styling
+  const textShadows = [];
+  if (word.shadowColor || word.shadowBlur || word.shadowOffsetX || word.shadowOffsetY) {
+    textShadows.push(`${word.shadowOffsetX || 0}px ${word.shadowOffsetY || 0}px ${word.shadowBlur || 0}px ${word.shadowColor || 'rgba(0,0,0,0.5)'}`);
+  } else {
+    textShadows.push('2px 2px 0px rgba(0,0,0,0.5)'); // Default
+  }
+
+  const WebkitTextStroke = word.strokeWidth ? `${word.strokeWidth}px ${word.strokeColor || '#000'}` : undefined;
+  const backgroundColor = word.backgroundColor;
+  const padding = word.backgroundPadding ? `${word.backgroundPadding}px` : undefined;
 
   return (
     <span
@@ -207,6 +220,9 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
         opacity: opacityValue,
         transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
         zIndex: isActive ? 10 : 1,
+        backgroundColor,
+        padding,
+        borderRadius: backgroundColor ? '4px' : undefined,
         ...hardCutoffStyles
       }}
     >
@@ -222,7 +238,8 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
           fontWeight: word.fontWeight || settings.fontWeight || '900',
           textTransform: word.textCase === 'original' ? 'none' : (word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none'),
           textAlign: isStretchX ? 'center' : 'left',
-          textShadow: '2px 2px 0px rgba(0,0,0,0.5)',
+          textShadow: textShadows.join(', '),
+          WebkitTextStroke,
           transformOrigin: 'center center',
           animationDuration: `${animDuration}s`,
           width: isStretchX ? '100%' : undefined,
