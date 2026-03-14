@@ -16,7 +16,8 @@ const ALL_FONTS = ['Inter', 'Roboto', 'Montserrat', 'Oswald', 'Poppins', 'Playfa
 const LAYOUT_DESCRIPTIONS: Record<string, string> = {
   'dynamic-collage': "Packs words tightly into a unified, poster-like block.",
   'pop-in-place': "Words appear one by one scaled to maximum size in the center.",
-  'karaoke': "Displays words sequentially in standard rows."
+  'karaoke': "Displays words sequentially in standard rows.",
+  'tetris': "Interlocks words like puzzle pieces with vertical and horizontal alignments."
 };
 
 const ANIMATION_OPTIONS: { id: KineticAnimationStyle; label: string }[] = [
@@ -164,6 +165,7 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                   <option value="dynamic-collage">Dynamic Collage</option>
                   <option value="pop-in-place">Pop In Place</option>
                   <option value="karaoke">Karaoke</option>
+                  <option value="tetris">Tetris</option>
                 </select>
                 {(!settings.layoutMultiSelect && settings.layoutStyle === 'karaoke') && (
                   <div className="mt-2 flex flex-col gap-1.5">
