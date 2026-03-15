@@ -2,8 +2,14 @@ import { KineticSettings } from '../../../types/kinetic';
 import { ProcessedWord } from '../KineticLayoutManager';
 import { calculateVisualBounds } from '../visualBoundsCalculator';
 
-export const generateTetrisLayout = (words: ProcessedWord[], settings: KineticSettings, isRtl: boolean, screenAR: number): any[] => {
+export const generateTetrisLayout = (
+  words: ProcessedWord[],
+  settings: KineticSettings,
+  isRtl: boolean,
+  screenAR: number
+): any[] => {
   if (words.length === 0) return [];
+
   const { boundingBox } = settings;
   const boxAR = (boundingBox.width * screenAR) / boundingBox.height;
   const REF_FONT_SIZE = 100;
@@ -14,26 +20,53 @@ export const generateTetrisLayout = (words: ProcessedWord[], settings: KineticSe
   while (i < words.length) {
     let lineWords = [];
     let totalWidth = 0;
-    let maxH = 0;
     
-    // Try to form a horizontal line
-    while (i < words.length && totalWidth < 80) {
+    // Inner loop: Try to form a horizontal line
+    while (i < words.length) {
       const w = words[i];
-      const b = calculateVisualBounds({ ...w, fontSize: REF_FONT_SIZE });
+      const b = calculateVisualBounds({
+        text: w.text,
+        fontFamily: w.fontFamily,
+        fontSize: REF_FONT_SIZE,
+        fontWeight: w.fontWeight,
+        textCase: w.textCase,
+        strokeWidth: settings.strokeWidth,
+        shadowBlur: settings.shadowBlur,
+        shadowOffsetX: settings.shadowOffsetX,
+        shadowOffsetY: settings.shadowOffsetY,
+        backgroundPadding: settings.backgroundPadding,
+        rotation: 0,
+      });
       const wWidth = (b.width * (REF_FONT_SIZE / b.height)) / boxAR;
-      if (totalWidth + wWidth > 90) break;
+
+      // Progress Guarantee: Always add at least one word
+      if (lineWords.length > 0 && totalWidth + wWidth > 90) break;
+
       lineWords.push({ ...w, b, wWidth });
       totalWidth += wWidth + 5;
-      maxH = Math.max(maxH, REF_FONT_SIZE);
       i++;
     }
 
-    // 15% chance to make a word vertical
+    // 15% chance to make a word vertical (as a design accent)
     if (Math.random() < 0.15 && lineWords.length > 0) {
       const vIdx = Math.floor(Math.random() * lineWords.length);
       const vWord = lineWords.splice(vIdx, 1)[0];
       const rotation = Math.random() > 0.5 ? 90 : -90;
-      const vB = calculateVisualBounds({ ...vWord, fontSize: REF_FONT_SIZE, rotation });
+      
+      const vB = calculateVisualBounds({
+        text: vWord.text,
+        fontFamily: vWord.fontFamily,
+        fontSize: REF_FONT_SIZE,
+        fontWeight: vWord.fontWeight,
+        textCase: vWord.textCase,
+        strokeWidth: settings.strokeWidth,
+        shadowBlur: settings.shadowBlur,
+        shadowOffsetX: settings.shadowOffsetX,
+        shadowOffsetY: settings.shadowOffsetY,
+        backgroundPadding: settings.backgroundPadding,
+        rotation,
+      });
+      
       const vH = vB.height;
       const vW = vB.width / boxAR;
       
@@ -55,19 +88,23 @@ export const generateTetrisLayout = (words: ProcessedWord[], settings: KineticSe
       });
       currentY += Math.max(vH, hY - currentY) + 5;
     } else {
-      // Justify horizontal
-      const scale = 90 / totalWidth;
+      // Justify horizontal line
+      const scale = totalWidth > 0 ? Math.min(1, 90 / totalWidth) : 1;
       let curX = isRtl ? 100 : 0;
+      let maxH = 0;
       lineWords.forEach(lw => {
         const w = lw.wWidth * scale;
-        geometricWords.push({ text: lw.text, x: isRtl ? curX - w/2 : curX + w/2, y: currentY + maxH/2 * scale, fontSize: REF_FONT_SIZE * scale, width: w, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
+        const h = lw.b.height * scale;
+        geometricWords.push({ text: lw.text, x: isRtl ? curX - w/2 : curX + w/2, y: currentY + h/2, fontSize: REF_FONT_SIZE * scale, width: w, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
         curX += isRtl ? -(w + 5 * scale) : (w + 5 * scale);
+        maxH = Math.max(maxH, h);
       });
-      currentY += maxH * scale + 5;
+      currentY += maxH + 5;
     }
-    // Clamp
+    
+    // Strict Clamping: If exceeded, scale down everything
     if (currentY > 100) {
-      const s = 100 / currentY;
+      const s = currentY > 0 ? 100 / currentY : 1;
       geometricWords.forEach(gw => { gw.y *= s; gw.fontSize *= s; gw.width *= s; });
       currentY = 100;
     }
