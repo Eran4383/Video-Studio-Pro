@@ -9,105 +9,67 @@ export const generateTetrisLayout = (
   screenAR: number
 ): any[] => {
   if (words.length === 0) return [];
-
   const { boundingBox } = settings;
   const boxAR = (boundingBox.width * screenAR) / boundingBox.height;
   const REF_FONT_SIZE = 100;
+  const MARGIN = 0.02; // 2% relative margin
   const geometricWords: any[] = [];
-  let currentY = 0;
-  let i = 0;
+  
+  // 1. Group into Row-Blocks (1-3 words)
+  const rows: any[][] = [];
+  for (let i = 0; i < words.length; ) {
+    const size = Math.min(3, Math.floor(Math.random() * 3) + 1);
+    rows.push(words.slice(i, i + size));
+    i += size;
+  }
 
-  while (i < words.length) {
-    let lineWords = [];
-    let totalWidth = 0;
+  // 2-4. Process Row-Blocks
+  const processedRows = rows.map(row => {
+    const rowData = row.map(w => {
+      const b = calculateVisualBounds({ ...w, fontSize: REF_FONT_SIZE, rotation: 0 });
+      return { ...w, b, wWidth: (b.width * (REF_FONT_SIZE / b.height)) / boxAR, h: b.height };
+    });
     
-    // Inner loop: Try to form a horizontal line
-    while (i < words.length) {
-      const w = words[i];
-      const b = calculateVisualBounds({
-        text: w.text,
-        fontFamily: w.fontFamily,
-        fontSize: REF_FONT_SIZE,
-        fontWeight: w.fontWeight,
-        textCase: w.textCase,
-        strokeWidth: settings.strokeWidth,
-        shadowBlur: settings.shadowBlur,
-        shadowOffsetX: settings.shadowOffsetX,
-        shadowOffsetY: settings.shadowOffsetY,
-        backgroundPadding: settings.backgroundPadding,
-        rotation: 0,
-      });
-      const wWidth = (b.width * (REF_FONT_SIZE / b.height)) / boxAR;
-
-      // Progress Guarantee: Always add at least one word
-      if (lineWords.length > 0 && totalWidth + wWidth > 90) break;
-
-      lineWords.push({ ...w, b, wWidth });
-      totalWidth += wWidth + 5;
-      i++;
-    }
-
-    // 15% chance to make a word vertical (as a design accent)
-    if (Math.random() < 0.15 && lineWords.length > 0) {
-      const vIdx = Math.floor(Math.random() * lineWords.length);
-      const vWord = lineWords.splice(vIdx, 1)[0];
+    if (Math.random() < 0.15 && rowData.length > 1) {
+      const vIdx = Math.floor(Math.random() * rowData.length);
+      const vWord = rowData.splice(vIdx, 1)[0];
       const rotation = Math.random() > 0.5 ? 90 : -90;
-      
-      const vB = calculateVisualBounds({
-        text: vWord.text,
-        fontFamily: vWord.fontFamily,
-        fontSize: REF_FONT_SIZE,
-        fontWeight: vWord.fontWeight,
-        textCase: vWord.textCase,
-        strokeWidth: settings.strokeWidth,
-        shadowBlur: settings.shadowBlur,
-        shadowOffsetX: settings.shadowOffsetX,
-        shadowOffsetY: settings.shadowOffsetY,
-        backgroundPadding: settings.backgroundPadding,
-        rotation,
-      });
-      
+      const vB = calculateVisualBounds({ ...vWord, fontSize: REF_FONT_SIZE, rotation });
       const vH = vB.height;
       const vW = vB.width / boxAR;
-      
-      // Scale horizontal words to match vH
       const hScale = vH / REF_FONT_SIZE;
-      lineWords.forEach(lw => { lw.b.height *= hScale; lw.wWidth *= hScale; });
-      
-      const blockW = vW + 5 + Math.max(...lineWords.map(lw => lw.wWidth), 0);
-      const startX = isRtl ? 100 - blockW : 0;
-      
-      // Place Vertical
-      geometricWords.push({ text: vWord.text, x: startX + vW/2, y: currentY + vH/2, fontSize: REF_FONT_SIZE, width: vW, isCentered: true, anchor: {x:0.5, y:0.5}, rotation });
-      
-      // Place Horizontal
-      let hY = currentY;
-      lineWords.forEach(lw => {
-        geometricWords.push({ text: lw.text, x: startX + vW + 5 + lw.wWidth/2, y: hY + lw.b.height/2, fontSize: REF_FONT_SIZE * hScale, width: lw.wWidth, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
-        hY += lw.b.height + 2;
+      rowData.forEach(lw => { lw.b.height *= hScale; lw.wWidth *= hScale; });
+      const blockW = vW + MARGIN + Math.max(...rowData.map(lw => lw.wWidth), 0);
+      return { type: 'vertical', vWord, vB, vH, vW, hWords: rowData, rotation, scale: 1 / blockW, blockW };
+    }
+    const totalW = rowData.reduce((sum, lw) => sum + lw.wWidth, 0) + (rowData.length - 1) * MARGIN;
+    return { type: 'horizontal', words: rowData, scale: 1 / totalW, totalH: Math.max(...rowData.map(lw => lw.b.height)) };
+  });
+
+  // 5. Position and Scale
+  let totalH = processedRows.reduce((sum, row) => sum + (row.type === 'vertical' ? row.vH * row.scale : row.totalH * row.scale), 0);
+  const globalScale = totalH > 1 ? 1 / totalH : 1;
+  let y = totalH * globalScale < 1 ? (1 - totalH * globalScale) / 2 : 0;
+
+  processedRows.forEach(row => {
+    if (row.type === 'vertical') {
+      const startX = isRtl ? 1 - (row.blockW * row.scale * globalScale) : 0;
+      geometricWords.push({ ...row.vWord, x: startX + (row.vW * row.scale * globalScale)/2, y: y + (row.vH * row.scale * globalScale)/2, fontSize: REF_FONT_SIZE * row.scale * globalScale, width: row.vW * row.scale * globalScale, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: row.rotation });
+      let hY = y;
+      row.hWords.forEach((lw: any) => {
+        geometricWords.push({ ...lw, x: startX + (row.vW * row.scale * globalScale) + MARGIN + (lw.wWidth * row.scale * globalScale)/2, y: hY + (lw.b.height * row.scale * globalScale)/2, fontSize: REF_FONT_SIZE * row.scale * globalScale, width: lw.wWidth * row.scale * globalScale, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
+        hY += lw.b.height * row.scale * globalScale + MARGIN;
       });
-      currentY += Math.max(vH, hY - currentY) + 5;
+      y += row.vH * row.scale * globalScale + MARGIN;
     } else {
-      // Justify horizontal line
-      const scale = totalWidth > 0 ? Math.min(1, 90 / totalWidth) : 1;
-      let curX = isRtl ? 100 : 0;
-      let maxH = 0;
-      lineWords.forEach(lw => {
-        const w = lw.wWidth * scale;
-        const h = lw.b.height * scale;
-        geometricWords.push({ text: lw.text, x: isRtl ? curX - w/2 : curX + w/2, y: currentY + h/2, fontSize: REF_FONT_SIZE * scale, width: w, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
-        curX += isRtl ? -(w + 5 * scale) : (w + 5 * scale);
-        maxH = Math.max(maxH, h);
+      let curX = isRtl ? 1 : 0;
+      row.words.forEach((lw: any) => {
+        const w = lw.wWidth * row.scale * globalScale;
+        geometricWords.push({ ...lw, x: isRtl ? curX - w/2 : curX + w/2, y: y + (lw.b.height * row.scale * globalScale)/2, fontSize: REF_FONT_SIZE * row.scale * globalScale, width: w, isCentered: true, anchor: {x:0.5, y:0.5}, rotation: 0 });
+        curX += isRtl ? -(w + MARGIN) : (w + MARGIN);
       });
-      currentY += maxH + 5;
+      y += row.totalH * row.scale * globalScale + MARGIN;
     }
-    
-    // Strict Clamping: If exceeded, scale down everything
-    if (currentY > 100) {
-      const s = currentY > 0 ? 100 / currentY : 1;
-      geometricWords.forEach(gw => { gw.y *= s; gw.fontSize *= s; gw.width *= s; });
-      currentY = 100;
-    }
-  }
+  });
   return geometricWords;
 };
