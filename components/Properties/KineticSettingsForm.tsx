@@ -537,9 +537,19 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                       <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInPop ? 'left-4.5' : 'left-0.5'}`} />
                     </button>
                   </div>
+
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] text-zinc-500">In Tetris</span>
+                    <button 
+                      onClick={() => onChange({ keepPastInTetris: !settings.keepPastInTetris })}
+                      className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInTetris ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+                    >
+                      <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInTetris ? 'left-4.5' : 'left-0.5'}`} />
+                    </button>
+                  </div>
                 </div>
 
-                {(settings.keepPastInCollage || settings.keepPastInKaraoke || settings.keepPastInPop) && (
+                {(settings.keepPastInCollage || settings.keepPastInKaraoke || settings.keepPastInPop || settings.keepPastInTetris) && (
                   <div className="flex flex-col gap-4 pl-2 border-l border-zinc-800 ml-1">
                     <ProSlider
                       label="Past Words Opacity"

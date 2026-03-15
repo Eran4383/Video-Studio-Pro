@@ -69,6 +69,7 @@ export interface KineticSettings {
   keepPastInCollage?: boolean;
   keepPastInKaraoke?: boolean;
   keepPastInPop?: boolean;
+  keepPastInTetris?: boolean;
   karaokeMode?: 'single-line' | 'multi-line';
   karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
   animationMultiSelect?: boolean;
