@@ -1,8 +1,3 @@
-/**
- * TetrisLayout.ts
- * Kinetic typography layout engine using Tetris-style packing.
- */
-
 import { KineticSettings } from '../../../types/kinetic';
 import { ProcessedWord } from '../KineticLayoutManager';
 import { calculateVisualBounds } from '../visualBoundsCalculator';
@@ -12,6 +7,8 @@ import { analyzeLayoutIntent, detectGravity } from './KineticHeuristics';
 interface TetrisWord extends ProcessedWord {
   wWidth: number;
   h: number;
+  originalWidth: number;
+  originalHeight: number;
   rotation: number;
 }
 
@@ -32,10 +29,18 @@ export const generateTetrisLayout = (
   const intent = analyzeLayoutIntent(words.map(w => w.text));
   const gravity = detectGravity(words.map(w => w.text).join(' '));
 
-  // 1. Measure
+  // 1. Measure strictly with original bounds stored
   const measuredWords: TetrisWord[] = words.map(w => {
     const b = calculateVisualBounds({ ...w, fontSize: 100, rotation: 0 });
-    return { ...w, wWidth: b.width * (100 / b.height), h: 100, rotation: 0 };
+    const origW = b.width * (100 / Math.max(b.height, 0.001));
+    return { 
+        ...w, 
+        wWidth: origW, 
+        h: 100, 
+        originalWidth: origW, 
+        originalHeight: 100, 
+        rotation: 0 
+    };
   });
 
   // 2. Pack into rows
@@ -46,13 +51,12 @@ export const generateTetrisLayout = (
     const rowWords = measuredWords.slice(i, i + groupSize);
     i += groupSize;
 
-    // Rotation logic
+    // Rotation logic - swap virtual bounds for the grid, but keep original bounds intact
     rowWords.forEach(w => {
       if (Math.random() < 0.15) {
         w.rotation = Math.random() < 0.5 ? 90 : 270;
-        const temp = w.wWidth;
-        w.wWidth = w.h;
-        w.h = temp;
+        w.wWidth = w.originalHeight;
+        w.h = w.originalWidth;
       }
     });
 
@@ -62,7 +66,7 @@ export const generateTetrisLayout = (
     rows.push({ words: rowWords, scale, maxHeight: Math.max(...rowWords.map(w => w.h)) });
   }
 
-  // 3. Position and Justify
+  // 3. Position and Justify (Using Center-Point math for robust rotation)
   const geometricWords: any[] = [];
   let currentY = 0;
   let maxRowWidth = 0;
@@ -71,19 +75,30 @@ export const generateTetrisLayout = (
     let currentX = gravity === 'left' ? 0 : boxWidth;
 
     row.words.forEach((w: TetrisWord) => {
-      const wWidth = w.wWidth * row.scale;
-      const wHeight = w.h * row.scale;
+      const cellWidth = w.wWidth * row.scale;
+      const cellHeight = w.h * row.scale;
+      
+      const cellX = gravity === 'left' ? currentX : currentX - cellWidth;
+      const cellY = currentY + (row.maxHeight * row.scale - cellHeight) / 2;
+
+      // Center of the layout cell
+      const cx = cellX + cellWidth / 2;
+      const cy = cellY + cellHeight / 2;
+
+      // Actual visual bounds of the word container (unrotated)
+      const actualWidth = w.originalWidth * row.scale;
+      const actualHeight = w.originalHeight * row.scale;
       
       geometricWords.push({
         ...w,
-        x: gravity === 'left' ? currentX : currentX - wWidth,
-        y: currentY + (row.maxHeight * row.scale - wHeight) / 2,
-        fontSize: row.scale, // Normalized
-        width: wWidth,
+        x: cx - actualWidth / 2,
+        y: cy - actualHeight / 2,
+        fontSize: 100 * row.scale, // CRITICAL FIX: Base 100 * scale so Manager can process it safely
+        width: actualWidth, // CRITICAL FIX: Emit the unrotated physical container width
         rotation: w.rotation
       });
 
-      currentX += (gravity === 'left' ? 1 : -1) * (wWidth + gutter);
+      currentX += (gravity === 'left' ? 1 : -1) * (cellWidth + gutter);
     });
 
     maxRowWidth = Math.max(maxRowWidth, Math.abs(currentX - (gravity === 'left' ? 0 : boxWidth)));
@@ -95,7 +110,7 @@ export const generateTetrisLayout = (
     maxRowWidth, currentY, boxWidth, boxHeight
   );
 
-  // 5. Final Conversion to 0-100
+  // 5. Final Conversion to 0-100 Space matching the parent container offset
   return geometricWords.map(gw => ({
     ...gw,
     x: (boundingBox.x + gw.x * globalScale + offsetX) * 100,
