@@ -1,35 +1,38 @@
 /**
  * TetrisMath.ts
- * Mathematical utilities for the Tetris-style layout engine.
+ * Strict 0-100 space mathematical bounds for Tetris packing.
  */
 
-export const calculateGutter = (width: number, density: number): number => width * density;
+export const calculateGutter = (boxWidth100: number, density: number): number => {
+  return boxWidth100 * density;
+};
 
-export const verticalGutter = 0.015; // 1.5% of screen width
-
-export const calculateRowScale = (wordWidths: number[], totalWidth: number, gutter: number): number => {
-  const sumWidths = wordWidths.reduce((a, b) => a + b, 0);
-  const totalGutter = (wordWidths.length - 1) * gutter;
-  const availableWidth = totalWidth - totalGutter;
+export const calculateRowScale = (normWidths: number[], availableWidth: number, gutter: number): number => {
+  const sumWidths = normWidths.reduce((sum, w) => sum + w, 0);
+  const totalGutter = Math.max(0, normWidths.length - 1) * gutter;
+  const targetWidth = availableWidth - totalGutter;
   
   if (sumWidths <= 0) return 1;
-  return Math.min(1, availableWidth / sumWidths);
+  return targetWidth / sumWidths;
 };
 
 export const calculateGlobalScaleAndOffset = (
   blockWidth: number,
   blockHeight: number,
   boxWidth: number,
-  boxHeight: number
+  boxHeight: number,
+  boxX: number,
+  boxY: number
 ): { scale: number; offsetX: number; offsetY: number } => {
-  const scale = Math.min(
-    boxWidth / (blockWidth || 0.001),
-    boxHeight / (blockHeight || 0.001)
-  );
+  // Global Restraint: Only scale down if the height exceeded the box
+  const scale = blockHeight > boxHeight ? boxHeight / Math.max(blockHeight, 0.001) : 1;
+  
+  const finalWidth = blockWidth * scale;
+  const finalHeight = blockHeight * scale;
   
   return {
     scale,
-    offsetX: (boxWidth - blockWidth * scale) / 2,
-    offsetY: (boxHeight - blockHeight * scale) / 2
+    offsetX: boxX + (boxWidth - finalWidth) / 2, // Perfect Center X
+    offsetY: boxY + (boxHeight - finalHeight) / 2 // Perfect Center Y
   };
 };

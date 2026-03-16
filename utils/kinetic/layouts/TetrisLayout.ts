@@ -1,3 +1,8 @@
+/**
+ * TetrisLayout.ts
+ * Absolute 0-100 layout engine for geometric typography blocks.
+ */
+
 import { KineticSettings } from '../../../types/kinetic';
 import { ProcessedWord } from '../KineticLayoutManager';
 import { calculateVisualBounds } from '../visualBoundsCalculator';
@@ -5,10 +10,8 @@ import { calculateGutter, calculateRowScale, calculateGlobalScaleAndOffset } fro
 import { analyzeLayoutIntent, detectGravity } from './KineticHeuristics';
 
 interface TetrisWord extends ProcessedWord {
-  wWidth: number;
-  h: number;
-  originalWidth: number;
-  originalHeight: number;
+  normW: number;
+  normH: number;
   rotation: number;
 }
 
@@ -20,102 +23,110 @@ export const generateTetrisLayout = (
 ): any[] => {
   if (words.length === 0) return [];
 
+  // 1. Establish absolute 0-100 working space (matching KineticLayoutManager logic)
   const { boundingBox } = settings;
-  const boxWidth = boundingBox.width;
-  const boxHeight = boundingBox.height;
+  const boxW = boundingBox.width * 100;
+  const boxH = boundingBox.height * 100;
+  const boxX = boundingBox.x * 100;
+  const boxY = boundingBox.y * 100;
 
-  const gutter = calculateGutter(boxWidth, 0.02);
-  const vGutter = 0.015 * boxWidth;
+  const hGutter = calculateGutter(boxW, 0.02); // Horizontal Tile Grout
+  const vGutter = calculateGutter(boxW, 0.015); // Vertical Tile Grout
+  
   const intent = analyzeLayoutIntent(words.map(w => w.text));
   const gravity = detectGravity(words.map(w => w.text).join(' '));
 
-  // 1. Measure strictly with original bounds stored
+  // 2. Pre-computation: Measure all words locked to Height = 100
   const measuredWords: TetrisWord[] = words.map(w => {
     const b = calculateVisualBounds({ ...w, fontSize: 100, rotation: 0 });
-    const origW = b.width * (100 / Math.max(b.height, 0.001));
-    return { 
-        ...w, 
-        wWidth: origW, 
-        h: 100, 
-        originalWidth: origW, 
-        originalHeight: 100, 
-        rotation: 0 
-    };
+    const normW = b.width * (100 / Math.max(b.height, 0.001));
+    return { ...w, normW, normH: 100, rotation: 0 };
   });
 
-  // 2. Pack into rows
-  const rows: any[] = [];
+  // 3. Grid Packing & Masonry Rotation Rule
+  const rows: { words: TetrisWord[], scale: number, maxH: number }[] = [];
   let i = 0;
+  
   while (i < measuredWords.length) {
     const groupSize = intent === 'hero-end' && i === measuredWords.length - 1 ? 1 : Math.min(3, Math.floor(Math.random() * 2) + 1);
     const rowWords = measuredWords.slice(i, i + groupSize);
     i += groupSize;
 
-    // Rotation logic - swap virtual bounds for the grid, but keep original bounds intact
     rowWords.forEach(w => {
-      if (Math.random() < 0.15) {
+      // 15% chance to rotate to build the "Tetris" vertical blocks
+      if (Math.random() < 0.15 && words.length > 1) {
         w.rotation = Math.random() < 0.5 ? 90 : 270;
-        w.wWidth = w.originalHeight;
-        w.h = w.originalWidth;
+        // Swap grid math bounds without altering original text
+        const temp = w.normW;
+        w.normW = w.normH;
+        w.normH = temp;
       }
     });
 
-    const wordWidths = rowWords.map(w => w.wWidth);
-    const scale = calculateRowScale(wordWidths, boxWidth, gutter);
-
-    rows.push({ words: rowWords, scale, maxHeight: Math.max(...rowWords.map(w => w.h)) });
+    const scale = calculateRowScale(rowWords.map(w => w.normW), boxW, hGutter);
+    const maxH = Math.max(...rowWords.map(w => w.normH * scale));
+    rows.push({ words: rowWords, scale, maxH });
   }
 
-  // 3. Position and Justify (Using Center-Point math for robust rotation)
+  // 4. Position elements in the grid
   const geometricWords: any[] = [];
   let currentY = 0;
-  let maxRowWidth = 0;
 
   rows.forEach(row => {
-    let currentX = gravity === 'left' ? 0 : boxWidth;
+    let currentX = gravity === 'left' ? 0 : boxW;
 
-    row.words.forEach((w: TetrisWord) => {
-      const cellWidth = w.wWidth * row.scale;
-      const cellHeight = w.h * row.scale;
+    row.words.forEach(w => {
+      const renderW = w.normW * row.scale;
+      const renderH = w.normH * row.scale;
       
-      const cellX = gravity === 'left' ? currentX : currentX - cellWidth;
-      const cellY = currentY + (row.maxHeight * row.scale - cellHeight) / 2;
-
-      // Center of the layout cell
-      const cx = cellX + cellWidth / 2;
-      const cy = cellY + cellHeight / 2;
-
-      // Actual visual bounds of the word container (unrotated)
-      const actualWidth = w.originalWidth * row.scale;
-      const actualHeight = w.originalHeight * row.scale;
+      const x = gravity === 'left' ? currentX : currentX - renderW;
+      const y = currentY + (row.maxH - renderH) / 2; // Center alignment for robust masonry
       
+      // CSS bounds extraction: revert swap if rotated
+      const fontSize = w.rotation === 0 ? renderH : renderW;
+      const width = w.rotation === 0 ? renderW : renderH;
+
       geometricWords.push({
         ...w,
-        x: cx - actualWidth / 2,
-        y: cy - actualHeight / 2,
-        fontSize: 100 * row.scale, // CRITICAL FIX: Base 100 * scale so Manager can process it safely
-        width: actualWidth, // CRITICAL FIX: Emit the unrotated physical container width
+        localX: x,
+        localY: y,
+        width,
+        fontSize,
         rotation: w.rotation
       });
 
-      currentX += (gravity === 'left' ? 1 : -1) * (cellWidth + gutter);
+      currentX += (gravity === 'left' ? 1 : -1) * (renderW + hGutter);
     });
-
-    maxRowWidth = Math.max(maxRowWidth, Math.abs(currentX - (gravity === 'left' ? 0 : boxWidth)));
-    currentY += row.maxHeight * row.scale + vGutter;
+    currentY += row.maxH + vGutter;
   });
 
-  // 4. Global Restraint
+  // 5. Global Scale & Center-Point CSS Rotation Fix
   const { scale: globalScale, offsetX, offsetY } = calculateGlobalScaleAndOffset(
-    maxRowWidth, currentY, boxWidth, boxHeight
+    boxW, currentY - vGutter, boxW, boxH, boxX, boxY
   );
 
-  // 5. Final Conversion to 0-100 Space matching the parent container offset
-  return geometricWords.map(gw => ({
-    ...gw,
-    x: (boundingBox.x + gw.x * globalScale + offsetX) * 100,
-    y: (boundingBox.y + gw.y * globalScale + offsetY) * 100,
-    width: gw.width * globalScale * 100,
-    fontSize: gw.fontSize * globalScale * 100
-  }));
+  return geometricWords.map(gw => {
+    const finalX = offsetX + gw.localX * globalScale;
+    const finalY = offsetY + gw.localY * globalScale;
+    const finalW = gw.width * globalScale;
+    const finalFS = gw.fontSize * globalScale;
+    
+    // Correct X/Y for CSS Center-Transform Rotation
+    let rotatedX = finalX;
+    let rotatedY = finalY;
+    if (gw.rotation !== 0) {
+      const renderW = finalFS; // Visual width in grid
+      const renderH = finalW;  // Visual height in grid
+      rotatedX = finalX + (renderW / 2) - (finalW / 2);
+      rotatedY = finalY + (renderH / 2) - (finalFS / 2);
+    }
+
+    return {
+      ...gw,
+      x: rotatedX,
+      y: rotatedY,
+      width: finalW,
+      fontSize: finalFS
+    };
+  });
 };
