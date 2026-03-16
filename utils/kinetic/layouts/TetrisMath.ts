@@ -4,6 +4,7 @@
  */
 
 export const calculateGutter = (width: number, density: number): number => width * density;
+export const verticalGutter = 0.015; // 1.5% of screen width
 
 export const calculateRowScale = (wordWidths: number[], totalWidth: number, gutter: number): number => {
   const sumWidths = wordWidths.reduce((a, b) => a + b, 0);

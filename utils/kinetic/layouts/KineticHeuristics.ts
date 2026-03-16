@@ -16,5 +16,9 @@ export const analyzeLayoutIntent = (words: string[]): string => {
 };
 
 export const detectGravity = (text: string): 'left' | 'right' => {
-  return /[\u0591-\u05F4]/.test(text) ? 'right' : 'left';
+  const isRtl = /[\u0591-\u05F4]/.test(text);
+  // Rebel Factor: 7.5% probability to reverse gravity
+  const rebel = Math.random() < 0.075;
+  const direction = isRtl ? 'right' : 'left';
+  return rebel ? (direction === 'right' ? 'left' : 'right') : direction;
 };
