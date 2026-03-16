@@ -12,9 +12,12 @@ export const generateKineticLayout = (clip: Clip, preset: { colors: string[], an
     fontWeight,
     textCase,
     strokeWidth,
+    strokeColor,
+    shadowColor,
     shadowBlur,
     shadowOffsetX,
     shadowOffsetY,
+    backgroundColor,
     backgroundPadding,
     rotation
   } = clip.kineticData.settings;
