@@ -1,19 +1,12 @@
 /**
  * TetrisLayout.ts
  * Absolute 0-100 layout engine for geometric typography blocks.
- * Uses 2D Grid Bin Packing for layout.
  */
 
 import { KineticSettings } from '../../../types/kinetic';
 import { ProcessedWord } from '../KineticLayoutManager';
 import { calculateVisualBounds } from '../visualBoundsCalculator';
-import { 
-  COLS, 
-  Matrix, 
-  createMatrix, 
-  getCellSize, 
-  allocateBlock 
-} from './TetrisMath';
+import { COLS, Matrix, createMatrix, allocateBlock } from './TetrisMath';
 import { analyzeLayoutIntent, detectGravity } from './KineticHeuristics';
 
 export const generateTetrisLayout = (
@@ -30,102 +23,102 @@ export const generateTetrisLayout = (
   const boxX = boundingBox.x * 100;
   const boxY = boundingBox.y * 100;
 
-  const cellSize = getCellSize(boxW);
-  const matrix: Matrix = createMatrix(24); // Start with 24 rows capacity
-  
-  const hGutter = boxW * (settings.gap || 0.015);
-  const vGutter = boxW * (settings.gap || 0.015);
+  // 1. Visual Square Grid Construction
+  const cellWidthX = boxW / COLS;
+  // Account for screen aspect ratio so the grid cells are perfect visual squares
+  const cellHeightY = cellWidthX * screenAR;
+
+  // Base Gutters
+  const density = settings.density ?? 0.015;
+  const baseHGutter = boxW * density;
+  const baseVGutter = boxW * density * screenAR;
 
   const intent = analyzeLayoutIntent(words.map(w => w.text));
   const gravity = detectGravity(words.map(w => w.text).join(' '));
+  const matrix: Matrix = createMatrix(10);
 
-  // 1. Measure and Quantize (Strict Math)
-  const quantizedWords = words.map((w, index) => {
+  // 2. Measure & Quantize
+  const quantizedWords = words.map((w, i) => {
     const b = calculateVisualBounds({ ...w, fontSize: 100, rotation: 0 });
     const aspectRatio = b.width / Math.max(b.height, 0.001);
     
-    // Physical columns required for unrotated word
-    let physicalCols = Math.max(1, Math.min(COLS, Math.ceil(aspectRatio))); 
-    let physicalRows = 1;
+    let pCols = Math.max(1, Math.min(COLS, Math.ceil(aspectRatio)));
+    let pRows = 1;
 
-    // Intent Scaling (Hero words)
-    const isHero = (intent === 'hero-end' && index === words.length - 1) || Math.random() < 0.05;
-    if (isHero && physicalCols <= COLS / 2) {
-      const scaleMultiplier = Math.floor(Math.random() * 2) + 2; // scale by 2 or 3
-      physicalCols = Math.min(COLS, physicalCols * scaleMultiplier);
-      physicalRows = scaleMultiplier;
+    // Intent: Hero Word
+    const isHero = (intent === 'hero-end' && i === words.length - 1) || Math.random() < 0.05;
+    if (isHero && pCols <= COLS / 2) {
+      const mul = Math.floor(Math.random() * 2) + 2; 
+      pCols = Math.min(COLS, pCols * mul);
+      pRows = mul;
     }
 
-    // Grid tracking (Swapped if rotated)
-    let gridCols = physicalCols;
-    let gridRows = physicalRows;
+    let gridCols = pCols;
+    let gridRows = pRows;
     let rotation = 0;
-    
-    if (Math.random() < 0.15 && w.text.length > 1) { // Prevent rotating single letters usually
+
+    // 15% chance to rotate
+    if (Math.random() < 0.15 && w.text.length > 1) {
       rotation = Math.random() < 0.5 ? 90 : 270;
-      gridCols = physicalRows;
-      gridRows = physicalCols;
+      gridCols = pRows;
+      gridRows = pCols;
     }
 
-    return { 
-      ...w, 
-      physicalCols, 
-      physicalRows,
-      gridCols, 
-      gridRows, 
-      rotation, 
-      originalWidth: b.width, 
-      originalHeight: b.height 
-    };
+    return { ...w, pCols, pRows, gridCols, gridRows, rotation, origW: b.width };
   });
 
-  // 2. Allocate in Matrix
+  // 3. Grid Allocation
   const placedWords = quantizedWords.map(w => {
-    const { col, row } = allocateBlock(matrix, w.gridCols, w.gridRows, gravity);
-    return { ...w, col, row };
+    const pos = allocateBlock(matrix, w.gridCols, w.gridRows, gravity);
+    return { ...w, col: pos.col, row: pos.row };
   });
 
-  // 3. Global Restraint & Centering (Fix: using ACTUAL rows, not matrix capacity)
-  const actualUsedRows = placedWords.length > 0 
-    ? Math.max(...placedWords.map(w => w.row + w.gridRows)) 
-    : 1;
-    
-  const globalScale = (actualUsedRows * cellSize > boxH) ? boxH / (actualUsedRows * cellSize) : 1;
-  const offsetX = (boxW - (COLS * cellSize * globalScale)) / 2;
-  const offsetY = (boxH - (actualUsedRows * cellSize * globalScale)) / 2;
+  // 4. Global Restraint & Scale (Safe Math)
+  const totalRows = placedWords.length > 0 ? Math.max(...placedWords.map(w => w.row + w.gridRows)) : 1;
+  const gridTotalHeightY = totalRows * cellHeightY;
+  
+  const globalScale = gridTotalHeightY > boxH ? boxH / gridTotalHeightY : 1;
 
-  // 4. Render to DOM coordinates
+  // IMPORTANT: Scale the gutters too to prevent negative widths!
+  const finalCellW = cellWidthX * globalScale;
+  const finalCellH = cellHeightY * globalScale;
+  const finalHGutter = baseHGutter * globalScale;
+  const finalVGutter = baseVGutter * globalScale;
+
+  const offsetX = (boxW - (COLS * finalCellW)) / 2;
+  const offsetY = (boxH - (totalRows * finalCellH)) / 2;
+
+  // 5. Final Coordinates Generation
   return placedWords.map(w => {
-    // Top-left of the allocated grid block
-    const gridX = boxX + offsetX + (w.col * cellSize * globalScale) + hGutter / 2;
-    const gridY = boxY + offsetY + (w.row * cellSize * globalScale) + vGutter / 2;
-    
-    // Actual dimensions of the grid block
-    const blockW = (w.gridCols * cellSize * globalScale) - hGutter;
-    const blockH = (w.gridRows * cellSize * globalScale) - vGutter;
+    const cellX = boxX + offsetX + (w.col * finalCellW);
+    const cellY = boxY + offsetY + (w.row * finalCellH);
 
-    // Physical dimensions of the text container (UNROTATED)
-    const physicalWidth = (w.physicalCols * cellSize * globalScale) - hGutter;
-    const physicalHeight = (w.physicalRows * cellSize * globalScale) - vGutter;
+    // Dimensions in the grid
+    const blockW = (w.gridCols * finalCellW) - finalHGutter;
+    const blockH = (w.gridRows * finalCellH) - finalVGutter;
 
-    // Center of the allocated block
-    const centerX = gridX + blockW / 2;
-    const centerY = gridY + blockH / 2;
-    
-    // Font Size Calculation (Always based on the unrotated physical target width)
-    const fontSize = 100 * (physicalWidth / Math.max(w.originalWidth, 0.001));
+    // Physical dimensions (Unrotated for DOM)
+    const physicalW = (w.pCols * finalCellW) - finalHGutter;
+    const physicalH = (w.pRows * finalCellH) - finalVGutter;
 
-    // CSS X/Y places the top-left corner of the unrotated physical box 
-    // so that its center aligns exactly with the center of the grid block
-    const finalX = centerX - (physicalWidth / 2);
-    const finalY = centerY - (physicalHeight / 2);
+    // Center point of the block
+    const centerX = cellX + blockW / 2 + finalHGutter / 2;
+    const centerY = cellY + blockH / 2 + finalVGutter / 2;
+
+    // Safe Math: Absolute protection against negative dimensions
+    const safeWidth = Math.max(physicalW, 0.1);
+    const fontSize = 100 * (safeWidth / Math.max(w.origW, 0.001));
+
+    // Calculate final Top-Left by reversing from the Center point
+    const finalX = centerX - (safeWidth / 2);
+    const finalY = centerY - (Math.max(physicalH, 0.1) / 2);
 
     return {
       ...w,
       x: finalX,
       y: finalY,
-      width: physicalWidth, // Always emit the unrotated width to prevent DOM text wrapping
-      fontSize,
+      width: safeWidth,
+      fontSize: Math.max(fontSize, 0.1),
       rotation: w.rotation
     };
   });
