@@ -1,13 +1,19 @@
 /**
  * TetrisMath.ts
- * Strict 2D Grid Bin Packing Math (Safe from negative bounds)
+ * High-Resolution 2D Grid Bin Packing Math
  */
 
-export const COLS = 24;
+export const COLS = 200;
 export type Matrix = boolean[][];
 
-export const createMatrix = (initialRows: number): Matrix => {
-  return Array.from({ length: initialRows }, () => Array(COLS).fill(false));
+export const createMatrix = (rows: number): Matrix => 
+  Array.from({ length: rows }, () => Array(COLS).fill(false));
+
+export const calculateVolumeScale = (gridCols: number, gridRows: number, aspectRatios: number[]): number => {
+  const totalArea = gridCols * gridRows;
+  const sumAspectRatios = aspectRatios.reduce((a, b) => a + b, 0);
+  // Volume scale ensures words expand to fill the grid proportionally
+  return Math.sqrt(totalArea / Math.max(sumAspectRatios, 0.001)) * 0.85;
 };
 
 export const allocateBlock = (
@@ -17,44 +23,31 @@ export const allocateBlock = (
   gravity: 'left' | 'right'
 ): { col: number; row: number } => {
   let row = 0;
-  let safetyLimit = 0;
-  
-  while (safetyLimit < 500) {
-    // Dynamically expand matrix height if needed
-    while (matrix.length <= row + wordRows) {
-      matrix.push(Array(COLS).fill(false));
-    }
-
+  while (true) {
+    // Dynamic row expansion
+    while (matrix.length <= row + wordRows) matrix.push(Array(COLS).fill(false));
+    
     const colStart = gravity === 'left' ? 0 : COLS - wordCols;
     const colEnd = gravity === 'left' ? COLS - wordCols : 0;
     const step = gravity === 'left' ? 1 : -1;
-
-    let c = colStart;
-    while (gravity === 'left' ? c <= colEnd : c >= colEnd) {
+    
+    for (let c = colStart; gravity === 'left' ? c <= colEnd : c >= colEnd; c += step) {
       let canFit = true;
       for (let r = 0; r < wordRows; r++) {
         for (let wc = 0; wc < wordCols; wc++) {
-          if (matrix[row + r][c + wc]) {
-            canFit = false;
-            break;
-          }
+          if (matrix[row + r][c + wc]) { canFit = false; break; }
         }
         if (!canFit) break;
       }
-
       if (canFit) {
-        // Mark as occupied
         for (let r = 0; r < wordRows; r++) {
-          for (let wc = 0; wc < wordCols; wc++) {
-            matrix[row + r][c + wc] = true;
-          }
+          for (let wc = 0; wc < wordCols; wc++) matrix[row + r][c + wc] = true;
         }
         return { col: c, row };
       }
-      c += step;
     }
     row++;
-    safetyLimit++;
+    // Safety limit to prevent infinite loops
+    if (row > 2000) return { col: 0, row: 0 }; 
   }
-  return { col: 0, row: 0 }; // Fallback to prevent infinite loops
 };
