@@ -6,9 +6,10 @@ interface WaveformProps {
   asset: Asset | undefined;
   clip: Clip;
   isExpanded?: boolean;
+  waveformStyle?: 'solid' | 'lines';
 }
 
-export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) => {
+export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded, waveformStyle = 'solid' }) => {
   const pathData = useMemo(() => {
     const rawData = asset?.waveform || [];
     if (rawData.length === 0) {
@@ -36,6 +37,11 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
     // Aggressive vertical scaling for "surgical" visibility
     const gain = isExpanded ? 1.5 : 1.0;
 
+    if (waveformStyle === 'lines') {
+      // We don't generate a single path for lines, we'll render individual lines
+      return "";
+    }
+
     let upper = `M 0 ${mid}`;
     let lower = ``;
     for (let i = 0; i < pathData.length; i += 2) {
@@ -48,7 +54,48 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
       lower = ` L ${x} ${Math.min(height, yMax)}` + lower;
     }
     return upper + lower + " Z";
-  }, [pathData, isExpanded]);
+  }, [pathData, isExpanded, waveformStyle]);
+
+  const renderLines = () => {
+    if (pathData.length === 0 || waveformStyle !== 'lines') return null;
+    const width = 1000;
+    const height = 100;
+    const mid = height / 2;
+    const step = width / ((pathData.length / 2) - 1);
+    const gain = isExpanded ? 1.5 : 1.0;
+    
+    const lines = [];
+    for (let i = 0; i < pathData.length; i += 2) {
+      const minVal = pathData[i];
+      const maxVal = pathData[i+1];
+      const x = (i / 2) * step;
+      
+      const amplitude = Math.max(Math.abs(minVal), Math.abs(maxVal));
+      
+      const yMin = mid - (maxVal * (height / 2) * gain);
+      const yMax = mid - (minVal * (height / 2) * gain);
+      
+      // Color based on amplitude
+      let color = "#4f46e5"; // default indigo
+      if (amplitude > 0.8) color = "#ef4444"; // red for high
+      else if (amplitude > 0.5) color = "#f59e0b"; // amber for medium
+      else if (amplitude > 0.2) color = "#10b981"; // emerald for low-mid
+      
+      lines.push(
+        <line 
+          key={i} 
+          x1={x} 
+          y1={Math.max(0, yMin)} 
+          x2={x} 
+          y2={Math.min(height, yMax)} 
+          stroke={color} 
+          strokeWidth={Math.max(0.5, step * 0.8)} 
+          strokeLinecap="round"
+        />
+      );
+    }
+    return lines;
+  };
 
   return (
     <div className={`absolute inset-0 pointer-events-none transition-all duration-500 ${isExpanded ? 'opacity-100 bg-indigo-500/5' : 'opacity-60'}`}>
@@ -60,12 +107,15 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded }) =
             <stop offset="100%" stopColor={isExpanded ? "#818cf8" : "#4f46e5"} />
           </linearGradient>
         </defs>
-        <path 
-          d={svgPath} 
-          fill={`url(#grad-${clip.id})`} 
-          stroke={isExpanded ? "#6366f1" : "transparent"} 
-          strokeWidth={isExpanded ? "0.3" : "0"} 
-        />
+        {waveformStyle === 'solid' && (
+          <path 
+            d={svgPath} 
+            fill={`url(#grad-${clip.id})`} 
+            stroke={isExpanded ? "#6366f1" : "transparent"} 
+            strokeWidth={isExpanded ? "0.3" : "0"} 
+          />
+        )}
+        {waveformStyle === 'lines' && renderLines()}
         <line x1="0" y1="50" x2="1000" y2="50" stroke="#4338ca" strokeWidth="0.1" strokeDasharray="2,2" className="opacity-20" />
       </svg>
     </div>

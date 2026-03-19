@@ -1,31 +1,24 @@
 /**
  * KineticHeuristics.ts
- * AI-like rule engine for typography layouts.
+ * Decision-making functions for kinetic typography layout intent.
  */
 
 export const analyzeLayoutIntent = (words: string[]): string => {
   if (words.length === 0) return 'full-justified';
   
-  const lengths = words.map(w => w.length);
-  const isAscending = lengths.every((l, i) => i === 0 || l >= lengths[i - 1]);
+  const lastWord = words[words.length - 1];
+  const avgLength = words.reduce((sum, w) => sum + w.length, 0) / words.length;
   
-  // Rule 1: Escalating word length implies a staircase
-  if (isAscending && words.length > 2) return 'stairs-up';
+  if (lastWord.length > avgLength * 1.5) return 'hero-end';
   
-  // Rule 2: Last word is massive (Hero end)
-  if (words.length > 1 && lengths[lengths.length - 1] > lengths[0] * 2) return 'hero-end';
-  
-  return 'full-justified';
+  const increasing = words.every((w, i) => i === 0 || w.length > words[i - 1].length);
+  return increasing && words.length > 2 ? 'stairs-up' : 'full-justified';
 };
 
 export const detectGravity = (text: string): 'left' | 'right' => {
-  const isRtl = /[\u0590-\u05FF]/.test(text);
-  const baseGravity = isRtl ? 'right' : 'left';
-  
-  // The Rebel Factor: 10% chance to break the rules for aesthetic variety
-  if (Math.random() < 0.10) {
-    return baseGravity === 'left' ? 'right' : 'left';
-  }
-  
-  return baseGravity;
+  const isRtl = /[\u0591-\u05F4]/.test(text);
+  // Rebel Factor: 5% to 10% probability to reverse gravity
+  const rebel = Math.random() < 0.075; 
+  const direction = isRtl ? 'right' : 'left';
+  return rebel ? (direction === 'right' ? 'left' : 'right') : direction;
 };

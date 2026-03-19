@@ -18,8 +18,9 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   
   const wordData = words.map((w, i) => {
     const fullFont = `${w.fontWeight} ${REF_FONT_SIZE}px ${w.fontFamily}`;
-    const { width, height } = measureText(w.text, fullFont, REF_FONT_SIZE);
-    const wordAR = width / height;
+    const { width } = measureText(w.text, fullFont, REF_FONT_SIZE);
+    // The font size is REF_FONT_SIZE (100), so the width relative to font size is width / 100.
+    const wordAR = width / REF_FONT_SIZE;
     
     let multiplier = 1;
     if (pattern === 'random') {
@@ -49,7 +50,7 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
       const wWidth = (fontSize * w.ar / boxAR);
       const x = isRtl ? currentX - wWidth : currentX;
       currentX = isRtl ? currentX - (wWidth + 2) : currentX + (wWidth + 2);
-      return { text: w.text, x: isRtl ? x + wWidth : x, y: 50, fontSize, width: wWidth };
+      return { text: w.text, x: isRtl ? x + wWidth : x, y: 50 - (fontSize / 2), fontSize, width: wWidth };
     });
   }
 
@@ -123,7 +124,7 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
       result.push({
         text: w.text,
         x: isRtl ? x + w.width : x,
-        y: currentY + (lineHeight / 2),
+        y: currentY + (lineHeight - w.fontSize) / 2, // Center vertically within the line
         fontSize: w.fontSize,
         width: w.width
       });

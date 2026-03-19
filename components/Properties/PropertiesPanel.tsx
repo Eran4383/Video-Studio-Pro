@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Type, Palette, Settings2, ChevronDown, ChevronRight, Layers, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
+import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
 
@@ -49,13 +49,27 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
   }, [selectedClip?.id, isSubtitle]);
 
   if (isKineticBlock && selectedKineticBlock) {
+    const isChildBlock = !!selectedKineticBlock.parentId;
+    const blockColor = selectedKineticBlock.color || 'rgba(168, 85, 247, 0.3)';
+    const panelBgColor = isChildBlock ? blockColor.replace('0.3', '0.5') : '#121212';
+    const headerBgColor = isChildBlock ? blockColor.replace('0.3', '0.6') : '#121212';
+    const borderColor = isChildBlock ? blockColor.replace('0.3', '0.8') : 'rgba(39, 39, 42, 0.5)';
+
     return (
-      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
-        <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10 flex items-center justify-between">
+      <div 
+        className="w-80 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full transition-colors duration-200"
+        style={{ backgroundColor: panelBgColor, borderLeft: `1px solid ${borderColor}` }}
+      >
+        <div 
+          className="p-4 sticky top-0 z-10 flex items-center justify-between backdrop-blur-md transition-colors duration-200"
+          style={{ backgroundColor: headerBgColor, borderBottom: `1px solid ${borderColor}` }}
+        >
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <Type size={14} className="text-purple-400" />
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">Kinetic Block</h2>
+              <Type size={14} className={isChildBlock ? "text-white" : "text-purple-400"} style={isChildBlock ? { color: blockColor.replace('0.3', '1') } : undefined} />
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                {isChildBlock ? `Kinetic Block: ${selectedKineticBlock.name}` : 'Kinetic Block'}
+              </h2>
             </div>
             <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedKineticBlock.id}</p>
           </div>
@@ -130,6 +144,18 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                    <span className="text-[10px] font-mono text-zinc-400 group-hover:text-white transition-colors">{project.backgroundColor || '#000000'}</span>
                  </div>
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                 <label className="text-[9px] text-zinc-500 font-mono uppercase">Waveform Style</label>
+                 <select 
+                    value={project.waveformStyle || 'solid'}
+                    onChange={(e) => store.setWaveformStyle(e.target.value as 'solid' | 'lines')}
+                    className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none focus:border-indigo-500/50 transition-colors"
+                  >
+                    <option value="solid">Solid (Default)</option>
+                    <option value="lines">Lines (Beat-by-Beat)</option>
+                  </select>
+              </div>
            </div>
         </Section>
       </div>
@@ -166,8 +192,12 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
         <div className="p-4 border-b border-zinc-800/50">
           <button
             onClick={() => {
-              store.createKineticBlock(selectedClipIds);
-              store.selectClip(null);
+              const newBlockId = store.createKineticBlock(selectedClipIds);
+              if (newBlockId) {
+                store.selectClips([newBlockId]);
+              } else {
+                store.selectClip(null);
+              }
             }}
             className="w-full py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-[11px] font-bold uppercase tracking-widest rounded transition-colors"
           >
@@ -328,7 +358,7 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
 
       {/* Transform Section (All Visual Clips) */}
       {isVisual && (
-        <Section id="transform" title="Transform" icon={Layers} isOpen={sections.transform} onToggle={toggleSection}>
+        <Section id="transform" title="Transform" icon={Box} isOpen={sections.transform} onToggle={toggleSection}>
           <div className="space-y-5">
             <div className="space-y-3">
               <div className="flex items-center justify-between">

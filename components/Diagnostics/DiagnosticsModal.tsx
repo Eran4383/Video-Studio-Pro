@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, X, Cpu, HardDrive, Layers, PlayCircle, AlertTriangle, FileText, Download, Clock, ArrowRightLeft } from 'lucide-react';
+import { Activity, X, Cpu, HardDrive, Box, PlayCircle, AlertTriangle, FileText, Download, Clock, ArrowRightLeft } from 'lucide-react';
 import { DiagnosticsService, SystemStats } from '../../services/DiagnosticsService';
 import { ErrorReportingService } from '../../services/ErrorReportingService';
 import { useProjectStore } from '../../store/useProjectStore';
@@ -155,7 +155,7 @@ export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose, pro
 
                 <div className="bg-zinc-900/50 rounded-2xl p-4 border border-zinc-800 flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <Layers className="text-blue-500" size={18} />
+                    <Box className="text-blue-500" size={18} />
                     <span className="text-xs font-bold text-zinc-400">DOM Nodes</span>
                   </div>
                   <span className="text-xl font-black font-mono text-white">{stats?.domNodes || 0}</span>

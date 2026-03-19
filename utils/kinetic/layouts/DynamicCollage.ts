@@ -6,7 +6,9 @@ export const generateDynamicCollage = (words: ProcessedWord[], settings: Kinetic
   const wordsWithAR = words.map(w => {
     const fullFont = `${w.fontWeight} 100px ${w.fontFamily}`;
     const size = measureText(w.text, fullFont, 100);
-    const ar = (size.height > 0 ? size.width / size.height : 1) || 1;
+    // The font size is 100, so the width relative to font size is size.width / 100.
+    // This ensures the calculated width matches the rendered width in CSS.
+    const ar = size.width / 100 || 1;
     return { text: w.text, ar };
   });
 

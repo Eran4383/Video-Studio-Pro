@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor, Upload } from 'lucide-react';
+import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor, Upload, Box } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 
 interface TimelineToolbarProps {
@@ -15,6 +15,8 @@ interface TimelineToolbarProps {
   onToggleMagnet: () => void;
   isAutoScroll: boolean;
   onToggleAutoScroll: () => void;
+  showDebugBlocks: boolean;
+  onToggleDebugBlocks: () => void;
   zoom: number;
   setZoom: (z: number) => void;
   selectedClipCount: number;
@@ -24,7 +26,7 @@ interface TimelineToolbarProps {
 }
 
 export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({ 
-  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles
+  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, showDebugBlocks, onToggleDebugBlocks, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -105,6 +107,15 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
             className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${isAutoScroll ? 'bg-indigo-500/20 text-indigo-400 border-indigo-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
           >
             <MousePointer2 size={12} className={isAutoScroll ? 'animate-pulse' : ''} /> {isAutoScroll ? 'AUTO-SCROLL ON' : 'AUTO-SCROLL OFF'}
+          </button>
+        </Tooltip>
+
+        <Tooltip text="Toggle Debug Blocks">
+          <button 
+            onClick={onToggleDebugBlocks} 
+            className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${showDebugBlocks ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
+          >
+            <Box size={12} /> {showDebugBlocks ? 'DEBUG ON' : 'DEBUG OFF'}
           </button>
         </Tooltip>
 

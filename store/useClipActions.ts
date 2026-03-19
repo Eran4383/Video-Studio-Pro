@@ -59,7 +59,7 @@ export const useClipActions = (
       if (prev.kineticBlocks) {
         nextKineticBlocks = prev.kineticBlocks.map(block => {
           if (block.clipIds.includes(clipId)) {
-            const updatedWords = block.words.map(word => {
+            const updatedWords = (block.words || []).map(word => {
               if (word.sourceClipId === clipId) {
                 const relStart = (word.startTime - oldClip.startTime) / oldClip.duration;
                 const relEnd = (word.endTime - oldClip.startTime) / oldClip.duration;
@@ -141,7 +141,7 @@ export const useClipActions = (
             if (contentChanged) {
                return { ...block, words: generateBlockLayout(block, allNextClips, screenAR) };
             } else if (timeChanged) {
-               const updatedWords = block.words.map(word => {
+               const updatedWords = (block.words || []).map(word => {
                  const targetClipId = word.sourceClipId;
                  if (targetClipId === clipId || (applyToAll && selectedClipIds.includes(targetClipId))) {
                     const oldClip = prev.tracks.flatMap(t => t.clips).find(c => c.id === targetClipId);

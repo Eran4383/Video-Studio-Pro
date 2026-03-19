@@ -52,7 +52,7 @@ export const TimelineTracks = memo(({
                 >
                   {track.type === 'audio' && (
                     <>
-                      <Waveform asset={asset} clip={clip} />
+                      <Waveform asset={asset} clip={clip} waveformStyle={project.waveformStyle} />
                       <MagneticMarkers asset={asset} clip={clip} pxPerSec={pxPerSec} />
                     </>
                   )}

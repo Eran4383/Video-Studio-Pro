@@ -1,3 +1,16 @@
+export const loadFonts = async (fonts: string[]) => {
+  const uniqueFonts = Array.from(new Set(fonts.filter(Boolean)));
+  const promises = uniqueFonts.map(font => {
+    try {
+      return document.fonts.load(`16px "${font}"`);
+    } catch (e) {
+      console.warn('Failed to load font', font, e);
+      return Promise.resolve();
+    }
+  });
+  await Promise.all(promises);
+};
+
 export const measureText = (text: string, font: string, fontSize: number): { width: number, height: number } => {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');

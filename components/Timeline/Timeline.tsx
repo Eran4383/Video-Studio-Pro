@@ -6,6 +6,7 @@ import { MagneticAnchorService } from '../../services/MagneticAnchorService';
 import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
 import { KineticBlocksOverlay } from './KineticBlocksOverlay';
+import { useProjectStore } from '../../store/useProjectStore';
 
 interface TimelineProps {
   project: Project;
@@ -56,6 +57,7 @@ interface DragState {
 export const Timeline: React.FC<TimelineProps> = ({
   project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles
 }) => {
+  const store = useProjectStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
@@ -79,6 +81,9 @@ export const Timeline: React.FC<TimelineProps> = ({
     
     const scrollContainer = scrollRef.current;
     const playheadX = HEADER_WIDTH + (currentTime * pxPerSec);
+    if (isNaN(playheadX)) {
+        console.error('PlayheadX is NaN:', { currentTime, pxPerSec, HEADER_WIDTH });
+    }
     const scrollLeft = scrollContainer.scrollLeft;
     const viewportWidth = scrollContainer.clientWidth;
     
@@ -375,8 +380,47 @@ export const Timeline: React.FC<TimelineProps> = ({
     }
   };
 
+  const timelineContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Check if focus is within the timeline container
+      const activeElement = document.activeElement;
+      const isInput = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA' || activeElement?.getAttribute('contenteditable') === 'true';
+      
+      if (isInput) return;
+      
+      const isTimelineFocused = timelineContainerRef.current?.contains(activeElement);
+
+      // Ctrl+A or Ctrl+ש (Hebrew 'a' is 'ש')
+      if (isTimelineFocused && (e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A' || e.key === 'ש')) {
+        e.preventDefault();
+        const allClipIds = project.tracks.flatMap(t => t.clips.map(c => c.id));
+        onSelectClips(allClipIds);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [project.tracks, onSelectClips]);
+
   return (
-    <div className="flex-1 bg-[#0f0f0f] flex flex-col overflow-hidden border-t border-zinc-800 relative select-none" onWheel={handleWheel} onMouseDown={(e) => e.button === 1 && scrollRef.current && (e.preventDefault(), setMiddlePanning({ startX: e.clientX, scrollLeft: scrollRef.current.scrollLeft }))}>
+    <div 
+      ref={timelineContainerRef}
+      tabIndex={0}
+      className="flex-1 bg-[#0f0f0f] flex flex-col overflow-hidden border-t border-zinc-800 relative select-none outline-none" 
+      onWheel={handleWheel} 
+      onMouseDown={(e) => {
+        // Focus timeline on click
+        if (timelineContainerRef.current && document.activeElement !== timelineContainerRef.current) {
+          timelineContainerRef.current.focus();
+        }
+        if (e.button === 1 && scrollRef.current) {
+          e.preventDefault();
+          setMiddlePanning({ startX: e.clientX, scrollLeft: scrollRef.current.scrollLeft });
+        }
+      }}
+    >
       {contextMenu && (
         <div className="fixed z-[100] w-48 bg-[#1a1a1a] border border-zinc-700 rounded-lg shadow-2xl py-1 overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseDown={(e) => e.stopPropagation()}>
           <button onClick={() => { onClipSplit(contextMenu.clipId, currentTime); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold transition-colors">Split Selected</button>
@@ -408,6 +452,7 @@ export const Timeline: React.FC<TimelineProps> = ({
               project={project} 
               pxPerSec={pxPerSec} 
               selectedClipIds={selectedClipIds}
+              kineticCutMode={store.kineticCutMode}
               onSelectBlock={(id) => onSelectClip(id)}
             />
             <TimelineTracks 

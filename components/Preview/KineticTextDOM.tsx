@@ -120,8 +120,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
-          (word.layoutStyle === 'tetris' && settings.keepPastInTetris) || false;
+          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) || false;
 
         const isSceneDone = currentTime > liveSceneEndTime;
         if (isSceneDone) return null;
@@ -144,23 +143,25 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const animDuration = Math.min(0.5, wordDuration);
 
         return (
-          <KineticDraggableWord
-            key={word.id}
-            word={word}
-            blockId={block.id}
-            store={store}
-            isActive={isActive}
-            isPast={isPast}
-            isKeepVisible={isKeepVisible}
-            opacityValue={opacityValue}
-            fadeDuration={fadeDuration}
-            animClass={animClass}
-            animDuration={animDuration}
-            settings={settings}
-            isSelected={store.selectedKineticWordId === word.id}
-            onSelect={store.setSelectedKineticWordId}
-            showTransformControls={showTransformControls}
-          />
+          <div key={word.id} className="chunk-wrapper border border-purple-500/20" data-chunk-id={word.chunkId}>
+            <KineticDraggableWord
+              key={word.id}
+              word={word}
+              blockId={block.id}
+              store={store}
+              isActive={isActive}
+              isPast={isPast}
+              isKeepVisible={isKeepVisible}
+              opacityValue={opacityValue}
+              fadeDuration={fadeDuration}
+              animClass={animClass}
+              animDuration={animDuration}
+              settings={settings}
+              isSelected={store.selectedKineticWordId === word.id}
+              onSelect={store.setSelectedKineticWordId}
+              showTransformControls={showTransformControls}
+            />
+          </div>
         );
       })}
     </div>

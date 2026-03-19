@@ -24,8 +24,9 @@ export const generatePopInPlace = (
   let maxWordAR = 0;
   words.forEach(w => {
     const fullFont = `${w.fontWeight} ${REF_FONT_SIZE}px ${w.fontFamily}`;
-    const { width, height } = measureText(w.text, fullFont, REF_FONT_SIZE);
-    const wordAR = width / height;
+    const { width } = measureText(w.text, fullFont, REF_FONT_SIZE);
+    // The font size is REF_FONT_SIZE (100), so the width relative to font size is width / 100.
+    const wordAR = width / REF_FONT_SIZE;
     if (wordAR > maxWordAR) maxWordAR = wordAR;
   });
 

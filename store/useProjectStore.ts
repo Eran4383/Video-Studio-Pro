@@ -19,7 +19,8 @@ const INITIAL_PROJECT: Project = {
     { id: 'track-a1', name: 'Audio 1', type: 'audio', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 72 }
   ],
   backgroundColor: '#000000',
-  kineticBlocks: []
+  kineticBlocks: [],
+  waveformStyle: 'solid'
 };
 
 export const useProjectStore = () => {
@@ -35,6 +36,7 @@ export const useProjectStore = () => {
   const [showTransformControls, setShowTransformControls] = useState(true);
   const [applyToAll, setApplyToAll] = useState(false);
   const [kineticDrawMode, setKineticDrawMode] = useState(false);
+  const [kineticCutMode, setKineticCutMode] = useState(false);
   const [lastKineticBox, setLastKineticBox] = useState<KineticBoundingBox | null>(null);
   const [selectedKineticWordId, setSelectedKineticWordId] = useState<string | null>(null);
 
@@ -49,6 +51,14 @@ export const useProjectStore = () => {
   const setBackgroundColor = useCallback((color: string) => {
     setProject(prev => {
       const next = { ...prev, backgroundColor: color };
+      pushToHistory(next);
+      return next;
+    });
+  }, [pushToHistory]);
+
+  const setWaveformStyle = useCallback((style: 'solid' | 'lines') => {
+    setProject(prev => {
+      const next = { ...prev, waveformStyle: style };
       pushToHistory(next);
       return next;
     });
@@ -80,8 +90,8 @@ export const useProjectStore = () => {
   const detachAudio = useCallback(() => { /* Placeholder */ }, []);
 
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, lastKineticBox, selectedKineticWordId,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, lastKineticBox, selectedKineticWordId,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle,
     ...trackActions,
     ...clipActions,
     ...kineticActions,
@@ -91,6 +101,7 @@ export const useProjectStore = () => {
     undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1,
     pushToHistory,
     pushToHistoryDebounced,
+    splitKineticChunk: kineticActions.splitKineticChunk,
     clearWordOverrideProperty: kineticActions.clearWordOverrideProperty,
     finalizeMove: () => pushToHistory(project),
     setProject,

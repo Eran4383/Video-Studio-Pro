@@ -1,6 +1,6 @@
 import { Clip } from '../types';
 
-export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke' | 'tetris';
+export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke';
 export type KineticAnimationStyle = 'pop' | 'slide-up' | 'scale' | 'fade';
 
 export interface KineticBoundingBox {
@@ -16,6 +16,7 @@ export interface KineticWord {
   startTime: number;
   endTime: number;
   sourceClipId: string;
+  chunkId?: string; // Add this
   // Absolute percentages relative to the bounding box
   position: {
     x: number;
@@ -35,16 +36,6 @@ export interface KineticWord {
   isCentered?: boolean;
   layoutStyle?: KineticLayoutStyle;
   sceneEndTime: number;
-  // Advanced styling
-  strokeWidth?: number;
-  strokeColor?: string;
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-  backgroundColor?: string;
-  backgroundPadding?: number;
-  rotation?: number;
 }
 
 export interface KineticSettings {
@@ -69,7 +60,6 @@ export interface KineticSettings {
   keepPastInCollage?: boolean;
   keepPastInKaraoke?: boolean;
   keepPastInPop?: boolean;
-  keepPastInTetris?: boolean;
   karaokeMode?: 'single-line' | 'multi-line';
   karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
   animationMultiSelect?: boolean;
@@ -81,23 +71,13 @@ export interface KineticSettings {
   textCase?: 'uppercase' | 'lowercase' | 'original' | 'random';
   lineHeight?: number; // default 1
   
-  // Advanced styling
-  strokeWidth?: number;
-  strokeColor?: string;
-  shadowColor?: string;
-  shadowBlur?: number;
-  shadowOffsetX?: number;
-  shadowOffsetY?: number;
-  backgroundColor?: string;
-  backgroundPadding?: number;
-  rotation?: number;
-
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
 }
 
 export interface KineticBlock {
   id: string;
+  parentId?: string;
   name: string;
   color: string;
   startTime: number;
@@ -106,4 +86,5 @@ export interface KineticBlock {
   settings: KineticSettings;
   words: KineticWord[];
   wordOverrides?: Record<string, Partial<KineticWord>>;
+  chunkColors?: Record<string, string>;
 }

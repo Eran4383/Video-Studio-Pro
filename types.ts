@@ -65,6 +65,7 @@ export interface Project {
   tracks: Track[];
   backgroundColor?: string;
   kineticBlocks?: KineticBlock[];
+  waveformStyle?: 'solid' | 'lines';
 }
 
 export interface Track {

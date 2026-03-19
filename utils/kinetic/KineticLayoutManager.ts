@@ -3,7 +3,6 @@ import { KineticBlock, KineticSettings, KineticWord, KineticAnimationStyle, Kine
 import { generateDynamicCollage } from './layouts/DynamicCollage';
 import { generatePopInPlace } from './layouts/PopInPlace';
 import { generateKaraoke } from './layouts/Karaoke';
-import { generateTetrisLayout } from './layouts/TetrisLayout';
 import { assignColors } from './KineticColorEngine';
 
 export interface ProcessedWord {
@@ -89,9 +88,6 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     case 'karaoke':
       geometricWords = generateKaraoke(processedWords, settings, screenAR);
       break;
-    case 'tetris':
-      geometricWords = generateTetrisLayout(processedWords, settings, isRtl, screenAR);
-      break;
     case 'dynamic-collage':
     default:
       geometricWords = generateDynamicCollage(processedWords, settings, isRtl, screenAR);
@@ -118,14 +114,37 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     textCase: processedWords[index].textCase,
     animation: getWordAnimation(settings.animationStyle, index),
     isCentered: gw.isCentered,
-    anchor: gw.anchor,
     layoutStyle: layoutStyle,
-    sceneEndTime: currentSceneEndTime,
-    rotation: gw.rotation
+    sceneEndTime: currentSceneEndTime
   }));
 
   // 4. Assign Colors
   assignColors(kineticWords, settings.paletteId, settings.randomMode, settings.customColors);
+
+  // Post-processing: Clamp word width to 90% of screen width and keep within bounds
+  kineticWords.forEach(word => {
+    if (word.width > 0.90) {
+      const scaleFactor = 0.90 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.90;
+    }
+    if (word.fontSize > 0.90) {
+      const scaleFactor = 0.90 / word.fontSize;
+      word.width *= scaleFactor;
+      word.fontSize = 0.90;
+    }
+
+    const halfW = word.width / 2;
+    const halfH = (word.fontSize || 0.1) / 2;
+
+    if (word.isCentered) {
+      word.position.x = Math.max(halfW + 0.05, Math.min(0.95 - halfW, word.position.x));
+      word.position.y = Math.max(halfH + 0.05, Math.min(0.95 - halfH, word.position.y));
+    } else {
+      word.position.x = Math.max(0.05, Math.min(0.95 - word.width, word.position.x));
+      word.position.y = Math.max(0.05, Math.min(0.95 - (word.fontSize || 0.1), word.position.y));
+    }
+  });
 
   return kineticWords;
 };
@@ -242,9 +261,6 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       case 'karaoke':
         geometricWords = generateKaraoke(processedWords, block.settings, screenAR);
         break;
-      case 'tetris':
-        geometricWords = generateTetrisLayout(processedWords, block.settings, false, screenAR);
-        break;
       case 'dynamic-collage':
       default:
         geometricWords = generateDynamicCollage(processedWords, block.settings, false, screenAR);
@@ -253,12 +269,14 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     
     // Assign colors
     const currentSceneEndTime = chunk[chunk.length - 1].endTime;
+    const chunkId = `chunk-${Date.now()}-${chunkIndex}`;
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
       id: `${chunk[j].clipId}-word-${chunk[j].wordIndexInClip}`,
       text: gw.text,
       startTime: chunk[j].startTime,
       endTime: chunk[j].endTime,
       sourceClipId: chunk[j].clipId,
+      chunkId: chunkId,
       position: { x: gw.x / 100, y: gw.y / 100 },
       fontSize: gw.fontSize / 100,
       width: gw.width / 100,
@@ -268,10 +286,8 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       textCase: processedWords[j].textCase,
       animation: getWordAnimation(block.settings.animationStyle, globalWordIndex + j),
       isCentered: gw.isCentered,
-      anchor: gw.anchor,
       layoutStyle: layoutStyle,
-      sceneEndTime: currentSceneEndTime,
-      rotation: gw.rotation
+      sceneEndTime: currentSceneEndTime
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
@@ -280,6 +296,31 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     globalWordIndex += chunk.length;
     chunkIndex++;
   }
+
+  // Post-processing: Clamp word width to 90% of screen width and keep within bounds
+  kineticWords.forEach(word => {
+    if (word.width > 0.90) {
+      const scaleFactor = 0.90 / word.width;
+      word.fontSize *= scaleFactor;
+      word.width = 0.90;
+    }
+    if (word.fontSize > 0.90) {
+      const scaleFactor = 0.90 / word.fontSize;
+      word.width *= scaleFactor;
+      word.fontSize = 0.90;
+    }
+
+    const halfW = word.width / 2;
+    const halfH = (word.fontSize || 0.1) / 2;
+
+    if (word.isCentered) {
+      word.position.x = Math.max(halfW + 0.05, Math.min(0.95 - halfW, word.position.x));
+      word.position.y = Math.max(halfH + 0.05, Math.min(0.95 - halfH, word.position.y));
+    } else {
+      word.position.x = Math.max(0.05, Math.min(0.95 - word.width, word.position.x));
+      word.position.y = Math.max(0.05, Math.min(0.95 - (word.fontSize || 0.1), word.position.y));
+    }
+  });
 
   return kineticWords;
 };
