@@ -20,7 +20,8 @@ const INITIAL_PROJECT: Project = {
   ],
   backgroundColor: '#000000',
   kineticBlocks: [],
-  waveformStyle: 'solid'
+  waveformStyle: 'solid',
+  waveformScale: 1.0
 };
 
 export const useProjectStore = () => {
@@ -64,6 +65,14 @@ export const useProjectStore = () => {
     });
   }, [pushToHistory]);
 
+  const setWaveformScale = useCallback((scale: number) => {
+    setProject(prev => {
+      const next = { ...prev, waveformScale: scale };
+      pushToHistory(next);
+      return next;
+    });
+  }, [pushToHistory]);
+
   const setProjectResolution = useCallback((width: number, height: number) => {
     setProject(prev => {
       const screenAR = width / height;
@@ -91,7 +100,7 @@ export const useProjectStore = () => {
 
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, lastKineticBox, selectedKineticWordId,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

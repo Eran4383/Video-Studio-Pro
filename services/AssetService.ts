@@ -1,5 +1,5 @@
 
-import { Asset, MediaType } from '../types';
+import { Asset, MediaType, WAVEFORM_SAMPLES_PER_SECOND } from '../types';
 import { MagneticAnchorService } from './MagneticAnchorService';
 
 export class AssetService {
@@ -23,6 +23,7 @@ export class AssetService {
     let width = 0;
     let height = 0;
     let waveform: number[] | undefined = undefined;
+    let audioBuffer: AudioBuffer | undefined = undefined;
 
     try {
       if (type === MediaType.VIDEO) {
@@ -32,19 +33,26 @@ export class AssetService {
         height = metadata.height;
         thumbnail = await this.generateThumbnail(url).catch(() => '');
         
-        // Extract real waveform data with high fidelity (1000 samples)
-        waveform = await this.extractWaveform(url, 1000).catch(err => {
+        // Extract real waveform data aligned to project standard
+        // WAVEFORM_SAMPLES_PER_SECOND samples per second for frame-accurate alignment
+        const samples = Math.ceil(duration * WAVEFORM_SAMPLES_PER_SECOND);
+        const result = await this.extractWaveformAndBuffer(url, samples).catch(err => {
           console.warn("Waveform extraction failed", err);
-          return undefined;
+          return { waveform: undefined, audioBuffer: undefined };
         });
+        waveform = result.waveform;
+        audioBuffer = result.audioBuffer;
       } else if (type === MediaType.AUDIO) {
         duration = await this.getAudioDuration(url);
         
-        // Extract real waveform data with high fidelity (1000 samples)
-        waveform = await this.extractWaveform(url, 1000).catch(err => {
+        // Extract real waveform data aligned to project standard
+        const samples = Math.ceil(duration * WAVEFORM_SAMPLES_PER_SECOND);
+        const result = await this.extractWaveformAndBuffer(url, samples).catch(err => {
           console.warn("Waveform extraction failed", err);
-          return undefined;
+          return { waveform: undefined, audioBuffer: undefined };
         });
+        waveform = result.waveform;
+        audioBuffer = result.audioBuffer;
       } else if (type === MediaType.IMAGE) {
         const metadata = await this.getImageMetadata(url);
         width = metadata.width;
@@ -70,14 +78,15 @@ export class AssetService {
       thumbnail,
       width,
       height,
-      waveform
+      waveform,
+      audioBuffer
     };
   }
 
-  private static async extractWaveform(url: string, samples = 1000): Promise<number[]> {
+  private static async extractWaveformAndBuffer(url: string, samples = 1000): Promise<{ waveform: number[], audioBuffer: AudioBuffer | undefined }> {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return [];
+      if (!AudioContextClass) return { waveform: [], audioBuffer: undefined };
 
       const response = await fetch(url);
       const arrayBuffer = await response.arrayBuffer();
@@ -102,14 +111,19 @@ export class AssetService {
           waveform.push(min);
           waveform.push(max);
         }
-        return waveform;
+        return { waveform, audioBuffer };
       } finally {
         await audioCtx.close();
       }
     } catch (e) {
       console.warn("Waveform generation error:", e);
-      return [];
+      return { waveform: [], audioBuffer: undefined };
     }
+  }
+
+  private static async extractWaveform(url: string, samples = 1000): Promise<number[]> {
+    const result = await this.extractWaveformAndBuffer(url, samples);
+    return result.waveform;
   }
 
   private static getVideoMetadata(url: string): Promise<{ duration: number, width: number, height: number }> {

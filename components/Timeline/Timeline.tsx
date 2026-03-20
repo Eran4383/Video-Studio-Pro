@@ -7,6 +7,7 @@ import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
 import { KineticBlocksOverlay } from './KineticBlocksOverlay';
 import { useProjectStore } from '../../store/useProjectStore';
+import { AudioMonitor } from './AudioMonitor';
 
 interface TimelineProps {
   project: Project;
@@ -439,6 +440,10 @@ export const Timeline: React.FC<TimelineProps> = ({
         onSyncToAnchors={onSyncToAnchors}
         onImportSubtitles={onImportSubtitles}
       />
+
+      <div className="absolute top-12 right-6 z-[100] pointer-events-none">
+        <AudioMonitor project={project} assets={assets} currentTime={currentTime} />
+      </div>
 
       <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>
         <div className="min-w-max relative flex-1">

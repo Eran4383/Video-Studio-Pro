@@ -8,6 +8,8 @@ export enum MediaType {
   TEXT = 'TEXT'
 }
 
+export const WAVEFORM_SAMPLES_PER_SECOND = 30;
+
 export interface Asset {
   id: string;
   name: string;
@@ -19,6 +21,7 @@ export interface Asset {
   height?: number;
   waveform?: number[]; // Normalized amplitude data (0 to 1)
   anchors?: number[]; // Timestamps (in seconds) where audio onsets are detected
+  audioBuffer?: AudioBuffer; // Decoded audio data for sample-accurate playback
 }
 
 export interface Clip {

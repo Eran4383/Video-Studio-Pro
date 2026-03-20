@@ -5,6 +5,7 @@ import { Tooltip } from '../UI/Tooltip';
 import { GFX_Engine } from '../../services/GFX_Engine';
 import { GFX_Gizmo } from '../../services/GFX_Gizmo';
 import { GFX_InteractionManager } from '../../services/GFX_InteractionManager';
+import { webAudioService } from '../../services/WebAudioService';
 import { useProjectStore } from '../../store/useProjectStore';
 import { TransformOverlay } from './TransformOverlay';
 import { KineticDrawOverlay } from './KineticDrawOverlay';
@@ -355,35 +356,8 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
       let nextTime = localTimeRef.current;
       let synced = false;
 
-      // 1. Audio-Slaved Timing (Priority: Audio -> Video -> Clock)
-      // Check active audio elements
-      for (const [clipId, audioEl] of audioElementsRef.current.entries()) {
-        if (!audioEl.paused && !audioEl.ended && audioEl.readyState >= 2) {
-           // Find clip info to map time back to timeline
-           // We iterate tracks to find the clip. This is fast enough for < 100 clips.
-           let foundClip: any = null;
-           for(const t of project.tracks) {
-               if(t.type === 'audio') {
-                   const c = t.clips.find(c => c.id === clipId);
-                   if(c) { foundClip = c; break; }
-               }
-           }
-           
-           if (foundClip) {
-               // Calculate timeline time: current = audioTime - offset + startTime
-               const calculatedTime = audioEl.currentTime - foundClip.offset + foundClip.startTime;
-               // Sanity check: don't jump if difference is huge (e.g. looping artifact), but generally trust audio
-               if (Math.abs(calculatedTime - localTimeRef.current) < 1.0) {
-                   nextTime = calculatedTime;
-                   synced = true;
-                   break; // Found master
-               }
-           }
-        }
-      }
-
-      // 2. Video-Slaved Timing (if no audio master)
-      if (!synced && videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
+      // 1. Video-Slaved Timing (Priority: Video -> Clock)
+      if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
           // Find active video clip for current time
           const currentT = localTimeRef.current;
           const vidClip = project.tracks
@@ -400,7 +374,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
           }
       }
 
-      // 3. Fallback to System Clock
+      // 2. Fallback to System Clock
       if (!synced) {
           const deltaTime = (time - lastTimeRef.current) / 1000;
           nextTime = localTimeRef.current + deltaTime;
@@ -475,51 +449,65 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     }
   }, [isPlaying, activeVideoAsset?.id, isVideoSilenceNeeded, currentTime, activeVideoClip?.startTime, activeVideoClip?.offset]);
 
-  // 3. Audio Sync (Excluding Subtitles)
+  // 3. Audio Sync (Web Audio API for zero-latency)
+  const playingClipsRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (!audioContainerRef.current) return;
-    
-    // Calculate active sources - EXCLUDING SUBTITLES
+    if (!isPlaying) {
+      webAudioService.stopAll();
+      playingClipsRef.current.clear();
+      return;
+    }
+
+    // Calculate active audio sources
     const currentActiveSources = project.tracks
       .filter(t => !t.isMuted && t.type !== 'subtitle')
       .flatMap(t => t.clips.map(c => ({ clip: c, asset: assets.find(a => a.id === c.assetId) })))
       .filter(item => {
-        if (!item.asset) return false;
+        if (!item.asset || !item.asset.audioBuffer) return false;
         if (item.clip.isSilent) return false;
-        if (item.clip.content) return false; // Extra safeguard: Subtitles should never play audio
         if (activeVideoClip && item.clip.id === activeVideoClip.id) return false;
         return renderTime >= item.clip.startTime && renderTime <= item.clip.startTime + item.clip.duration;
       });
 
     const currentActiveIds = new Set(currentActiveSources.map(s => s.clip.id));
-    
-    // Cleanup inactive
-    for (const [id, el] of audioElementsRef.current.entries()) {
-      if (!currentActiveIds.has(id)) { el.pause(); el.src = ""; el.remove(); audioElementsRef.current.delete(id); }
-    }
 
-    // Update/Create active
-    currentActiveSources.forEach(({ clip, asset }) => {
-      if (!asset) return;
-      let el = audioElementsRef.current.get(clip.id);
-      if (!el) { 
-        el = document.createElement('audio'); 
-        el.src = asset.url; 
-        el.preload = "auto"; 
-        audioContainerRef.current!.appendChild(el); 
-        audioElementsRef.current.set(clip.id, el); 
-      }
-      
-      const targetTime = (renderTime - clip.startTime) + clip.offset;
-      if (Math.abs(el.currentTime - targetTime) > 0.2) el.currentTime = targetTime;
-      
-      if (isPlaying) {
-        if (el.paused) el.play().catch(() => {});
-      } else {
-        if (!el.paused) el.pause();
+    // Stop clips that are no longer active
+    playingClipsRef.current.forEach(id => {
+      if (!currentActiveIds.has(id)) {
+        webAudioService.stopClip(id);
+        playingClipsRef.current.delete(id);
       }
     });
-  }, [isPlaying, currentTime, project.tracks, assets]);
+
+    // Start clips that just became active or if we seeked
+    currentActiveSources.forEach(({ clip, asset }) => {
+      if (!asset) return;
+      
+      const isAlreadyPlaying = playingClipsRef.current.has(clip.id);
+      
+      // If not playing, or if we seeked significantly, restart the clip
+      // We check if the audio is "drifting" or if we just started
+      if (!isAlreadyPlaying) {
+        webAudioService.playClip(clip, asset, renderTime);
+        playingClipsRef.current.add(clip.id);
+      }
+    });
+  }, [isPlaying, activeVideoClip?.id, project.tracks, assets]);
+
+  // Handle Seeking (Restart audio if time jumps)
+  useEffect(() => {
+    if (isPlaying) {
+      // If we are playing and currentTime changes (from external source or jump), 
+      // we might need to resync. But the animation loop handles localTime.
+      // If currentTimeRef.current jumps significantly from localTimeRef.current, it's a seek.
+      if (Math.abs(currentTime - localTimeRef.current) > 0.3) {
+        webAudioService.stopAll();
+        playingClipsRef.current.clear();
+        // The next effect run will restart them at the new time
+      }
+    }
+  }, [currentTime]);
 
   // --- Keyboard Controls for Clip Movement ---
   useEffect(() => {

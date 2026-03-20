@@ -156,6 +156,19 @@ export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
                     <option value="lines">Lines (Beat-by-Beat)</option>
                   </select>
               </div>
+
+              <div className="flex flex-col gap-1.5">
+                 <ProSlider 
+                    label="Waveform Scale" 
+                    value={(project.waveformScale ?? 1.0) * 100} 
+                    onChange={(v) => store.setWaveformScale(v / 100)}
+                    min={10}
+                    max={1000}
+                    step={10}
+                    unit="%"
+                    defaultValue={100}
+                 />
+              </div>
            </div>
         </Section>
       </div>
