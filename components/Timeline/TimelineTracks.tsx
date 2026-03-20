@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { Project, Clip, Asset } from '../../types';
 import { TrackHeader } from './TrackHeader';
 import { Link as LinkIcon } from 'lucide-react';
-import { Waveform } from './Waveform';
+import { WaveformCanvas } from './WaveformCanvas';
 import { MagneticMarkers } from './MagneticMarkers';
 
 interface TimelineTracksProps {
@@ -50,9 +50,17 @@ export const TimelineTracks = memo(({
                   className={`absolute top-2 bottom-2 rounded-lg border-2 flex flex-col justify-center px-3 overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 border-indigo-500/50 z-20 border-dashed' : track.type === 'audio' ? 'bg-indigo-950/40 border-indigo-800/40 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 border-yellow-600/40 z-20' : 'bg-zinc-800/80 border-zinc-700 hover:border-zinc-500 z-10'}`}
                   style={{ left: clip.startTime * pxPerSec, width: clip.duration * pxPerSec }}
                 >
-                  {track.type === 'audio' && (
+                  {track.type === 'audio' && asset?.audioBuffer && (
                     <>
-                      <Waveform asset={asset} clip={clip} waveformStyle={project.waveformStyle} pxPerSec={pxPerSec} fps={project.fps} />
+                      <WaveformCanvas 
+                        assetId={asset.id} 
+                        buffer={asset.audioBuffer} 
+                        clipOffset={clip.offset} 
+                        clipDuration={clip.duration} 
+                        pxPerSec={pxPerSec} 
+                        fps={project.fps} 
+                        isExpanded={track.height ? track.height > 60 : false}
+                      />
                       <MagneticMarkers asset={asset} clip={clip} pxPerSec={pxPerSec} />
                     </>
                   )}

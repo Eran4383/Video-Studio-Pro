@@ -1,806 +1,115 @@
-import React, { useRef, useEffect, useMemo, useState } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Maximize, Repeat, ZoomIn, ZoomOut, RotateCcw, Scan, Magnet } from 'lucide-react';
-import { Project, Asset } from '../../types';
-import { Tooltip } from '../UI/Tooltip';
-import { GFX_Engine } from '../../services/GFX_Engine';
-import { GFX_Gizmo } from '../../services/GFX_Gizmo';
-import { GFX_InteractionManager } from '../../services/GFX_InteractionManager';
-import { webAudioService } from '../../services/WebAudioService';
-import { useProjectStore } from '../../store/useProjectStore';
-import { TransformOverlay } from './TransformOverlay';
-import { KineticDrawOverlay } from './KineticDrawOverlay';
-import { KineticTextDOM } from './KineticTextDOM';
+
+import React, { useRef, useState, useMemo } from 'react';
+import { PreviewCanvas } from './PreviewCanvas';
+import { PreviewControls } from './PreviewControls';
+import { useAnimationLoop } from '../../hooks/useAnimationLoop';
+import { useAudioSync } from '../../hooks/useAudioSync';
 
 interface PreviewPlayerProps {
-  store: any; // Using any to avoid circular type issues with the hook return type, or we could define a Store interface
+  store: any;
 }
 
-const interactionManager = new GFX_InteractionManager();
-
 export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
-  // Destructure what we need from the store prop
   const { 
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
-    selectedClipIds, selectClip, setProject, finalizeMove, applyToAll,
-    isCanvasMagnetEnabled, setIsCanvasMagnetEnabled,
-    showTransformControls, setShowTransformControls
+    selectedClipIds, selectClip, isCanvasMagnetEnabled, setIsCanvasMagnetEnabled,
+    showTransformControls, setShowTransformControls, applyToAll
   } = store;
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
-  const audioContainerRef = useRef<HTMLDivElement>(null);
-  const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
-  const requestRef = useRef<number>(null);
-  const lastTimeRef = useRef<number>(performance.now());
+  const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
-  // Zoom & Pan State
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
-
-  // GFX State
-  const [isInteractingGFX, setIsInteractingGFX] = useState(false);
-  // Use the first selected clip for GFX/Transform interactions for now
-  const selectedClip = project.tracks.flatMap(t => t.clips).find(c => selectedClipIds.includes(c.id));
-
-  // Subtitle State
+  const [localTime, setLocalTime] = useState(currentTime);
   const [isDraggingSub, setIsDraggingSub] = useState(false);
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState("");
+  const [snapGuides, setSnapGuides] = useState({ x: false, y: false });
   const subDragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
-  const lastSubPosRef = useRef<{x: number, y: number} | null>(null);
 
   const totalDuration = useMemo(() => {
     if (project.tracks.every(t => t.clips.length === 0)) return 0;
     return Math.max(0, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
   }, [project.tracks]);
 
-  const [snapGuides, setSnapGuides] = useState({ x: false, y: false });
+  const renderTime = isPlaying ? localTime : currentTime;
 
-  // --- Animation Loop ---
-  // (Moved to bottom to avoid ReferenceError)
+  // Main Animation Loop
+  useAnimationLoop(
+    isPlaying, isLooping, totalDuration, project, videoRef,
+    (time) => { setLocalTime(time); setCurrentTime(time); },
+    (time) => { setLocalTime(time); }
+  );
 
-  // --- Zoom & Pan Handlers ---
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    const newScale = Math.min(Math.max(0.1, scale + delta), 5);
-    setScale(newScale);
-  };
+  // Audio Sync (Web Audio API)
+  useAudioSync(project, assets, isPlaying, renderTime);
 
+  // Handlers
   const handleMouseDown = (e: React.MouseEvent) => {
-    if (gfxCanvasRef.current && selectedClip) {
-       if (isInteractingGFX) return; 
-    }
-
     if (e.button === 1 || (e.button === 0 && e.altKey)) {
       setIsPanning(true);
       setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-      e.stopPropagation();
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isPanning) {
-      setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
+    if (isPanning) setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
+    if (isDraggingSub && editingSubId) {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const dx = (e.clientX - subDragStartRef.current.x) / rect.width;
+      const dy = (e.clientY - subDragStartRef.current.y) / rect.height;
+      updateClip(editingSubId, { position: { x: subDragStartRef.current.startX + dx, y: subDragStartRef.current.startY + dy } }, false, applyToAll);
     }
   };
 
   const handleMouseUp = () => {
     setIsPanning(false);
-  };
-
-  const resetView = () => {
-    setScale(1);
-    setPan({ x: 0, y: 0 });
-  };
-
-  // --- GFX Interaction Handlers ---
-  const handleCanvasMouseDown = (e: React.MouseEvent) => {
-    if (e.button === 1) {
-      handleMouseDown(e);
-      return;
-    }
-
-    if (!gfxCanvasRef.current || !selectedClip) {
-      handleMouseDown(e); 
-      return;
-    }
-    
-    const canvas = gfxCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
-    
-    const layer = GFX_Engine.getLayerForClip(selectedClip, project.resolution);
-    if (layer) {
-      const mode = interactionManager.onMouseDown(x, y, layer);
-      if (mode !== 'IDLE') {
-        setIsInteractingGFX(true);
-        e.stopPropagation();
-      } else {
-        handleMouseDown(e);
-      }
-    }
-  };
-
-  const handleCanvasMouseMove = (e: React.MouseEvent) => {
-    if (isDraggingSub) {
-      handleSubMouseMove(e);
-      return;
-    }
-    if (isPanning) { handleMouseMove(e); return; }
-
-    if (!isInteractingGFX || !gfxCanvasRef.current || !selectedClip) return;
-    const canvas = gfxCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * canvas.width;
-    const y = ((e.clientY - rect.top) / rect.height) * canvas.height;
-
-    const layer = GFX_Engine.getLayerForClip(selectedClip, project.resolution);
-    if (layer) {
-      const updated = interactionManager.onMouseMove(x, y, layer);
-      if (updated) {
-        // Normalize back to 0-1 range for storage
-        const normalized = GFX_Engine.normalizeProperties(layer, project.resolution);
-        
-        store.setProject(prev => ({
-          ...prev,
-          tracks: prev.tracks.map(t => ({
-            ...t,
-            clips: t.clips.map(c => c.id === selectedClip.id ? {
-              ...c,
-              effects: [
-                ...c.effects.filter(eff => eff.name !== 'GFX_PROPS'),
-                { 
-                  id: 'gfx-props',
-                  type: 'adjustment',
-                  name: 'GFX_PROPS',
-                  params: normalized 
-                }
-              ]
-            } : c)
-          }))
-        }));
-      }
-    }
-  };
-
-  const handleCanvasMouseUp = () => {
-    if (isDraggingSub) {
-      handleSubMouseUp();
-      return;
-    }
-    if (isPanning) handleMouseUp();
-    if (isInteractingGFX) {
-      finalizeMove();
-    }
-    setIsInteractingGFX(false);
-    interactionManager.onMouseUp();
-  };
-
-  const [localTime, setLocalTime] = useState(currentTime);
-  const localTimeRef = useRef(currentTime);
-  const currentTimeRef = useRef(currentTime);
-
-  useEffect(() => {
-    currentTimeRef.current = currentTime;
-  }, [currentTime]);
-
-  useEffect(() => {
-    if (!isPlaying) {
-      setLocalTime(currentTime);
-      localTimeRef.current = currentTime;
-    }
-  }, [currentTime, isPlaying]);
-
-  const renderTime = isPlaying ? localTime : currentTime;
-
-  // --- Media Sync ---
-  const activeVideoClip = project.tracks.slice().reverse()
-    .filter(t => (t.type === 'video' || t.type === 'image') && t.isVisible)
-    .flatMap(t => t.clips)
-    .find(c => {
-      const asset = assets.find(a => a.id === c.assetId);
-      return renderTime >= c.startTime && renderTime <= c.startTime + c.duration && (asset?.type === 'VIDEO' || asset?.type === 'IMAGE');
-    });
-  const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
-  const isVideoSilenceNeeded = activeVideoClip?.isSilent || project.tracks.find(t => t.clips.some(c => c.id === activeVideoClip?.id))?.isMuted;
-  
-  // Note: Audio and Subtitle calculations moved to effects/refs for performance
-
-  // --- Subtitles ---
-  const activeSubs = project.tracks
-    .filter(t => t.isVisible)
-    .flatMap(t => t.clips)
-    .filter(c => c.content && renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
-
-  const activeKineticBlocks = (project.kineticBlocks || []).map((b: any) => {
-    const clips = project.tracks.flatMap(t => t.clips).filter(c => b.clipIds.includes(c.id));
-    if (clips.length === 0) return null;
-    const startTime = Math.min(...clips.map(c => c.startTime));
-    const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
-    return { ...b, startTime, endTime };
-  }).filter(
-    (b: any) => b && renderTime >= b.startTime && renderTime <= b.endTime
-  );
-
-  const activeSub = activeSubs[0]; // For the editor panel
-
-  const handleSubMouseDown = (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => {
-    if (e.button === 1) return;
-    e.stopPropagation();
-    setIsDraggingSub(true);
-    setEditingSubId(subId);
-    selectClip(subId); // Select the clip when clicking on it
-    
-    subDragStartRef.current = {
-      x: e.clientX,
-      y: e.clientY,
-      startX: currentPos.x,
-      startY: currentPos.y,
-    };
-  };
-
-  const handleSubMouseMove = (e: React.MouseEvent) => {
-    if (isDraggingSub && editingSubId && updateClip) {
-      const containerRect = gfxCanvasRef.current?.parentElement?.getBoundingClientRect();
-      if (!containerRect) return;
-
-      const deltaX = (e.clientX - subDragStartRef.current.x) / containerRect.width;
-      const deltaY = (e.clientY - subDragStartRef.current.y) / containerRect.height;
-
-      const newX = Math.max(0, Math.min(1, subDragStartRef.current.startX + deltaX));
-      const newY = Math.max(0, Math.min(1, subDragStartRef.current.startY + deltaY));
-      lastSubPosRef.current = { x: newX, y: newY };
-
-      updateClip(editingSubId, { position: { x: newX, y: newY } }, false, applyToAll);
-    }
-  };
-
-  const handleSubMouseUp = () => {
-    if (isDraggingSub && editingSubId && updateClip && lastSubPosRef.current) {
-      updateClip(editingSubId, { position: lastSubPosRef.current }, true, applyToAll);
-      lastSubPosRef.current = null;
-    }
+    if (isDraggingSub && editingSubId) updateClip(editingSubId, {}, true, applyToAll);
     setIsDraggingSub(false);
   };
 
-  const handleSubDoubleClick = (e: React.MouseEvent, subId: string, content: string) => {
+  const handleSubMouseDown = (e: React.MouseEvent, subId: string, pos: {x: number, y: number}) => {
     e.stopPropagation();
+    setIsDraggingSub(true);
     setEditingSubId(subId);
-    setEditingText(content);
+    selectClip(subId);
+    subDragStartRef.current = { x: e.clientX, y: e.clientY, startX: pos.x, startY: pos.y };
   };
-
-  const handleSubTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setEditingText(e.target.value);
-  };
-
-  const handleSubTextSubmit = (e: React.KeyboardEvent | React.FocusEvent) => {
-    if (e.type === 'keydown' && (e as React.KeyboardEvent).key !== 'Enter') return;
-    if (editingSubId && updateClip) {
-      updateClip(editingSubId, { content: editingText }, false, false);
-    }
-    setEditingSubId(null);
-  };
-
-  // Performance Stats
-  const [fps, setFps] = useState(0);
-  const frameCountRef = useRef(0);
-  const lastFpsTimeRef = useRef(performance.now());
-  const lastGlobalUpdateRef = useRef(performance.now());
-
-  // --- Live Overrides for Performance ---
-  const liveOverrides = useRef<Record<string, any>>({});
-
-  useEffect(() => {
-    const handleOverride = (e: Event) => {
-      const { clipId, property, value } = (e as CustomEvent).detail;
-      const current = liveOverrides.current[clipId] || {};
-      
-      // Update ref for canvas rendering
-      if (property === 'posX') {
-        liveOverrides.current[clipId] = { ...current, posX: value };
-      } else if (property === 'posY') {
-        liveOverrides.current[clipId] = { ...current, posY: value };
-      } else if (property === 'scale') {
-        liveOverrides.current[clipId] = { ...current, scale: value / 100, scaleX: value / 100, scaleY: value / 100 };
-      } else if (property === 'rotation') {
-        liveOverrides.current[clipId] = { ...current, rotation: value };
-      }
-
-      // Direct DOM Manipulation for Subtitles (60FPS)
-      const subDom = document.getElementById(`sub-dom-${clipId}`);
-      const subText = document.getElementById(`sub-text-${clipId}`);
-      
-      if (subDom && subText) {
-         if (property === 'posX') {
-             subDom.style.left = `${value}%`;
-         }
-         if (property === 'posY') {
-             subDom.style.top = `${value}%`;
-         }
-         if (property === 'rotation') {
-             subDom.style.transform = `translate(-50%, -50%) rotate(${value}deg)`;
-         }
-         if (property === 'scale') {
-             // Base font size is 1.25rem * scale
-             subText.style.fontSize = `${(value / 100) * 1.25}rem`;
-         }
-         if (property === 'opacity') {
-             subDom.style.opacity = `${value / 100}`;
-         }
-      }
-    };
-
-    const handleClear = () => {
-      liveOverrides.current = {};
-    };
-
-    window.addEventListener('gfx-override', handleOverride);
-    window.addEventListener('gfx-override-clear', handleClear);
-    return () => {
-      window.removeEventListener('gfx-override', handleOverride);
-      window.removeEventListener('gfx-override-clear', handleClear);
-    };
-  }, []);
-
-  const imageRef = useRef<HTMLImageElement>(null);
-
-  // --- Animation Loop ---
-  const animate = (time: number) => {
-    if (isPlaying) {
-      let nextTime = localTimeRef.current;
-      let synced = false;
-
-      // 1. Video-Slaved Timing (Priority: Video -> Clock)
-      if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
-          // Find active video clip for current time
-          const currentT = localTimeRef.current;
-          const vidClip = project.tracks
-            .filter(t => t.type === 'video' && t.isVisible)
-            .flatMap(t => t.clips)
-            .find(c => currentT >= c.startTime && currentT <= c.startTime + c.duration);
-            
-          if (vidClip) {
-              const calculatedTime = videoRef.current.currentTime - vidClip.offset + vidClip.startTime;
-               if (Math.abs(calculatedTime - localTimeRef.current) < 1.0) {
-                   nextTime = calculatedTime;
-                   synced = true;
-               }
-          }
-      }
-
-      // 2. Fallback to System Clock
-      if (!synced) {
-          const deltaTime = (time - lastTimeRef.current) / 1000;
-          nextTime = localTimeRef.current + deltaTime;
-      }
-
-      localTimeRef.current = nextTime;
-      setLocalTime(nextTime);
-
-      if (totalDuration > 0 && nextTime >= totalDuration) {
-        if (isLooping) {
-          localTimeRef.current = 0;
-          setLocalTime(0);
-          setCurrentTime(0);
-          lastTimeRef.current = performance.now();
-        } else {
-          localTimeRef.current = totalDuration;
-          setLocalTime(totalDuration);
-          setCurrentTime(totalDuration);
-          setIsPlaying(false);
-        }
-      } else {
-        if (time - lastGlobalUpdateRef.current > 100) {
-          setCurrentTime(nextTime);
-          lastGlobalUpdateRef.current = time;
-        }
-      }
-    }
-
-    // GFX Render
-    if (gfxCanvasRef.current) {
-      const canvas = gfxCanvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        const currentRenderTime = isPlaying ? localTimeRef.current : currentTimeRef.current;
-        
-        // Apply Live Overrides
-        const activeMedia = activeVideoClip && (videoRef.current || imageRef.current) ? {
-            element: (activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current) as HTMLVideoElement | HTMLImageElement,
-            clipId: activeVideoClip.id,
-            asset: activeVideoAsset
-        } : undefined;
-
-        GFX_Engine.render(ctx, project, currentRenderTime, liveOverrides.current, activeMedia);
-        // GFX_Gizmo.draw removed to prevent ghost box - we use TransformOverlay now
-      }
-    }
-
-    lastTimeRef.current = time;
-    requestRef.current = requestAnimationFrame(animate);
-  };
-
-  // --- Effects ---
-  
-  // 1. Start Animation Loop
-  useEffect(() => {
-    requestRef.current = requestAnimationFrame(animate);
-    return () => { if (requestRef.current) cancelAnimationFrame(requestRef.current); };
-  }, [isPlaying, isLooping, totalDuration, project, selectedClipIds]);
-
-  // 2. Video Sync
-  useEffect(() => {
-    if (!videoRef.current) return;
-    if (activeVideoAsset && activeVideoClip) {
-      videoRef.current.muted = !!isVideoSilenceNeeded;
-      videoRef.current.volume = 1.0;
-      const targetTime = (renderTime - activeVideoClip.startTime) + activeVideoClip.offset;
-      if (Math.abs(videoRef.current.currentTime - targetTime) > 0.2) videoRef.current.currentTime = targetTime;
-      if (isPlaying) videoRef.current.play().catch(() => {}); else videoRef.current.pause();
-    } else {
-      videoRef.current.pause();
-    }
-  }, [isPlaying, activeVideoAsset?.id, isVideoSilenceNeeded, currentTime, activeVideoClip?.startTime, activeVideoClip?.offset]);
-
-  // 3. Audio Sync (Web Audio API for zero-latency)
-  const playingClipsRef = useRef<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (!isPlaying) {
-      webAudioService.stopAll();
-      playingClipsRef.current.clear();
-      return;
-    }
-
-    // Calculate active audio sources
-    const currentActiveSources = project.tracks
-      .filter(t => !t.isMuted && t.type !== 'subtitle')
-      .flatMap(t => t.clips.map(c => ({ clip: c, asset: assets.find(a => a.id === c.assetId) })))
-      .filter(item => {
-        if (!item.asset || !item.asset.audioBuffer) return false;
-        if (item.clip.isSilent) return false;
-        if (activeVideoClip && item.clip.id === activeVideoClip.id) return false;
-        return renderTime >= item.clip.startTime && renderTime <= item.clip.startTime + item.clip.duration;
-      });
-
-    const currentActiveIds = new Set(currentActiveSources.map(s => s.clip.id));
-
-    // Stop clips that are no longer active
-    playingClipsRef.current.forEach(id => {
-      if (!currentActiveIds.has(id)) {
-        webAudioService.stopClip(id);
-        playingClipsRef.current.delete(id);
-      }
-    });
-
-    // Start clips that just became active or if we seeked
-    currentActiveSources.forEach(({ clip, asset }) => {
-      if (!asset) return;
-      
-      const isAlreadyPlaying = playingClipsRef.current.has(clip.id);
-      
-      // If not playing, or if we seeked significantly, restart the clip
-      // We check if the audio is "drifting" or if we just started
-      if (!isAlreadyPlaying) {
-        webAudioService.playClip(clip, asset, renderTime);
-        playingClipsRef.current.add(clip.id);
-      }
-    });
-  }, [isPlaying, activeVideoClip?.id, project.tracks, assets]);
-
-  // Handle Seeking (Restart audio if time jumps)
-  useEffect(() => {
-    if (isPlaying) {
-      // If we are playing and currentTime changes (from external source or jump), 
-      // we might need to resync. But the animation loop handles localTime.
-      // If currentTimeRef.current jumps significantly from localTimeRef.current, it's a seek.
-      if (Math.abs(currentTime - localTimeRef.current) > 0.3) {
-        webAudioService.stopAll();
-        playingClipsRef.current.clear();
-        // The next effect run will restart them at the new time
-      }
-    }
-  }, [currentTime]);
-
-  // --- Keyboard Controls for Clip Movement ---
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (!selectedClip || !updateClip) return;
-
-      const step = e.shiftKey ? 0.05 : 0.005;
-      let dx = 0;
-      let dy = 0;
-
-      if (e.key === 'ArrowUp') dy = -step;
-      if (e.key === 'ArrowDown') dy = step;
-      if (e.key === 'ArrowLeft') dx = -step;
-      if (e.key === 'ArrowRight') dx = step;
-
-      if (dx !== 0 || dy !== 0) {
-        e.preventDefault();
-        const currentX = selectedClip.position?.x ?? 0.5;
-        const currentY = selectedClip.position?.y ?? (selectedClip.content ? 0.9 : 0.5);
-        
-        updateClip(
-          selectedClip.id, 
-          { position: { x: currentX + dx, y: currentY + dy } }, 
-          true,
-          applyToAll
-        );
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClip, updateClip, applyToAll]);
 
   return (
     <div className="flex-1 flex flex-col relative group overflow-hidden border-x border-zinc-800/50">
-      <div ref={audioContainerRef} className="hidden" aria-hidden="true" />
-      
-      <div 
-        className="flex-1 flex items-center justify-center p-6 overflow-hidden cursor-default relative bg-[#18181b]"
-        onWheel={handleWheel}
-        onMouseDown={handleCanvasMouseDown}
-        onMouseMove={handleCanvasMouseMove}
-        onMouseUp={handleCanvasMouseUp}
-        onMouseLeave={handleCanvasMouseUp}
-      >
-        <div 
-          ref={containerRef}
-          className="rounded shadow-2xl border border-white/5 flex items-center justify-center overflow-hidden relative transition-transform duration-75 ease-out"
-          style={{ 
-            transform: `scale(${scale}) translate(${pan.x}px, ${pan.y}px)`, 
-            backgroundColor: project.backgroundColor || '#000000',
-            aspectRatio: `${project.resolution.width} / ${project.resolution.height}`,
-            maxWidth: '100%',
-            maxHeight: '100%',
-            width: project.resolution.width > project.resolution.height ? '100%' : 'auto',
-            height: project.resolution.height >= project.resolution.width ? '100%' : 'auto'
-          }}
-        >
-          {/* Hidden Media Container for Canvas Source */}
-          <div className="hidden">
-            {activeVideoAsset && activeVideoClip && (
-                activeVideoAsset.type === 'VIDEO' ? (
-                    <video 
-                      key={activeVideoAsset.id}
-                      ref={videoRef} 
-                      src={activeVideoAsset.url} 
-                      playsInline
-                      muted={isVideoSilenceNeeded}
-                      onLoadedMetadata={() => {
-                         // Force update to ensure dimensions are ready
-                         if (videoRef.current) setFps(f => f + 1); 
-                      }}
-                    />
-                ) : (
-                    <img 
-                      key={activeVideoAsset.id}
-                      ref={imageRef}
-                      src={activeVideoAsset.url} 
-                      referrerPolicy="no-referrer" 
-                      onLoad={() => {
-                         if (imageRef.current) setFps(f => f + 1);
-                      }}
-                    />
-                )
-            )}
-          </div>
-          
-          <canvas 
-            ref={gfxCanvasRef} 
-            width={project.resolution?.width || 1920} 
-            height={project.resolution?.height || 1080} 
-            className={`absolute inset-0 w-full h-full z-10 ${isInteractingGFX ? 'cursor-grabbing' : isPanning ? 'cursor-move' : 'cursor-default'}`} 
-            style={{ imageRendering: 'auto' }}
-          />
-
-          {/* Subtitles Overlay */}
-          {activeSubs.map(sub => {
-            // If the subtitle is part of a kinetic block, don't render it individually
-            const isPartOfBlock = project.kineticBlocks?.some((b: any) => b.clipIds.includes(sub.id));
-            if (isPartOfBlock) return null;
-
-            return (
-            <div 
-              key={sub.id}
-              id={`sub-dom-${sub.id}`}
-              className="absolute z-50"
-              style={{
-                left: `${(sub.position?.x ?? 0.5) * 100}%`,
-                top: `${(sub.position?.y ?? 0.9) * 100}%`,
-                transform: `translate(-50%, -50%) rotate(${sub.rotation || 0}deg)`,
-                cursor: isDraggingSub ? 'grabbing' : 'grab',
-                pointerEvents: 'auto'
-              }}
-              onMouseDown={(e) => handleSubMouseDown(e, sub.id, sub.position || {x: 0.5, y: 0.9})}
-              onDoubleClick={(e) => handleSubDoubleClick(e, sub.id, sub.content || "")}
-            >
-              <div 
-                id={`sub-text-${sub.id}`}
-                className="text-center max-w-[80%] select-none"
-                style={{ 
-                  color: sub.color || '#ffffff', 
-                  textShadow: '0 2px 4px rgba(0,0,0,0.8)',
-                  fontFamily: sub.font || 'Inter, sans-serif',
-                  fontSize: `${(sub.scale || 1) * 1.25}rem`,
-                  fontWeight: 'bold'
-                }}
-              >
-                {sub.content}
-              </div>
-            </div>
-          )})}
-
-          {/* Kinetic Blocks Overlay */}
-          {activeKineticBlocks.map((block: any) => (
-            <KineticTextDOM 
-              key={block.id} 
-              block={block} 
-              currentTime={renderTime} 
-              store={store} 
-              showTransformControls={showTransformControls} 
-            />
-          ))}
-
-          {/* Snap Guides */}
-          {snapGuides.x && (
-            <div className="absolute top-0 bottom-0 left-1/2 w-px bg-emerald-500 z-50 pointer-events-none shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          )}
-          {snapGuides.y && (
-            <div className="absolute left-0 right-0 top-1/2 h-px bg-emerald-500 z-50 pointer-events-none shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-          )}
-
-          {/* Transform Overlay for Selected Clip (Video/Image/Subtitle) */}
-          {showTransformControls && selectedClip && (
-            // Check if clip is visual and visible at current time
-            (() => {
-              const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
-              const isVisual = track && (track.type === 'video' || track.type === 'image' || track.type === 'subtitle');
-              const isVisible = renderTime >= selectedClip.startTime && renderTime <= selectedClip.startTime + selectedClip.duration;
-              return isVisual && isVisible;
-            })()
-          ) && (
-            (() => {
-                const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
-                const isVideo = track?.type === 'video' || track?.type === 'image';
-                
-                // Calculate media dimensions for TransformOverlay
-                let mediaDimensions = undefined;
-                if (isVideo && containerRef.current) {
-                    const asset = assets.find(a => a.id === selectedClip.assetId);
-                    if (asset) {
-                        const containerW = containerRef.current.clientWidth;
-                        const containerH = containerRef.current.clientHeight;
-                        const containerAspect = containerW / containerH;
-                        const assetAspect = (asset.width || 1920) / (asset.height || 1080);
-                        
-                        let width = containerW;
-                        let height = containerH;
-                        
-                        // "object-contain" logic
-                        if (assetAspect > containerAspect) {
-                            // Asset is wider than container -> Width matches, Height reduced
-                            height = containerW / assetAspect;
-                        } else {
-                            // Asset is taller than container -> Height matches, Width reduced
-                            width = containerH * assetAspect;
-                        }
-                        mediaDimensions = { width, height };
-                    }
-                }
-
-                return (
-                    <TransformOverlay 
-                      clip={selectedClip}
-                      containerRef={containerRef}
-                      isVideo={isVideo}
-                      mediaDimensions={mediaDimensions}
-                      onUpdate={(pos, scale, rot, scaleX, scaleY) => {
-                        let newPos = { ...pos };
-                        const snapThreshold = 0.02; // 2% threshold
-                        const guides = { x: false, y: false };
-
-                        if (Math.abs(newPos.x - 0.5) < snapThreshold) {
-                          newPos.x = 0.5;
-                          guides.x = true;
-                        }
-                        if (Math.abs(newPos.y - 0.5) < snapThreshold) {
-                          newPos.y = 0.5;
-                          guides.y = true;
-                        }
-                        setSnapGuides(guides);
-
-                        if (updateClip) {
-                          updateClip(selectedClip.id, { 
-                            position: newPos, 
-                            scale, 
-                            rotation: rot, 
-                            scaleX, 
-                            scaleY 
-                          }, false, applyToAll);
-                        }
-                      }}
-                      onFinalize={() => {
-                         setSnapGuides({ x: false, y: false });
-                         if (updateClip) {
-                           // Trigger finalize
-                           updateClip(selectedClip.id, {}, true, applyToAll);
-                         }
-                      }}
-                    />
-                );
-            })()
-          )}
-          
-          <KineticDrawOverlay store={store} />
-        </div>
-
-        <div className="absolute top-4 left-4 flex flex-col gap-2 pointer-events-none z-40">
-           {/* Toggle Transform Overlay */}
-           <div className="pointer-events-auto">
-             <Tooltip text="Toggle Transform Controls" position="right">
-               <button 
-                 onClick={() => setShowTransformControls(!showTransformControls)} 
-                 className={`p-2 rounded-lg transition-all ${showTransformControls ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
-               >
-                 <Scan size={16} />
-               </button>
-             </Tooltip>
-           </div>
-
-           <div className="pointer-events-auto">
-             <Tooltip text="Magnetic Snapping" position="right">
-               <button 
-                 onClick={() => setIsCanvasMagnetEnabled(!isCanvasMagnetEnabled)} 
-                 className={`p-2 rounded-lg transition-all ${isCanvasMagnetEnabled ? 'bg-indigo-600 text-white' : 'bg-black/50 text-zinc-400 hover:text-white'}`}
-               >
-                 <Magnet size={16} />
-               </button>
-             </Tooltip>
-           </div>
-        </div>
-
-        {/* Subtitle Editing Panel moved to dedicated PropertiesPanel */}
+      <div className="hidden">
+        {project.tracks.flatMap(t => t.clips).map(c => {
+          const asset = assets.find(a => a.id === c.assetId);
+          if (!asset || (renderTime < c.startTime || renderTime > c.startTime + c.duration)) return null;
+          return asset.type === 'VIDEO' ? 
+            <video key={c.id} ref={videoRef} src={asset.url} playsInline muted /> : 
+            <img key={c.id} ref={imageRef} src={asset.url} referrerPolicy="no-referrer" />;
+        })}
       </div>
 
-      <div className="h-14 bg-[#121212] border-t border-zinc-800 flex items-center justify-between px-6 z-20">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
-            <button className="text-zinc-500 hover:text-white" onClick={() => setCurrentTime(0)}><SkipBack size={16} /></button>
-            <button onClick={() => setIsPlaying(!isPlaying)} className="w-9 h-9 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-all shadow-xl">
-              {isPlaying ? <Pause className="text-black fill-black" size={16} /> : <Play className="text-black fill-black translate-x-0.5" size={16} />}
-            </button>
-            <button className="text-zinc-500 hover:text-white"><SkipForward size={16} /></button>
-          </div>
-          <div className="font-mono text-[13px] text-indigo-400 tabular-nums bg-indigo-500/5 px-3 py-1 rounded border border-indigo-500/10">
-            {new Date(currentTime * 1000).toISOString().substr(11, 8)}<span className="opacity-40">:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</span>
-          </div>
-        </div>
-        
-        <div className="flex items-center gap-3 text-zinc-500">
-           <Tooltip text="Reset View" position="top">
-             <button onClick={resetView} className="hover:text-indigo-400 transition-colors"><RotateCcw size={14} /></button>
-           </Tooltip>
-           <div className="w-px h-4 bg-zinc-800" />
-           <button onClick={() => setScale(s => Math.max(0.1, s - 0.2))} className="hover:text-white"><ZoomOut size={14} /></button>
-           <span className="text-[10px] font-mono w-8 text-center">{Math.round(scale * 100)}%</span>
-           <button onClick={() => setScale(s => Math.min(5, s + 0.2))} className="hover:text-white"><ZoomIn size={14} /></button>
-           <div className="w-px h-4 bg-zinc-800" />
-           <Tooltip text={isLooping ? "Loop On" : "Loop Off"} position="top">
-             <button onClick={() => setIsLooping(!isLooping)} className={`transition-colors ${isLooping ? 'text-indigo-400' : 'hover:text-white'}`}><Repeat size={16} /></button>
-           </Tooltip>
-        </div>
-      </div>
+      <PreviewCanvas 
+        project={project} assets={assets} renderTime={renderTime}
+        scale={scale} pan={pan} selectedClipIds={selectedClipIds}
+        isCanvasMagnetEnabled={isCanvasMagnetEnabled}
+        showTransformControls={showTransformControls}
+        videoRef={videoRef} imageRef={imageRef} containerRef={containerRef}
+        store={store} setIsCanvasMagnetEnabled={setIsCanvasMagnetEnabled}
+        setShowTransformControls={setShowTransformControls}
+        onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+        onSubMouseDown={handleSubMouseDown} onSubDoubleClick={() => {}} 
+        isDraggingSub={isDraggingSub} editingSubId={editingSubId} snapGuides={snapGuides}
+      />
+
+      <PreviewControls 
+        isPlaying={isPlaying} isLooping={isLooping} currentTime={renderTime} scale={scale}
+        setIsPlaying={setIsPlaying} setIsLooping={setIsLooping} setCurrentTime={setCurrentTime}
+        setScale={setScale} resetView={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
+      />
     </div>
   );
 };
