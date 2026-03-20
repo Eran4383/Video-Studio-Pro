@@ -1,5 +1,5 @@
 
-import React, { useRef, useState, useMemo } from 'react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { PreviewCanvas } from './PreviewCanvas';
 import { PreviewControls } from './PreviewControls';
 import { useAnimationLoop } from '../../hooks/useAnimationLoop';
@@ -30,6 +30,13 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
   const [snapGuides, setSnapGuides] = useState({ x: false, y: false });
   const subDragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
 
+  // Sync localTime with currentTime when seeking or when paused
+  useEffect(() => {
+    if (!isPlaying) {
+      setLocalTime(currentTime);
+    }
+  }, [currentTime, isPlaying]);
+
   const totalDuration = useMemo(() => {
     if (project.tracks.every(t => t.clips.length === 0)) return 0;
     return Math.max(0, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
@@ -39,13 +46,37 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
 
   // Main Animation Loop
   useAnimationLoop(
-    isPlaying, isLooping, totalDuration, project, videoRef,
+    isPlaying, isLooping, totalDuration, project, videoRef, currentTime,
     (time) => { setLocalTime(time); setCurrentTime(time); },
     (time) => { setLocalTime(time); }
   );
 
   // Audio Sync (Web Audio API)
   useAudioSync(project, assets, isPlaying, renderTime);
+
+  // Video Sync
+  useEffect(() => {
+    if (!videoRef.current) return;
+    
+    const activeVideoClip = project.tracks.slice().reverse()
+      .filter(t => t.type === 'video' && t.isVisible)
+      .flatMap(t => t.clips)
+      .find(c => renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
+
+    if (activeVideoClip) {
+      const targetTime = (renderTime - activeVideoClip.startTime) + activeVideoClip.offset;
+      if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) {
+        videoRef.current.currentTime = targetTime;
+      }
+      if (isPlaying) {
+        videoRef.current.play().catch(() => {});
+      } else {
+        videoRef.current.pause();
+      }
+    } else {
+      videoRef.current.pause();
+    }
+  }, [renderTime, isPlaying, project.tracks]);
 
   // Handlers
   const handleMouseDown = (e: React.MouseEvent) => {

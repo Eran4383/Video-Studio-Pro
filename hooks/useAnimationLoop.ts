@@ -13,13 +13,21 @@ export const useAnimationLoop = (
   totalDuration: number,
   project: Project,
   videoRef: React.RefObject<HTMLVideoElement>,
+  currentTime: number,
   onUpdate: (time: number) => void,
   onRender: (time: number) => void
 ) => {
-  const localTimeRef = useRef(0);
+  const localTimeRef = useRef(currentTime);
   const lastTimeRef = useRef(performance.now());
   const lastGlobalUpdateRef = useRef(performance.now());
   const requestRef = useRef<number>(null);
+
+  // Sync localTimeRef with currentTime when seeking or when paused
+  useEffect(() => {
+    if (!isPlaying || Math.abs(currentTime - localTimeRef.current) > 0.1) {
+      localTimeRef.current = currentTime;
+    }
+  }, [currentTime, isPlaying]);
 
   const animate = (time: number) => {
     if (isPlaying) {
