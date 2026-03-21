@@ -27,6 +27,7 @@ interface TimelineProps {
   onSetTrackHeight: (trackId: string, height: number) => void;
   onAddClipAtPosition: (trackId: string, asset: Asset, startTime: number) => void;
   onAddTrack: (type: 'video' | 'audio' | 'subtitle', trackId?: string) => void;
+  onDeleteTrack: (trackId: string) => void;
   onDetachAudio: (clipId: string) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -39,6 +40,8 @@ interface TimelineProps {
   onAddAsset: (asset: Asset) => void;
   onSyncToAnchors: (onlySelected?: boolean) => void;
   onImportSubtitles: (file: File) => void;
+  showAudioMonitor: boolean;
+  onToggleAudioMonitor: () => void;
 }
 
 type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R';
@@ -56,7 +59,7 @@ interface DragState {
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
 }) => {
   const store = useProjectStore();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -422,14 +425,6 @@ export const Timeline: React.FC<TimelineProps> = ({
         }
       }}
     >
-      {contextMenu && (
-        <div className="fixed z-[100] w-48 bg-[#1a1a1a] border border-zinc-700 rounded-lg shadow-2xl py-1 overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseDown={(e) => e.stopPropagation()}>
-          <button onClick={() => { onClipSplit(contextMenu.clipId, currentTime); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold transition-colors">Split Selected</button>
-          {contextMenu.assetType === 'video' && <button onClick={() => { onDetachAudio(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold border-t border-zinc-800">Unlink Audio</button>}
-          <button onClick={() => { onClipDelete(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-red-600 text-red-400 hover:text-white flex items-center gap-2 font-bold border-t border-zinc-800">Delete</button>
-        </div>
-      )}
-
       <TimelineToolbar 
         canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onSplit={() => onClipSplit(selectedClipIds[0], currentTime)}
         onDelete={() => selectedClipIds.length > 0 && selectedClipIds.forEach(id => onClipDelete(id))} onAddTrack={onAddTrack}
@@ -439,67 +434,82 @@ export const Timeline: React.FC<TimelineProps> = ({
         projectDuration={Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration))}
         onSyncToAnchors={onSyncToAnchors}
         onImportSubtitles={onImportSubtitles}
+        showAudioMonitor={showAudioMonitor}
+        onToggleAudioMonitor={onToggleAudioMonitor}
       />
 
-      <div className="absolute top-12 right-6 z-[100] pointer-events-none">
-        <AudioMonitor project={project} assets={assets} currentTime={currentTime} />
-      </div>
+      <div className="flex-1 flex overflow-hidden min-w-0">
+        <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>
+          <div className="min-w-max relative flex-1">
+            <div className="sticky top-0 h-8 bg-[#161616] border-b border-zinc-800 z-30 flex items-stretch cursor-pointer" onMouseDown={(e) => e.button === 0 && (e.preventDefault(), setIsDraggingPlayhead(true), onTimeChange(getT(e.clientX)))}>
+              <div className="w-[150px] sticky left-0 bg-[#161616] z-40 border-r border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</div>
+              <div className="flex-1 relative h-full" style={{ width: 10000 * pxPerSec }}>{Array.from({ length: 200 }).map((_, i) => i % 5 === 0 && (<div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>))}</div>
+            </div>
 
-      <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>
-        <div className="min-w-max relative flex-1">
-          <div className="sticky top-0 h-8 bg-[#161616] border-b border-zinc-800 z-30 flex items-stretch cursor-pointer" onMouseDown={(e) => e.button === 0 && (e.preventDefault(), setIsDraggingPlayhead(true), onTimeChange(getT(e.clientX)))}>
-            <div className="w-[150px] sticky left-0 bg-[#161616] z-40 border-r border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</div>
-            <div className="flex-1 relative h-full" style={{ width: 10000 * pxPerSec }}>{Array.from({ length: 200 }).map((_, i) => i % 5 === 0 && (<div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>))}</div>
-          </div>
-
-          <div className="flex flex-col relative" ref={tracksRef} onMouseDown={handleTrackAreaMouseDown}>
-            <KineticBlocksOverlay 
-              project={project} 
-              pxPerSec={pxPerSec} 
-              selectedClipIds={selectedClipIds}
-              kineticCutMode={store.kineticCutMode}
-              onSelectBlock={(id) => onSelectClip(id)}
-            />
-            <TimelineTracks 
-              project={project}
-              assets={assets}
-              zoom={zoom}
-              selectedClipIds={selectedClipIds}
-              onToggleTrack={onToggleTrack}
-              onSetTrackHeight={onSetTrackHeight}
-              onDrop={handleDrop}
-              onSelectClip={onSelectClip}
-              onSelectAllTrack={onSelectAllTrack}
-              onContextMenu={handleContextMenu}
-              onClipMouseDown={handleClipMouseDown}
-              onClipMouseMove={handleClipMouseMove}
-            />
-            
-            {/* Box Selection Overlay */}
-            {selectionBox && (
-              <div 
-                className="absolute bg-indigo-500/20 border border-indigo-500 z-[60] pointer-events-none"
-                style={{
-                  left: Math.min(selectionBox.startX, selectionBox.currentX) - (tracksRef.current?.getBoundingClientRect().left || 0),
-                  top: Math.min(selectionBox.startY, selectionBox.currentY) - (tracksRef.current?.getBoundingClientRect().top || 0),
-                  width: Math.abs(selectionBox.currentX - selectionBox.startX),
-                  height: Math.abs(selectionBox.currentY - selectionBox.startY)
-                }}
+            <div className="flex flex-col relative" ref={tracksRef} onMouseDown={handleTrackAreaMouseDown}>
+              <KineticBlocksOverlay 
+                project={project} 
+                pxPerSec={pxPerSec} 
+                selectedClipIds={selectedClipIds}
+                kineticCutMode={store.kineticCutMode}
+                onSelectBlock={(id) => onSelectClip(id)}
               />
+              <TimelineTracks 
+                project={project}
+                assets={assets}
+                zoom={zoom}
+                selectedClipIds={selectedClipIds}
+                onToggleTrack={onToggleTrack}
+                onSetTrackHeight={onSetTrackHeight}
+                onDrop={handleDrop}
+                onSelectClip={onSelectClip}
+                onSelectAllTrack={onSelectAllTrack}
+                onDeleteTrack={onDeleteTrack}
+                onContextMenu={handleContextMenu}
+                onClipMouseDown={handleClipMouseDown}
+                onClipMouseMove={handleClipMouseMove}
+              />
+              
+              {/* Box Selection Overlay */}
+              {selectionBox && (
+                <div 
+                  className="absolute bg-indigo-500/20 border border-indigo-500 z-[60] pointer-events-none"
+                  style={{
+                    left: Math.min(selectionBox.startX, selectionBox.currentX) - (tracksRef.current?.getBoundingClientRect().left || 0),
+                    top: Math.min(selectionBox.startY, selectionBox.currentY) - (tracksRef.current?.getBoundingClientRect().top || 0),
+                    width: Math.abs(selectionBox.currentX - selectionBox.startX),
+                    height: Math.abs(selectionBox.currentY - selectionBox.startY)
+                  }}
+                />
+              )}
+            </div>
+
+            <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: HEADER_WIDTH + (currentTime * pxPerSec) }}>
+                <div className="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm rotate-45" />
+            </div>
+
+            {ghostTime !== null && (
+                <div className="absolute top-8 bottom-0 w-px bg-white/20 z-40 pointer-events-none" style={{ left: HEADER_WIDTH + (ghostTime * pxPerSec) }}>
+                    <div className="absolute top-2 left-1 text-[9px] font-mono text-zinc-400 bg-black/80 px-1 rounded">{ghostTime.toFixed(2)}s</div>
+                </div>
             )}
           </div>
-
-          <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: HEADER_WIDTH + (currentTime * pxPerSec) }}>
-              <div className="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm rotate-45" />
-          </div>
-
-          {ghostTime !== null && (
-              <div className="absolute top-8 bottom-0 w-px bg-white/20 z-40 pointer-events-none" style={{ left: HEADER_WIDTH + (ghostTime * pxPerSec) }}>
-                  <div className="absolute top-2 left-1 text-[9px] font-mono text-zinc-400 bg-black/80 px-1 rounded">{ghostTime.toFixed(2)}s</div>
-              </div>
-          )}
         </div>
+
+        {showAudioMonitor && (
+          <div className="w-10 h-full shrink-0 bg-[#121212] border-l border-zinc-800 z-50">
+            <AudioMonitor project={project} assets={assets} currentTime={currentTime} />
+          </div>
+        )}
       </div>
+
+      {contextMenu && (
+        <div className="fixed z-[100] w-48 bg-[#1a1a1a] border border-zinc-700 rounded-lg shadow-2xl py-1 overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseDown={(e) => e.stopPropagation()}>
+          <button onClick={() => { onClipSplit(contextMenu.clipId, currentTime); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold transition-colors">Split Selected</button>
+          {contextMenu.assetType === 'video' && <button onClick={() => { onDetachAudio(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold border-t border-zinc-800">Unlink Audio</button>}
+          <button onClick={() => { onClipDelete(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-red-600 text-red-400 hover:text-white flex items-center gap-2 font-bold border-t border-zinc-800">Delete</button>
+        </div>
+      )}
     </div>
   );
 };

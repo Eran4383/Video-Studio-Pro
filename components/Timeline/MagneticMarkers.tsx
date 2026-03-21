@@ -23,11 +23,11 @@ export const MagneticMarkers: React.FC<MagneticMarkersProps> = ({ asset, clip, p
         return (
           <div 
             key={idx} 
-            className="absolute top-0 bottom-0 w-px bg-indigo-400/40 shadow-[0_0_4px_rgba(129,140,248,0.3)]"
+            className="absolute top-0 bottom-0 w-px bg-zinc-600/40 shadow-[0_0_4px_rgba(82,82,82,0.3)]"
             style={{ left: x }}
           >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-500 rounded-full" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-indigo-500 rounded-full" />
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-zinc-500 rounded-full" />
+            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-zinc-500 rounded-full" />
           </div>
         );
       })}

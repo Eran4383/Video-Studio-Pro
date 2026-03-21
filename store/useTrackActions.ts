@@ -51,5 +51,17 @@ export const useTrackActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { toggleTrackProperty, setTrackHeight, addTrack };
+  const deleteTrack = useCallback((trackId: string) => {
+    console.log('[useTrackActions] Deleting track:', trackId);
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.filter(t => t.id !== trackId)
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { toggleTrackProperty, setTrackHeight, addTrack, deleteTrack };
 };

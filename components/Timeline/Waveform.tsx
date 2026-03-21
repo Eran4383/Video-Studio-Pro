@@ -66,32 +66,39 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded, wav
     const gain = isExpanded ? 1.5 : 1.0;
     
     const lines = [];
+    const segmentHeight = 2;
+    const gap = 1;
+    
     for (let i = 0; i < pathData.length; i += 2) {
       const minVal = pathData[i];
       const maxVal = pathData[i+1];
       const x = (i / 2) * frameWidth;
       
-      const amplitude = Math.max(Math.abs(minVal), Math.abs(maxVal));
       const yMin = mid - (maxVal * mid * gain);
       const yMax = mid - (minVal * mid * gain);
+      const totalHeight = Math.abs(yMax - yMin);
+      const segments = Math.floor(totalHeight / (segmentHeight + gap));
       
-      let color = "#4f46e5";
-      if (amplitude > 0.8) color = "#ef4444";
-      else if (amplitude > 0.5) color = "#f59e0b";
-      else if (amplitude > 0.2) color = "#10b981";
-      
-      lines.push(
-        <line 
-          key={i} 
-          x1={x} 
-          y1={Math.max(0, yMin)} 
-          x2={x} 
-          y2={Math.min(svgHeight, yMax)} 
-          stroke={color} 
-          strokeWidth={Math.max(0.5, frameWidth * 0.8)} 
-          strokeLinecap="round"
-        />
-      );
+      for (let s = 0; s < segments; s++) {
+        const sy = yMin + s * (segmentHeight + gap);
+        const amplitude = Math.abs((sy - mid) / mid);
+        
+        let color = "#10b981"; // Green
+        if (amplitude > 0.8) color = "#ef4444"; // Red
+        else if (amplitude > 0.5) color = "#f59e0b"; // Yellow/Orange
+        
+        lines.push(
+          <rect 
+            key={`${i}-${s}`} 
+            x={x} 
+            y={sy} 
+            width={Math.max(1, frameWidth * 0.8)} 
+            height={segmentHeight} 
+            fill={color} 
+            rx={0.5}
+          />
+        );
+      }
     }
     return lines;
   };

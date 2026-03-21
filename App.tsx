@@ -288,23 +288,25 @@ const App: React.FC = () => {
             <PreviewPlayer store={store} />
             <PropertiesPanel store={store} />
           </div>
-          <Timeline 
-            project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
-            setZoom={store.setZoom} setIsMagnetEnabled={store.setIsMagnetEnabled} onTimeChange={store.setCurrentTime}
-            onClipMove={store.moveClip} onClipResize={store.resizeClip} onClipFinalize={store.finalizeMove} onClipSplit={store.splitClip} onClipDelete={store.deleteClip}
-            onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack}
-            onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
-            selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
-            onSelectAllTrack={(trackId: string) => {
-              const track = store.project.tracks.find(t => t.id === trackId);
-              if (track) {
-                store.selectClips(track.clips.map(c => c.id));
-              }
-            }}
-            onAddAsset={store.addAsset}
-            onSyncToAnchors={store.syncClipsToAnchors}
-            onImportSubtitles={handleImportSubtitles}
-          />
+            <Timeline 
+              project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
+              setZoom={store.setZoom} setIsMagnetEnabled={store.setIsMagnetEnabled} onTimeChange={store.setCurrentTime}
+              onClipMove={store.moveClip} onClipResize={store.resizeClip} onClipFinalize={store.finalizeMove} onClipSplit={store.splitClip} onClipDelete={store.deleteClip}
+              onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack} onDeleteTrack={store.deleteTrack}
+              onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
+              selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
+              onSelectAllTrack={(trackId: string) => {
+                const track = store.project.tracks.find(t => t.id === trackId);
+                if (track) {
+                  store.selectClips(track.clips.map(c => c.id));
+                }
+              }}
+              onAddAsset={store.addAsset}
+              onSyncToAnchors={store.syncClipsToAnchors}
+              onImportSubtitles={handleImportSubtitles}
+              showAudioMonitor={store.showAudioMonitor}
+              onToggleAudioMonitor={() => store.setShowAudioMonitor(!store.showAudioMonitor)}
+            />
         </div>
       </main>
       

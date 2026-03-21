@@ -1,19 +1,24 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type, CheckSquare } from 'lucide-react';
+import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type, CheckSquare, Trash2 } from 'lucide-react';
 import { Track } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
+import { ConfirmModal } from '../UI/ConfirmModal';
 
 interface TrackHeaderProps {
   track: Track;
   onToggle: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
   onSetHeight: (trackId: string, height: number) => void;
   onSelectAll: () => void;
+  onDelete: () => void;
 }
 
-export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll }) => {
+export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }) => {
+  console.log('[TrackHeader] Render for track:', track.id, 'onDelete exists:', !!onDelete);
   const isExpanded = (track.height || 72) > 80;
   const [isResizing, setIsResizing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const isDefaultTrack = track.id === 'track-v1' || track.id === 'track-a1';
 
   const toggleExpand = () => {
     onSetHeight(track.id, isExpanded ? 72 : 160);
@@ -37,7 +42,7 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSet
 
   return (
     <div 
-      className="w-[150px] sticky left-0 bg-[#121212] z-20 border-r border-zinc-800 p-2 flex flex-col justify-between shadow-lg relative group"
+      className="w-[150px] sticky left-0 bg-[#121212] z-[45] border-r border-zinc-800 p-2 flex flex-col justify-between shadow-lg group"
       style={{ height: track.height || 72 }}
     >
       <div className="flex flex-col gap-1">
@@ -45,6 +50,19 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSet
           <div className="flex items-center gap-2">
             {track.type === 'video' ? <Video size={10} className="text-zinc-500" /> : track.type === 'audio' ? <Music size={10} className="text-zinc-500" /> : <Type size={10} className="text-zinc-500" />}
             <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest truncate max-w-[80px]">{track.name}</span>
+            {isExpanded && !isDefaultTrack && (
+              <Tooltip text="מחיקת שכבה" position="bottom">
+                <button 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowDeleteConfirm(true);
+                  }} 
+                  className="p-1 rounded hover:bg-red-900/40 transition-colors text-zinc-500 hover:text-red-400"
+                >
+                  <Trash2 size={10} />
+                </button>
+              </Tooltip>
+            )}
           </div>
           <Tooltip text={isExpanded ? "Collapse Track" : "Expand Track for Waveforms"} position="right">
             <button 
@@ -84,6 +102,19 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSet
       <div 
         onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
         className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-indigo-500/50 z-50 opacity-0 group-hover:opacity-100 transition-opacity"
+      />
+
+      <ConfirmModal 
+        isOpen={showDeleteConfirm}
+        title="מחיקת שכבה"
+        message={`האם אתה בטוח שברצונך למחוק את השכבה "${track.name}"? פעולה זו תמחק את כל הקליפים בשכבה ולא ניתנת לביטול.`}
+        confirmLabel="מחק שכבה"
+        cancelLabel="ביטול"
+        onConfirm={() => {
+          onDelete();
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
       />
     </div>
   );

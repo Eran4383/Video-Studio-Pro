@@ -23,10 +23,12 @@ interface TimelineToolbarProps {
   projectDuration: number;
   onSyncToAnchors: (onlySelected?: boolean) => void;
   onImportSubtitles: (file: File) => void;
+  showAudioMonitor: boolean;
+  onToggleAudioMonitor: () => void;
 }
 
 export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({ 
-  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, showDebugBlocks, onToggleDebugBlocks, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles
+  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, showDebugBlocks, onToggleDebugBlocks, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
 }) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -116,6 +118,15 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
             className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${showDebugBlocks ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
           >
             <Box size={12} /> {showDebugBlocks ? 'DEBUG ON' : 'DEBUG OFF'}
+          </button>
+        </Tooltip>
+
+        <Tooltip text="Toggle Audio Level Monitor">
+          <button 
+            onClick={onToggleAudioMonitor} 
+            className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${showAudioMonitor ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
+          >
+            <Music size={12} /> {showAudioMonitor ? 'AUDIO ON' : 'AUDIO OFF'}
           </button>
         </Tooltip>
 

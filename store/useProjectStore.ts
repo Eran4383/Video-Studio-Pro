@@ -38,6 +38,7 @@ export const useProjectStore = () => {
   const [applyToAll, setApplyToAll] = useState(false);
   const [kineticDrawMode, setKineticDrawMode] = useState(false);
   const [kineticCutMode, setKineticCutMode] = useState(false);
+  const [showAudioMonitor, setShowAudioMonitor] = useState(true);
   const [lastKineticBox, setLastKineticBox] = useState<KineticBoundingBox | null>(null);
   const [selectedKineticWordId, setSelectedKineticWordId] = useState<string | null>(null);
 
@@ -99,8 +100,8 @@ export const useProjectStore = () => {
   const detachAudio = useCallback(() => { /* Placeholder */ }, []);
 
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, lastKineticBox, selectedKineticWordId,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

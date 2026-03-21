@@ -11,6 +11,8 @@ interface WaveformCanvasProps {
   fps: number;
   color?: string;
   isExpanded?: boolean;
+  waveformStyle?: 'solid' | 'lines';
+  waveformScale?: number;
 }
 
 /**
@@ -20,7 +22,7 @@ interface WaveformCanvasProps {
  */
 export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
   assetId, buffer, clipOffset, clipDuration, pxPerSec, fps, 
-  color = '#6366f1', isExpanded = false
+  color = '#6366f1', isExpanded = false, waveformStyle = 'solid', waveformScale = 1.0
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
@@ -48,7 +50,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     
     const startIdx = Math.floor(clipOffset * resolution);
     const midY = height / 2;
-    const gain = isExpanded ? 0.95 : 0.8;
+    const gain = (isExpanded ? 0.95 : 0.8) * waveformScale;
     
     ctx.clearRect(0, 0, width, height);
     
@@ -58,7 +60,8 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     ctx.lineWidth = 1;
 
     // Optimization: Browser canvas rendering is fast, but we only iterate over the width
-    for (let x = 0; x < width; x++) {
+    const step = waveformStyle === 'lines' ? 3 : 1;
+    for (let x = 0; x < width; x += step) {
       const timeAtX = x / pxPerSec;
       const sampleIdx = startIdx + Math.floor(timeAtX * resolution);
       
@@ -77,10 +80,31 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       const yMax = midY + (max * midY * gain);
 
       // Draw vertical line for this pixel column
-      ctx.moveTo(x + 0.5, yMin);
-      ctx.lineTo(x + 0.5, yMax);
+      if (waveformStyle === 'lines') {
+        const segmentHeight = 2;
+        const gap = 1;
+        const totalHeight = Math.abs(yMax - yMin);
+        const segments = Math.floor(totalHeight / (segmentHeight + gap));
+        
+        for (let s = 0; s < segments; s++) {
+          const sy = yMin + s * (segmentHeight + gap);
+          const amplitude = Math.abs((sy - midY) / midY);
+          
+          let segColor = '#10b981'; // Green
+          if (amplitude > 0.8) segColor = '#ef4444'; // Red
+          else if (amplitude > 0.5) segColor = '#f59e0b'; // Yellow/Orange
+          
+          ctx.fillStyle = segColor;
+          ctx.fillRect(x + 0.5, sy, 2, segmentHeight);
+        }
+      } else {
+        ctx.lineCap = 'butt';
+        ctx.lineWidth = 1;
+        ctx.moveTo(x + 0.5, yMin);
+        ctx.lineTo(x + 0.5, yMax);
+      }
     }
-    ctx.stroke();
+    if (waveformStyle !== 'lines') ctx.stroke();
     ctx.globalAlpha = 1;
 
     // Frame-Accurate Grid (Visible when zoomed in for surgical editing)
@@ -94,7 +118,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       }
       ctx.stroke();
     }
-  }, [assetId, buffer, clipOffset, clipDuration, pxPerSec, fps, color, isExpanded, width, height]);
+  }, [assetId, buffer, clipOffset, clipDuration, pxPerSec, fps, color, isExpanded, width, height, waveformStyle, waveformScale]);
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
