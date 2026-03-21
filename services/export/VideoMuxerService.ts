@@ -52,6 +52,11 @@ export class VideoMuxerService {
         return;
     }
 
+    // Throttle encoding if the queue is getting too large to prevent dropped frames
+    while (this.encoder.encodeQueueSize > 5) {
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
     // Calculate timestamp based on frame count (deterministic)
     // timestamp is in microseconds
     const timestamp = (this.frameCount * 1_000_000) / this.fps;
