@@ -190,6 +190,19 @@ export const KineticSettingsForm: React.FC<KineticSettingsFormProps> = ({ settin
                       <option value="ascending">Ascending</option>
                       <option value="descending">Descending</option>
                     </select>
+
+                    <label className="text-[8px] text-zinc-600 font-mono uppercase mt-1">Position</label>
+                    <select
+                      value={settings.karaokePosition || 'middle'}
+                      onChange={(e) => onChange({ karaokePosition: e.target.value as any })}
+                      className="bg-[#080808] border border-zinc-800 rounded-md p-1.5 text-[10px] text-white outline-none"
+                    >
+                      <option value="top">Top</option>
+                      <option value="middle">Middle</option>
+                      <option value="bottom">Bottom</option>
+                      <option value="random">Random</option>
+                      <option value="custom">Custom</option>
+                    </select>
                   </div>
                 )}
                 <p className="text-[10px] text-zinc-500 italic leading-tight px-1">

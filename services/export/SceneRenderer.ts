@@ -1,6 +1,5 @@
 import { Project, Asset, Clip } from '../../types';
 import { GFX_Engine } from '../GFX_Engine';
-import { generateBlockLayout } from '../../utils/kinetic/KineticLayoutManager';
 import { ErrorReportingService } from '../ErrorReportingService';
 
 export class SceneRenderer {
@@ -79,8 +78,7 @@ export class SceneRenderer {
       allClips.forEach(c => clipMap[c.id] = c);
 
       this.cachedKineticBlocks = project.kineticBlocks.map(block => {
-        const screenAR = this.width / this.height;
-        const words = generateBlockLayout(block, allClips, screenAR);
+        const words = block.words && block.words.length > 0 ? block.words : [];
         
         // Pre-calculate word indices and counts per clip for O(1) timing calculation
         const metadata: Record<string, { index: number, total: number }> = {};

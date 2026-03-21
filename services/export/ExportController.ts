@@ -52,7 +52,14 @@ export class ExportController {
 
     // 3. Render Audio (Fast)
     onProgress(5);
-    await audioMuxer.renderAndEncode(project, assets);
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting audio render and encode');
+    try {
+        await audioMuxer.renderAndEncode(project, assets);
+        ErrorReportingService.logExportEvent(0, 'INFO', 'Finished audio render and encode');
+    } catch (e) {
+        ErrorReportingService.logExportEvent(0, 'ERROR', 'Audio render and encode failed', { error: String(e) });
+        throw e;
+    }
 
     // 4. Render Video (Frame by Frame)
     // Calculate duration including subtitles
@@ -105,9 +112,14 @@ export class ExportController {
       .filter(t => t.type === 'video')
       .flatMap(t => t.clips);
 
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting preloadAssets', { clipCount: videoClips.length });
+
     const promises = videoClips.map(async clip => {
       const asset = assets.find(a => a.id === clip.assetId);
-      if (!asset) return;
+      if (!asset) {
+          ErrorReportingService.logExportEvent(0, 'WARN', 'Asset not found for clip during preload', { clipId: clip.id, assetId: clip.assetId });
+          return;
+      }
       if (this.mediaElements.has(clip.id)) return; // Already loaded
 
       if (asset.type === 'VIDEO') {
@@ -121,9 +133,13 @@ export class ExportController {
         document.body.appendChild(video);
         
         await new Promise<void>((resolve, reject) => {
-            video.onloadedmetadata = () => resolve();
+            video.onloadedmetadata = () => {
+                ErrorReportingService.logExportEvent(0, 'INFO', 'Video metadata loaded', { assetId: asset.id, name: asset.name });
+                resolve();
+            };
             video.onerror = (e) => {
                 console.warn(`Failed to load video asset: ${asset.name}`, e);
+                ErrorReportingService.logExportEvent(0, 'ERROR', 'Failed to load video asset', { assetId: asset.id, name: asset.name, error: String(e) });
                 resolve(); // Resolve anyway to continue
             };
         });
@@ -133,9 +149,13 @@ export class ExportController {
         img.src = asset.url;
         img.crossOrigin = 'anonymous';
         await new Promise<void>((resolve, reject) => {
-            img.onload = () => resolve();
+            img.onload = () => {
+                ErrorReportingService.logExportEvent(0, 'INFO', 'Image loaded', { assetId: asset.id, name: asset.name });
+                resolve();
+            };
             img.onerror = (e) => {
                 console.warn(`Failed to load image asset: ${asset.name}`, e);
+                ErrorReportingService.logExportEvent(0, 'ERROR', 'Failed to load image asset', { assetId: asset.id, name: asset.name, error: String(e) });
                 resolve();
             };
         });
@@ -144,6 +164,7 @@ export class ExportController {
     });
 
     await Promise.all(promises);
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Finished preloadAssets');
   }
 
   private async syncMedia(project: Project, time: number) {
@@ -160,13 +181,18 @@ export class ExportController {
             // Always seek for frame accuracy in offline export
             el.currentTime = targetTime;
             return new Promise<void>(resolve => {
+                let timeoutId: any;
+                
                 const onSeeked = () => {
+                    clearTimeout(timeoutId);
                     resolve();
                 };
+                
                 el.addEventListener('seeked', onSeeked, { once: true });
                 
                 // Timeout safety
-                setTimeout(() => {
+                timeoutId = setTimeout(() => {
+                    el.removeEventListener('seeked', onSeeked);
                     ErrorReportingService.logExportEvent(time, 'WARN', 'Seek timeout', { clipId: clip.id, targetTime });
                     resolve();
                 }, 500);

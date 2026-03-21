@@ -35,6 +35,7 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
   });
 
   const SAFETY_MARGIN = 0.85;
+  const position = settings.karaokePosition || 'middle';
 
   if (karaokeMode === 'single-line') {
     const totalAR = wordData.reduce((sum, w) => sum + (w.ar * w.multiplier), 0) + (words.length - 1) * 0.2;
@@ -50,7 +51,13 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
       const wWidth = (fontSize * w.ar / boxAR);
       const x = isRtl ? currentX - wWidth : currentX;
       currentX = isRtl ? currentX - (wWidth + 2) : currentX + (wWidth + 2);
-      return { text: w.text, x: isRtl ? x + wWidth : x, y: 50 - (fontSize / 2), fontSize, width: wWidth };
+      
+      let y = 50 - (fontSize / 2);
+      if (position === 'top') y = 0;
+      else if (position === 'bottom') y = 100 - fontSize;
+      else if (position === 'random') y = Math.random() * (100 - fontSize);
+      
+      return { text: w.text, x: isRtl ? x + wWidth : x, y, fontSize, width: wWidth };
     });
   }
 
@@ -110,7 +117,11 @@ export const generateKaraoke = (words: ProcessedWord[], settings: KineticSetting
     });
   }
 
-  const offsetY = (100 - finalTotalHeight) / 2;
+  let offsetY = (100 - finalTotalHeight) / 2;
+  if (position === 'top') offsetY = 0;
+  else if (position === 'bottom') offsetY = 100 - finalTotalHeight;
+  else if (position === 'random') offsetY = Math.random() * (100 - finalTotalHeight);
+  
   let currentY = offsetY;
 
   lines.forEach((line, i) => {

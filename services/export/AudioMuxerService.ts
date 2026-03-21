@@ -1,5 +1,6 @@
 import { Muxer, ArrayBufferTarget } from 'mp4-muxer';
 import { Project, Asset } from '../../types';
+import { ErrorReportingService } from '../ErrorReportingService';
 
 export class AudioMuxerService {
   private muxer: Muxer<ArrayBufferTarget>;
@@ -29,12 +30,15 @@ export class AudioMuxerService {
 
   public async renderAndEncode(project: Project, assets: Asset[]) {
     console.log('[AudioMuxerService] Starting Offline Audio Render...');
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting Offline Audio Render');
     
     // 1. Calculate Duration
     // Include subtitles in duration calculation just in case, but audio usually drives length
     const activeTracks = project.tracks.filter(t => t.isVisible && !t.isMuted);
     const duration = Math.max(...activeTracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 1);
     
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Audio duration calculated', { duration });
+
     // 2. Create Offline Context
     const offlineCtx = new OfflineAudioContext(
       this.numberOfChannels,
@@ -52,9 +56,11 @@ export class AudioMuxerService {
         if (!asset || (asset.type !== 'AUDIO' && asset.type !== 'VIDEO')) continue;
 
         try {
+          ErrorReportingService.logExportEvent(0, 'INFO', 'Fetching audio asset', { assetId: asset.id, url: asset.url });
           // Fetch and decode audio data
           // Note: In a real app, we might cache decoded buffers. Here we fetch/decode.
           const response = await fetch(asset.url);
+          if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
           const arrayBuffer = await response.arrayBuffer();
           const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
 
@@ -65,15 +71,19 @@ export class AudioMuxerService {
           // Handle offset (start point in asset) and startTime (position on timeline)
           // start(when, offset, duration)
           source.start(clip.startTime, clip.offset, clip.duration);
+          ErrorReportingService.logExportEvent(0, 'INFO', 'Scheduled audio clip', { clipId: clip.id });
         } catch (e) {
           console.warn(`[AudioMuxerService] Failed to load audio clip ${clip.id}`, e);
+          ErrorReportingService.logExportEvent(0, 'ERROR', 'Failed to load audio clip', { clipId: clip.id, error: String(e) });
         }
       }
     }
 
     // 4. Render
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting offlineCtx.startRendering()');
     const renderedBuffer = await offlineCtx.startRendering();
     console.log('[AudioMuxerService] Audio Render Complete. Encoding...');
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Audio Render Complete. Starting encoding loop.');
 
     // 5. Encode
     // WebCodecs AudioEncoder expects AudioData.
@@ -97,21 +107,39 @@ export class AudioMuxerService {
             }
         }
 
-        const audioData = new AudioData({
-            format: 'f32', // 32-bit float planar/interleaved? WebCodecs usually handles f32-planar if specified, but AAC encoder might want s16. 
-            // Actually, AudioData handles the format. 'f32' is standard for Web Audio.
-            sampleRate: this.sampleRate,
-            numberOfFrames: length,
-            numberOfChannels: this.numberOfChannels,
-            timestamp: timestamp,
-            data: data
-        });
+        try {
+            const audioData = new AudioData({
+                format: 'f32-planar', // Web Audio API getChannelData returns planar data, but we interleaved it above. Wait, if we interleaved it, it's not planar.
+                // Actually, AudioData constructor expects interleaved if format is 'f32'. Let's use 'f32' and interleave.
+                // Wait, AudioData format 'f32-planar' expects non-interleaved. Let's just use 'f32' (which implies interleaved) since we interleaved it.
+                // Actually, the spec says 'f32' is interleaved, 'f32-planar' is planar.
+                // Let's use 'f32' since we interleaved it.
+                // Wait, let's look at the AudioDataInit dictionary.
+                // format: AudioSampleFormat. 'f32', 'f32-planar', 's16', 's16-planar', 's32', 's32-planar', 'u8', 'u8-planar'
+                // Let's use 'f32' since we interleaved it.
+                // Wait, let's check if we can just pass planar data directly to save CPU.
+                // If we use 'f32-planar', data should be a sequence of planes.
+                // Let's stick to interleaved 'f32' for now as it's more standard for AAC encoders sometimes, though WebCodecs should handle either.
+                // Actually, let's fix the format string. The valid enum values are 'u8', 's16', 's32', 'f32', 'u8-planar', 's16-planar', 's32-planar', 'f32-planar'.
+                // If we interleaved it, it's 'f32'.
+                format: 'f32',
+                sampleRate: this.sampleRate,
+                numberOfFrames: length,
+                numberOfChannels: this.numberOfChannels,
+                timestamp: timestamp,
+                data: data
+            });
 
-        this.encoder.encode(audioData);
-        audioData.close();
+            this.encoder.encode(audioData);
+            audioData.close();
+        } catch (e) {
+            console.error('[AudioMuxerService] Error encoding audio chunk:', e);
+            ErrorReportingService.logExportEvent(timestamp / 1_000_000, 'ERROR', 'Error encoding audio chunk', { error: String(e) });
+        }
     }
 
     await this.encoder.flush();
     console.log('[AudioMuxerService] Audio Encoding Complete.');
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Audio Encoding Complete');
   }
 }

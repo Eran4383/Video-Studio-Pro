@@ -62,6 +62,7 @@ export interface KineticSettings {
   keepPastInPop?: boolean;
   karaokeMode?: 'single-line' | 'multi-line';
   karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
+  karaokePosition?: 'top' | 'middle' | 'bottom' | 'random' | 'custom';
   animationMultiSelect?: boolean;
   fontMultiSelect?: boolean;
   fonts?: string[]; // Array of selected fonts
