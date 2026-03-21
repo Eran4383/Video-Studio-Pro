@@ -3,6 +3,7 @@ import { Project, Asset } from '../../types';
 import { VideoMuxerService } from './VideoMuxerService';
 import { AudioMuxerService } from './AudioMuxerService';
 import { SceneRenderer } from './SceneRenderer';
+import { ErrorReportingService } from '../ErrorReportingService';
 
 export class ExportController {
   private width: number;
@@ -22,6 +23,8 @@ export class ExportController {
 
   public async export(project: Project, assets: Asset[], onProgress: (p: number) => void): Promise<Blob> {
     console.log('[ExportController] Starting Export...');
+    ErrorReportingService.clearExportLogs();
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting Export', { width: this.width, height: this.height, fps: project.fps });
     
     // 1. Setup Muxer
     const muxer = new Muxer({
@@ -58,6 +61,7 @@ export class ExportController {
     const totalFrames = Math.ceil(duration * project.fps);
 
     console.log(`[ExportController] Video Duration: ${duration}s, Total Frames: ${totalFrames}`);
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Calculated duration and frames', { duration, totalFrames });
 
     for (let i = 0; i < totalFrames; i++) {
       const time = i / project.fps;
@@ -84,6 +88,7 @@ export class ExportController {
 
     // 5. Finalize
     console.log('[ExportController] Finalizing...');
+    ErrorReportingService.logExportEvent(duration, 'INFO', 'Finalizing export');
     await videoMuxer.flush();
     muxer.finalize();
 
@@ -91,6 +96,7 @@ export class ExportController {
 
     const buffer = muxer.target.buffer;
     console.log(`[ExportController] Export Complete. Size: ${buffer.byteLength}`);
+    ErrorReportingService.logExportEvent(duration, 'INFO', 'Export Complete', { size: buffer.byteLength });
     return new Blob([buffer], { type: 'video/mp4' });
   }
 
@@ -160,8 +166,13 @@ export class ExportController {
                 el.addEventListener('seeked', onSeeked, { once: true });
                 
                 // Timeout safety
-                setTimeout(resolve, 500);
+                setTimeout(() => {
+                    ErrorReportingService.logExportEvent(time, 'WARN', 'Seek timeout', { clipId: clip.id, targetTime });
+                    resolve();
+                }, 500);
             });
+        } else {
+            ErrorReportingService.logExportEvent(time, 'WARN', 'Missing media element for sync', { clipId: clip.id, type: el ? 'not_video' : 'missing' });
         }
         return Promise.resolve();
     });

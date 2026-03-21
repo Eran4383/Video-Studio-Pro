@@ -3,6 +3,7 @@ import { Project, Asset } from '../types';
 import { AssetValidator } from './AssetValidator';
 import { GFX_Engine } from './GFX_Engine';
 import fixWebmDuration from 'fix-webm-duration';
+import { ErrorReportingService } from './ErrorReportingService';
 
 export class ExportEngine {
   private canvas: HTMLCanvasElement;
@@ -102,6 +103,8 @@ export class ExportEngine {
 
   async render(project: Project, assets: Asset[], onProgress: (p: number) => void): Promise<Blob> {
     this.isRendering = true;
+    ErrorReportingService.clearExportLogs();
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Starting ExportEngine render');
     await this.prepareAssets(project, assets);
     
     // Calculate duration based only on active tracks (visible/unmuted OR subtitle)
@@ -124,6 +127,7 @@ export class ExportEngine {
     
     console.log(`[ExportEngine] Calculated Duration: ${maxDuration}s`);
     console.log(`[ExportEngine] Longest Clip: ${maxClipInfo}`);
+    ErrorReportingService.logExportEvent(0, 'INFO', 'Calculated duration', { maxDuration, maxClipInfo });
 
     const duration = maxDuration;
     
@@ -163,6 +167,7 @@ export class ExportEngine {
         });
     } else {
         console.warn("[ExportEngine] No audio tracks found in destination stream!");
+        ErrorReportingService.logExportEvent(0, 'WARN', 'No audio tracks found in destination stream');
     }
 
     try {
@@ -173,12 +178,14 @@ export class ExportEngine {
       });
     } catch (e) {
       console.error("[ExportEngine] Failed to create MediaRecorder:", e);
+      ErrorReportingService.logExportEvent(0, 'ERROR', 'Failed to create MediaRecorder', { error: String(e) });
       // Fallback to default mimeType if specific one failed
       try {
         console.log("[ExportEngine] Retrying MediaRecorder without mimeType options...");
         this.recorder = new MediaRecorder(stream);
       } catch (e2) {
         console.error("[ExportEngine] Failed to create MediaRecorder fallback:", e2);
+        ErrorReportingService.logExportEvent(0, 'ERROR', 'Failed to create MediaRecorder fallback', { error: String(e2) });
         throw new Error("Failed to initialize video recorder. Your browser may not support the required formats.");
       }
     }
@@ -192,6 +199,7 @@ export class ExportEngine {
       this.recorder!.onstop = async () => {
         const finalBlob = new Blob(this.chunks, { type: selectedMime || 'video/webm' });
         console.log(`[ExportEngine] Render Finished. Blob size: ${finalBlob.size} bytes`);
+        ErrorReportingService.logExportEvent(duration, 'INFO', 'Render Finished', { blobSize: finalBlob.size });
         this.cleanup();
         this.isRendering = false;
 
@@ -206,12 +214,14 @@ export class ExportEngine {
             resolve(fixedBlob);
         } catch (e) {
             console.warn("[ExportEngine] Failed to fix WebM duration:", e);
+            ErrorReportingService.logExportEvent(duration, 'WARN', 'Failed to fix WebM duration', { error: String(e) });
             resolve(finalBlob);
         }
       };
 
       this.recorder!.onerror = (err) => {
         console.error("[ExportEngine] Recorder Error:", err);
+        ErrorReportingService.logExportEvent(0, 'ERROR', 'Recorder Error', { error: String(err) });
         reject(err);
       };
       
@@ -245,7 +255,14 @@ export class ExportEngine {
             for (const track of mediaTracks) {
               for (const clip of track.clips) {
                 const el = this.videoElements.get(clip.id);
-                if (!el) continue;
+                if (!el) {
+                    // Only log missing media element once per clip to avoid spam
+                    if (!(clip as any)._loggedMissingMedia) {
+                        ErrorReportingService.logExportEvent(elapsed, 'WARN', 'Missing media element for sync', { clipId: clip.id });
+                        (clip as any)._loggedMissingMedia = true;
+                    }
+                    continue;
+                }
 
                 if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
                   const targetTime = (elapsed - clip.startTime) + clip.offset;
@@ -256,7 +273,10 @@ export class ExportEngine {
                   }
                   
                   if (el.paused) {
-                     el.play().catch(e => console.warn("Play failed", e));
+                     el.play().catch(e => {
+                         console.warn("Play failed", e);
+                         ErrorReportingService.logExportEvent(elapsed, 'WARN', 'Play failed', { clipId: clip.id, error: String(e) });
+                     });
                   }
 
                   // Draw Video Frames (only if it's a video track and a video element)
@@ -336,6 +356,7 @@ export class ExportEngine {
                         this.ctx.restore();
                     } catch (err) {
                         console.error(`[ExportEngine] Error rendering subtitle clip ${clip.id}:`, err);
+                        ErrorReportingService.logExportEvent(elapsed, 'ERROR', 'Error rendering subtitle clip', { clipId: clip.id, error: String(err) });
                         this.ctx.restore(); // Ensure restore happens
                     }
                   }
@@ -361,6 +382,7 @@ export class ExportEngine {
       setTimeout(() => {
         if (!hasStarted) {
             console.warn("[ExportEngine] Recorder onstart timed out, forcing render loop...");
+            ErrorReportingService.logExportEvent(0, 'WARN', 'Recorder onstart timed out, forcing render loop');
             startRenderLoop();
         }
       }, 1000);

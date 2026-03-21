@@ -3,6 +3,7 @@ import { Project, Asset } from '../types';
 
 export class ErrorReportingService {
   private static logs: { type: string, message: string, time: string }[] = [];
+  private static exportLogs: { time: number, level: string, message: string, details?: any }[] = [];
   private static originalConsoleError = console.error;
   private static originalConsoleWarn = console.warn;
 
@@ -27,6 +28,14 @@ export class ErrorReportingService {
     });
   }
 
+  static logExportEvent(time: number, level: 'INFO' | 'WARN' | 'ERROR', message: string, details?: any) {
+    this.exportLogs.push({ time, level, message, details });
+  }
+
+  static clearExportLogs() {
+    this.exportLogs = [];
+  }
+
   static generateFullReport(project: Project, assets: Asset[], uiState: any) {
     const report = {
       timestamp: new Date().toISOString(),
@@ -44,6 +53,7 @@ export class ErrorReportingService {
       uiState: uiState,
       assets: assets.map(a => ({ name: a.name, type: a.type, duration: a.duration, width: a.width, height: a.height })),
       logs: this.logs,
+      exportRuntimeLogs: this.exportLogs,
     };
 
     const reportStr = JSON.stringify(report, null, 2);

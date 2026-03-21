@@ -1,6 +1,7 @@
 import { Project, Asset, Clip } from '../../types';
 import { GFX_Engine } from '../GFX_Engine';
 import { generateBlockLayout } from '../../utils/kinetic/KineticLayoutManager';
+import { ErrorReportingService } from '../ErrorReportingService';
 
 export class SceneRenderer {
   private ctx: CanvasRenderingContext2D;
@@ -140,22 +141,40 @@ export class SceneRenderer {
           const liveStartTime = clip.startTime + (meta.index * wordDuration);
           const liveEndTime = liveStartTime + wordDuration;
           
-          // Add a small epsilon (0.01s) to handle frame sampling aliasing
-          isActive = time >= (liveStartTime - 0.01) && time <= (liveEndTime + 0.01);
-          isPast = time > (liveEndTime + 0.01);
+          isActive = time >= liveStartTime && time <= liveEndTime;
+          isPast = time > liveEndTime;
+
+          // Log timing calculations for debugging
+          if (isActive) {
+             // To avoid spamming, we might only want to log this once per word, but for now we log it.
+             // Actually, logging every frame is too much. Let's just log if it's the exact start frame or close to it.
+             if (time - liveStartTime < 0.05) {
+                 ErrorReportingService.logExportEvent(time, 'INFO', 'Kinetic word active', { 
+                     blockId: block.id, 
+                     wordId: word.id, 
+                     text: word.text,
+                     liveStartTime, 
+                     liveEndTime, 
+                     wordDuration,
+                     offset: time - liveStartTime 
+                 });
+             }
+          }
         } else {
-          isActive = time >= (word.startTime - 0.01) && time <= (word.endTime + 0.01);
-          isPast = time > (word.endTime + 0.01);
+          if (word.sourceClipId) {
+              ErrorReportingService.logExportEvent(time, 'WARN', 'Missing source clip for kinetic word', { blockId: block.id, wordId: word.id, sourceClipId: word.sourceClipId });
+          }
+          isActive = time >= word.startTime && time <= word.endTime;
+          isPast = time > word.endTime;
         }
 
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
           (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
-          settings.keepPreviousWordsVisible;
+          settings.keepPreviousWordsVisible; // fallback for old projects
 
-        // If keepPreviousWordsVisible is true, we ignore sceneEndTime and keep it until the block ends
-        const isSceneDone = !settings.keepPreviousWordsVisible && time > (word.sceneEndTime + 0.05);
+        const isSceneDone = time > word.sceneEndTime;
         if (isSceneDone) return;
 
         const shouldShow = isActive || (isPast && isKeepVisible);
@@ -163,10 +182,8 @@ export class SceneRenderer {
         if (!shouldShow) return;
 
         const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
-        
-        // Fix: pop-in-place should respect isKeepVisible
         const opacityValue = isPast 
-          ? (isKeepVisible ? (word.layoutStyle === 'pop-in-place' ? 1 : pastOpacity) : 0) 
+          ? (word.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
           : 1;
 
         if (opacityValue <= 0) return;
