@@ -140,20 +140,22 @@ export class SceneRenderer {
           const liveStartTime = clip.startTime + (meta.index * wordDuration);
           const liveEndTime = liveStartTime + wordDuration;
           
-          isActive = time >= liveStartTime && time <= liveEndTime;
-          isPast = time > liveEndTime;
+          // Add a small epsilon (0.01s) to handle frame sampling aliasing
+          isActive = time >= (liveStartTime - 0.01) && time <= (liveEndTime + 0.01);
+          isPast = time > (liveEndTime + 0.01);
         } else {
-          isActive = time >= word.startTime && time <= word.endTime;
-          isPast = time > word.endTime;
+          isActive = time >= (word.startTime - 0.01) && time <= (word.endTime + 0.01);
+          isPast = time > (word.endTime + 0.01);
         }
 
         const isKeepVisible = 
           (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
           (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
           (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) ||
-          settings.keepPreviousWordsVisible; // fallback for old projects
+          settings.keepPreviousWordsVisible;
 
-        const isSceneDone = time > word.sceneEndTime;
+        // If keepPreviousWordsVisible is true, we ignore sceneEndTime and keep it until the block ends
+        const isSceneDone = !settings.keepPreviousWordsVisible && time > (word.sceneEndTime + 0.05);
         if (isSceneDone) return;
 
         const shouldShow = isActive || (isPast && isKeepVisible);
@@ -161,8 +163,10 @@ export class SceneRenderer {
         if (!shouldShow) return;
 
         const pastOpacity = settings.pastWordsOpacity !== undefined ? settings.pastWordsOpacity / 100 : 0.4;
+        
+        // Fix: pop-in-place should respect isKeepVisible
         const opacityValue = isPast 
-          ? (word.layoutStyle === 'pop-in-place' || !isKeepVisible ? 0 : pastOpacity) 
+          ? (isKeepVisible ? (word.layoutStyle === 'pop-in-place' ? 1 : pastOpacity) : 0) 
           : 1;
 
         if (opacityValue <= 0) return;

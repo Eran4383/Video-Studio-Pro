@@ -268,7 +268,11 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
     }
     
     // Assign colors
-    const currentSceneEndTime = chunk[chunk.length - 1].endTime;
+    const blockEndTime = clips[clips.length - 1].startTime + clips[clips.length - 1].duration;
+    const currentSceneEndTime = block.settings.keepPreviousWordsVisible 
+      ? blockEndTime 
+      : chunk[chunk.length - 1].endTime;
+      
     const chunkId = `chunk-${Date.now()}-${chunkIndex}`;
     const sceneWords: KineticWord[] = geometricWords.map((gw, j) => ({
       id: `${chunk[j].clipId}-word-${chunk[j].wordIndexInClip}`,

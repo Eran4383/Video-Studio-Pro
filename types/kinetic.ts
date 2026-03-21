@@ -73,6 +73,7 @@ export interface KineticSettings {
   
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
+  keepPreviousWordsVisible?: boolean;
 }
 
 export interface KineticBlock {
