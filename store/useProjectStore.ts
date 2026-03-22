@@ -20,7 +20,7 @@ const INITIAL_PROJECT: Project = {
   ],
   backgroundColor: '#000000',
   kineticBlocks: [],
-  waveformStyle: 'solid',
+  waveformStyle: 'lines',
   waveformScale: 1.0
 };
 
@@ -78,10 +78,44 @@ export const useProjectStore = () => {
     setProject(prev => {
       const screenAR = width / height;
       const allClips = prev.tracks.flatMap(t => t.clips);
-      const nextBlocks = prev.kineticBlocks.map(block => ({
-        ...block,
-        words: generateBlockLayout(block, allClips, screenAR)
-      }));
+      const nextBlocks = prev.kineticBlocks.map(block => {
+        const isParent = prev.kineticBlocks.some(b => b.parentId === block.id);
+        
+        if (isParent) {
+          // Parent blocks should never have words, they just hold the settings
+          return { ...block, words: [] };
+        }
+
+        if (!block.words || block.words.length === 0) {
+          return block;
+        }
+
+        // Generate new layout based on the new aspect ratio
+        const newWords = generateBlockLayout(block, allClips, screenAR);
+        
+        if (newWords.length !== block.words.length) {
+          // Fallback: if word counts mismatch, use the new generated words
+          return { ...block, words: newWords };
+        }
+
+        // Merge the new layout properties with the existing word properties (colors, fonts, etc.)
+        const mergedWords = block.words.map((oldWord, i) => {
+          const newWord = newWords[i];
+          return {
+            ...oldWord,
+            position: newWord.position,
+            fontSize: newWord.fontSize,
+            width: newWord.width,
+            isCentered: newWord.isCentered,
+            layoutStyle: newWord.layoutStyle // Update layout style in case it changed
+          };
+        });
+
+        return {
+          ...block,
+          words: mergedWords
+        };
+      });
       
       const next = { 
         ...prev, 

@@ -60,7 +60,7 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
     ctx.lineWidth = 1;
 
     // Optimization: Browser canvas rendering is fast, but we only iterate over the width
-    const step = waveformStyle === 'lines' ? 3 : 1;
+    const step = waveformStyle === 'lines' ? 4 : 1;
     for (let x = 0; x < width; x += step) {
       const timeAtX = x / pxPerSec;
       const sampleIdx = startIdx + Math.floor(timeAtX * resolution);
@@ -83,19 +83,34 @@ export const WaveformCanvas: React.FC<WaveformCanvasProps> = ({
       if (waveformStyle === 'lines') {
         const segmentHeight = 2;
         const gap = 1;
-        const totalHeight = Math.abs(yMax - yMin);
-        const segments = Math.floor(totalHeight / (segmentHeight + gap));
+        const segmentTotal = segmentHeight + gap;
+        
+        // Calculate max amplitude for this column (0 to 1)
+        const amplitude = Math.max(Math.abs(min), Math.abs(max)) * gain;
+        const barHeight = amplitude * (isExpanded ? height / 2 : height);
+        const segments = Math.floor(barHeight / segmentTotal);
+        
+        const centerY = isExpanded ? midY : height;
         
         for (let s = 0; s < segments; s++) {
-          const sy = yMin + s * (segmentHeight + gap);
-          const amplitude = Math.abs((sy - midY) / midY);
-          
-          let segColor = '#10b981'; // Green
-          if (amplitude > 0.8) segColor = '#ef4444'; // Red
-          else if (amplitude > 0.5) segColor = '#f59e0b'; // Yellow/Orange
+          let segColor = '#ef4444'; // Default Red
+          if (s < 2) segColor = '#ef4444'; // Bottom 2: Red
+          else if (s < 6) segColor = '#4ade80'; // Next 4: Green
+          else if (s < 12) segColor = '#fbbf24'; // Next 6: Yellow
+          else if (s < 16) segColor = '#f97316'; // Next 4: Orange
+          else segColor = '#ef4444'; // Top: Red
           
           ctx.fillStyle = segColor;
-          ctx.fillRect(x + 0.5, sy, 2, segmentHeight);
+          
+          // Draw upwards
+          const syUp = centerY - (s + 1) * segmentTotal;
+          ctx.fillRect(x + 0.5, syUp, 3, segmentHeight);
+          
+          // Draw downwards if expanded (mirrored)
+          if (isExpanded) {
+            const syDown = centerY + s * segmentTotal;
+            ctx.fillRect(x + 0.5, syDown, 3, segmentHeight);
+          }
         }
       } else {
         ctx.lineCap = 'butt';

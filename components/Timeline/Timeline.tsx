@@ -113,6 +113,43 @@ export const Timeline: React.FC<TimelineProps> = ({
     return 'MOVE';
   };
 
+  const getGlobalSnapPoint = (time: number, ignoreClipIds: string[] = [], shouldSnap: boolean = isMagnetEnabled) => {
+      if (!shouldSnap) return time;
+      const snapThreshold = 10 / pxPerSec;
+      let closestDiff = Infinity;
+      let snapTarget = time;
+
+      const checkSnap = (target: number) => {
+          const diff = Math.abs(time - target);
+          if (diff < snapThreshold && diff < closestDiff) {
+              closestDiff = diff;
+              snapTarget = target;
+          }
+      };
+
+      checkSnap(currentTime);
+
+      project.tracks.forEach(t => {
+          t.clips.forEach(c => {
+              if (ignoreClipIds.includes(c.id)) return;
+              checkSnap(c.startTime);
+              checkSnap(c.startTime + c.duration);
+
+              if (t.type === 'audio') {
+                  const a = assets.find(asset => asset.id === c.assetId);
+                  if (a && a.anchors) {
+                      a.anchors.forEach(anchorTime => {
+                          const timelineAnchorTime = c.startTime + (anchorTime - c.offset);
+                          checkSnap(timelineAnchorTime);
+                      });
+                  }
+              }
+          });
+      });
+
+      return snapTarget;
+  };
+
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (middlePanning && scrollRef.current) {
@@ -125,28 +162,9 @@ export const Timeline: React.FC<TimelineProps> = ({
         
         // Snap playhead to clip edges if magnet is enabled
         if (isMagnetEnabled && !e.shiftKey) {
-            const snapThreshold = 10 / pxPerSec; // 10 pixels threshold
-            let closestDiff = Infinity;
-            let snapTarget = -1;
-
-            project.tracks.forEach(track => {
-                track.clips.forEach(clip => {
-                    const startDiff = Math.abs(t - clip.startTime);
-                    const endDiff = Math.abs(t - (clip.startTime + clip.duration));
-
-                    if (startDiff < snapThreshold && startDiff < closestDiff) {
-                        closestDiff = startDiff;
-                        snapTarget = clip.startTime;
-                    }
-                    if (endDiff < snapThreshold && endDiff < closestDiff) {
-                        closestDiff = endDiff;
-                        snapTarget = clip.startTime + clip.duration;
-                    }
-                });
-            });
-
-            if (snapTarget !== -1) {
-                t = snapTarget;
+            const snappedT = getGlobalSnapPoint(t, []);
+            if (snappedT !== t) {
+                t = snappedT;
             }
         }
         
@@ -163,7 +181,10 @@ export const Timeline: React.FC<TimelineProps> = ({
          const rect = tracksRef.current.getBoundingClientRect();
          // Check if mouse is strictly within the tracks area
          if (e.clientX >= rect.left && e.clientX <= rect.right && e.clientY >= rect.top && e.clientY <= rect.bottom) {
-             const time = getT(e.clientX);
+             let time = getT(e.clientX);
+             if (isMagnetEnabled && !e.shiftKey) {
+                 time = getGlobalSnapPoint(time, []);
+             }
              setGhostTime(time);
          } else {
              setGhostTime(null);
@@ -182,6 +203,12 @@ export const Timeline: React.FC<TimelineProps> = ({
         const asset = assets.find(a => a.id === clip.assetId);
         const assetDuration = asset ? asset.duration : 100;
 
+        const isCtrl = e.ctrlKey || e.metaKey;
+        const shouldSnap = isMagnetEnabled ? !isCtrl : isCtrl;
+
+        const isMultiSelection = selectedClipIds.includes(id) && selectedClipIds.length > 1;
+        const movingClipIds = isMultiSelection ? selectedClipIds : [id, ...(clip.linkedClipId ? [clip.linkedClipId] : [])];
+
         if (dragging.mode === 'MOVE') {
             let targetTrack = track;
             if (tracksRef.current) {
@@ -194,20 +221,31 @@ export const Timeline: React.FC<TimelineProps> = ({
                 }
             }
             if (!targetTrack.isLocked) {
-                // Magnet Logic:
-                // If Magnet is ON, Ctrl disables it (XOR: 1 ^ 1 = 0)
-                // If Magnet is OFF, Ctrl enables it (XOR: 0 ^ 1 = 1)
-                const isCtrl = e.ctrlKey || e.metaKey;
-                const shouldSnap = isMagnetEnabled ? !isCtrl : isCtrl;
-                
                 const rawStartTime = Math.max(0, originalState.startTime + deltaSeconds);
                 
-                onClipMove(id, targetTrack.id, rawStartTime, shouldSnap);
+                // Calculate snapping for both start and end edges
+                let snappedStartTime = rawStartTime;
+                if (shouldSnap) {
+                    const snappedStart = getGlobalSnapPoint(rawStartTime, movingClipIds, true);
+                    const snappedEnd = getGlobalSnapPoint(rawStartTime + originalState.duration, movingClipIds, true);
+                    
+                    const startDiff = Math.abs(rawStartTime - snappedStart);
+                    const endDiff = Math.abs((rawStartTime + originalState.duration) - snappedEnd);
+                    
+                    if (startDiff > 0 && (endDiff === 0 || startDiff <= endDiff)) {
+                        snappedStartTime = snappedStart;
+                    } else if (endDiff > 0 && (startDiff === 0 || endDiff < startDiff)) {
+                        snappedStartTime = snappedEnd - originalState.duration;
+                    }
+                }
+                
+                onClipMove(id, targetTrack.id, snappedStartTime, false);
             }
         } else if (dragging.mode === 'RESIZE_R') {
-            // New duration = original duration + delta
-            // Max duration = asset length - offset (only for video/audio)
-            let newDur = Math.max(0.1, originalState.duration + deltaSeconds);
+            let rawRightEdge = originalState.startTime + originalState.duration + deltaSeconds;
+            let snappedRightEdge = getGlobalSnapPoint(rawRightEdge, movingClipIds, shouldSnap);
+            
+            let newDur = Math.max(0.1, snappedRightEdge - originalState.startTime);
             const isUnlimited = clip.type === 'image' || clip.type === 'text';
             
             if (!isUnlimited && originalState.offset + newDur > assetDuration) {
@@ -216,22 +254,22 @@ export const Timeline: React.FC<TimelineProps> = ({
             onClipResize(id, originalState.startTime, newDur, originalState.offset);
 
         } else if (dragging.mode === 'RESIZE_L') {
-            // Start time changes, duration changes inverse, offset changes
-            let newStart = originalState.startTime + deltaSeconds;
-            let newDur = originalState.duration - deltaSeconds;
-            let newOffset = originalState.offset + deltaSeconds;
+            let rawLeftEdge = originalState.startTime + deltaSeconds;
+            let snappedLeftEdge = getGlobalSnapPoint(rawLeftEdge, movingClipIds, shouldSnap);
+            
+            let actualDelta = snappedLeftEdge - originalState.startTime;
+            let newStart = originalState.startTime + actualDelta;
+            let newDur = originalState.duration - actualDelta;
+            let newOffset = originalState.offset + actualDelta;
 
-            // Constraints
             const isSubtitle = track.type === 'subtitle';
             if (newOffset < 0 && !isSubtitle) {
-               // Cannot start before asset starts (except for subtitles which have no fixed asset start)
                const correction = 0 - newOffset;
                newOffset = 0;
-               newStart += correction; // Push start back
+               newStart += correction;
                newDur -= correction;
             }
             if (newDur < 0.1) {
-                // Min duration
                 newStart = originalState.startTime + originalState.duration - 0.1;
                 newDur = 0.1;
                 newOffset = originalState.offset + originalState.duration - 0.1;
@@ -332,12 +370,22 @@ export const Timeline: React.FC<TimelineProps> = ({
     const assetId = e.dataTransfer.getData('assetId');
     if (assetId) {
       const asset = assets.find(a => a.id === assetId);
-      if (asset) onAddClipAtPosition(trackId, asset, getT(e.clientX));
+      if (asset) {
+          const rawT = getT(e.clientX);
+          const snappedT = getGlobalSnapPoint(rawT, []);
+          onAddClipAtPosition(trackId, asset, snappedT);
+      }
       return;
     }
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       for (const file of Array.from(e.dataTransfer.files) as File[]) {
-        try { const asset = await AssetService.processFile(file); onAddAsset(asset); onAddClipAtPosition(trackId, asset, getT(e.clientX)); } catch (err) {}
+        try { 
+            const asset = await AssetService.processFile(file); 
+            onAddAsset(asset); 
+            const rawT = getT(e.clientX);
+            const snappedT = getGlobalSnapPoint(rawT, []);
+            onAddClipAtPosition(trackId, asset, snappedT); 
+        } catch (err) {}
       }
     }
   };
@@ -439,9 +487,28 @@ export const Timeline: React.FC<TimelineProps> = ({
       />
 
       <div className="flex-1 flex overflow-hidden min-w-0">
-        <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); onTimeChange(getT(e.clientX)); } }}>
+        <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { 
+            if (e.button === 0 && e.target === e.currentTarget) { 
+                onSelectClip(null); 
+                let t = getT(e.clientX);
+                if (isMagnetEnabled && !e.shiftKey) {
+                    t = getGlobalSnapPoint(t, []);
+                }
+                onTimeChange(t); 
+            } 
+        }}>
           <div className="min-w-max relative flex-1">
-            <div className="sticky top-0 h-8 bg-[#161616] border-b border-zinc-800 z-30 flex items-stretch cursor-pointer" onMouseDown={(e) => e.button === 0 && (e.preventDefault(), setIsDraggingPlayhead(true), onTimeChange(getT(e.clientX)))}>
+            <div className="sticky top-0 h-8 bg-[#161616] border-b border-zinc-800 z-30 flex items-stretch cursor-pointer" onMouseDown={(e) => {
+              if (e.button === 0) {
+                  e.preventDefault();
+                  setIsDraggingPlayhead(true);
+                  let t = getT(e.clientX);
+                  if (isMagnetEnabled && !e.shiftKey) {
+                      t = getGlobalSnapPoint(t, []);
+                  }
+                  onTimeChange(t);
+              }
+          }}>
               <div className="w-[150px] sticky left-0 bg-[#161616] z-40 border-r border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</div>
               <div className="flex-1 relative h-full" style={{ width: 10000 * pxPerSec }}>{Array.from({ length: 200 }).map((_, i) => i % 5 === 0 && (<div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>))}</div>
             </div>

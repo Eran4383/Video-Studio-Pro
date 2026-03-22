@@ -68,36 +68,56 @@ export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded, wav
     const lines = [];
     const segmentHeight = 2;
     const gap = 1;
+    const segmentTotal = segmentHeight + gap;
     
     for (let i = 0; i < pathData.length; i += 2) {
       const minVal = pathData[i];
       const maxVal = pathData[i+1];
       const x = (i / 2) * frameWidth;
       
-      const yMin = mid - (maxVal * mid * gain);
-      const yMax = mid - (minVal * mid * gain);
-      const totalHeight = Math.abs(yMax - yMin);
-      const segments = Math.floor(totalHeight / (segmentHeight + gap));
+      const amplitude = Math.max(Math.abs(minVal), Math.abs(maxVal)) * gain;
+      const barHeight = amplitude * (isExpanded ? svgHeight / 2 : svgHeight);
+      const segments = Math.floor(barHeight / segmentTotal);
+      
+      const centerY = isExpanded ? svgHeight / 2 : svgHeight;
       
       for (let s = 0; s < segments; s++) {
-        const sy = yMin + s * (segmentHeight + gap);
-        const amplitude = Math.abs((sy - mid) / mid);
+        let color = '#ef4444'; // Default Red
+        if (s < 2) color = '#ef4444'; // Bottom 2: Red
+        else if (s < 6) color = '#4ade80'; // Next 4: Green
+        else if (s < 12) color = '#fbbf24'; // Next 6: Yellow
+        else if (s < 16) color = '#f97316'; // Next 4: Orange
+        else color = '#ef4444'; // Top: Red
         
-        let color = "#10b981"; // Green
-        if (amplitude > 0.8) color = "#ef4444"; // Red
-        else if (amplitude > 0.5) color = "#f59e0b"; // Yellow/Orange
-        
+        // Draw upwards
+        const syUp = centerY - (s + 1) * segmentTotal;
         lines.push(
           <rect 
-            key={`${i}-${s}`} 
+            key={`${i}-${s}-up`} 
             x={x} 
-            y={sy} 
-            width={Math.max(1, frameWidth * 0.8)} 
+            y={syUp} 
+            width={Math.max(2, frameWidth * 0.8)} 
             height={segmentHeight} 
             fill={color} 
             rx={0.5}
           />
         );
+        
+        // Draw downwards if expanded (mirrored)
+        if (isExpanded) {
+          const syDown = centerY + s * segmentTotal;
+          lines.push(
+            <rect 
+              key={`${i}-${s}-down`} 
+              x={x} 
+              y={syDown} 
+              width={Math.max(2, frameWidth * 0.8)} 
+              height={segmentHeight} 
+              fill={color} 
+              rx={0.5}
+            />
+          );
+        }
       }
     }
     return lines;
