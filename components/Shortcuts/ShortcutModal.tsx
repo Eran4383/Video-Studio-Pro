@@ -9,7 +9,7 @@ interface ShortcutModalProps {
   onClose: () => void;
 }
 
-export const ShortcutModal: React.FC<ShortcutModalProps> = ({ shortcuts, onUpdate, onClose }) => {
+export const ShortcutModal = ({ shortcuts, onUpdate, onClose }: ShortcutModalProps) => {
   const [recordingIndex, setRecordingIndex] = useState<number | null>(null);
 
   const handleKeyDown = (e: KeyboardEvent) => {

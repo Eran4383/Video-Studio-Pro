@@ -23,7 +23,10 @@ class WebAudioService {
 
   public playClip(clip: Clip, asset: Asset, currentTime: number) {
     const ctx = this.initContext();
-    if (!asset.audioBuffer) return;
+    if (!asset.audioBuffer || !(asset.audioBuffer instanceof AudioBuffer)) {
+      console.warn(`[WebAudioService] No valid AudioBuffer found for asset: ${asset.id}`);
+      return;
+    }
 
     // Stop existing source for this clip if any
     this.stopClip(clip.id);

@@ -52,7 +52,7 @@ export class MagneticAnchorService {
   /**
    * Finds the nearest anchor to a given time.
    */
-  static findNearestAnchor(time: number, anchors: number[], threshold: number = 0.2): number | null {
+  static findNearestAnchor(time: number, anchors: number[], threshold: number = 0.01): number | null {
     if (anchors.length === 0) return null;
 
     let nearest = anchors[0];

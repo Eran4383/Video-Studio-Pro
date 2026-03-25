@@ -7,7 +7,7 @@ const RATIOS = [
     { label: '4:3', width: 1440, height: 1080, class: 'w-6 h-4.5' },
 ];
 
-export const ResolutionSwitcher: React.FC<{ store: any }> = ({ store }) => {
+export const ResolutionSwitcher = ({ store }: { store: any }) => {
     const { project, setProjectResolution } = store;
     const currentRatio = RATIOS.find(r => r.width === project.resolution.width && r.height === project.resolution.height) || RATIOS[0];
 

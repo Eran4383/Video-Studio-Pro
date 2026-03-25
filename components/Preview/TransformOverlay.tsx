@@ -11,7 +11,7 @@ interface TransformOverlayProps {
   isCanvasMagnetEnabled?: boolean;
 }
 
-export const TransformOverlay: React.FC<TransformOverlayProps> = ({ clip, containerRef, onUpdate, onFinalize, isVideo, mediaDimensions, isCanvasMagnetEnabled = true }) => {
+export const TransformOverlay = ({ clip, containerRef, onUpdate, onFinalize, isVideo, mediaDimensions, isCanvasMagnetEnabled = true }: TransformOverlayProps) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragMode, setDragMode] = useState<string | null>(null);
   const [liveOverrides, setLiveOverrides] = useState<Record<string, any>>({});

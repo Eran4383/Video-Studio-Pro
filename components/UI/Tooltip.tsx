@@ -7,9 +7,10 @@ interface TooltipProps {
   shortcut?: string;
   children: React.ReactElement;
   position?: 'top' | 'bottom' | 'left' | 'right';
+  key?: React.Key;
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ text, shortcut, children, position = 'top' }) => {
+export const Tooltip = ({ text, shortcut, children, position = 'top' }: TooltipProps) => {
   const [show, setShow] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
 

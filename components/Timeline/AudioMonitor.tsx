@@ -9,7 +9,7 @@ interface AudioMonitorProps {
   orientation?: 'horizontal' | 'vertical';
 }
 
-export const AudioMonitor: React.FC<AudioMonitorProps> = ({ project, assets, currentTime, orientation = 'vertical' }) => {
+export const AudioMonitor = ({ project, assets, currentTime, orientation = 'vertical' }: AudioMonitorProps) => {
   const [peak, setPeak] = useState(0);
 
   const currentLevel = useMemo(() => {
@@ -17,7 +17,7 @@ export const AudioMonitor: React.FC<AudioMonitorProps> = ({ project, assets, cur
     const activeClips = project.tracks
       .filter(t => t.isVisible && !t.isMuted)
       .flatMap(t => t.clips)
-      .filter(c => currentTime >= c.startTime && currentTime <= c.startTime + c.duration);
+      .filter(c => currentTime >= c.startTime && currentTime < c.startTime + c.duration);
 
     if (activeClips.length === 0) return 0;
 

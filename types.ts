@@ -75,7 +75,7 @@ export interface Project {
 export interface Track {
   id: string;
   name: string;
-  type: 'video' | 'audio' | 'subtitle';
+  type: 'video' | 'audio' | 'subtitle' | 'image';
   clips: Clip[];
   isVisible: boolean;
   isMuted: boolean;

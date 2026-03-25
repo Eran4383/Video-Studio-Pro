@@ -11,7 +11,7 @@ interface DiagnosticsModalProps {
   assets: any[];
 }
 
-export const DiagnosticsModal: React.FC<DiagnosticsModalProps> = ({ onClose, project, assets }) => {
+export const DiagnosticsModal = ({ onClose, project, assets }: DiagnosticsModalProps) => {
   const store = useProjectStore();
   const [activeTab, setActiveTab] = useState<'system' | 'subtitles' | 'logs'>('system');
   const [stats, setStats] = useState<SystemStats | null>(null);

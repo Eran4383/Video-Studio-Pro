@@ -8,7 +8,7 @@ interface MagneticMarkersProps {
   pxPerSec: number;
 }
 
-export const MagneticMarkers: React.FC<MagneticMarkersProps> = ({ asset, clip, pxPerSec }) => {
+export const MagneticMarkers = ({ asset, clip, pxPerSec }: MagneticMarkersProps) => {
   if (!asset || !asset.anchors || asset.anchors.length === 0) return null;
 
   // Filter anchors that are within the current clip's view (offset to offset + duration)
@@ -19,12 +19,12 @@ export const MagneticMarkers: React.FC<MagneticMarkersProps> = ({ asset, clip, p
   return (
     <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden">
       {visibleAnchors.map((anchor, idx) => {
-        const x = (anchor - clip.offset) * pxPerSec;
+        const x = Math.round((anchor - clip.offset) * pxPerSec);
         return (
           <div 
             key={idx} 
-            className="absolute top-0 bottom-0 w-px bg-zinc-600/40 shadow-[0_0_4px_rgba(82,82,82,0.3)]"
-            style={{ left: x }}
+            className="absolute top-0 bottom-0 w-px bg-zinc-600/40 shadow-[0_0_4px_rgba(82,82,82,0.3)] will-change-transform"
+            style={{ transform: `translateX(${x}px)` }}
           >
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-zinc-500 rounded-full" />
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1 h-1 bg-zinc-500 rounded-full" />

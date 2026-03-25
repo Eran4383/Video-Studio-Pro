@@ -52,7 +52,12 @@ export const useClipActions = (
 
       const nextTracks = prev.tracks.map(track => ({
         ...track,
-        clips: track.clips.map(clip => clip.id === clipId ? { ...clip, startTime: newStartTime, duration: newDuration, offset: newOffset } : clip)
+        clips: track.clips.map(clip => clip.id === clipId ? { 
+          ...clip, 
+          startTime: Math.round(newStartTime * 1000) / 1000, 
+          duration: Math.round(newDuration * 1000) / 1000, 
+          offset: Math.round(newOffset * 1000) / 1000 
+        } : clip)
       }));
 
       let nextKineticBlocks = prev.kineticBlocks;
@@ -119,7 +124,11 @@ export const useClipActions = (
         ...track,
         clips: track.clips.map(clip => {
           if (clip.id === clipId || (applyToAll && selectedClipIds.includes(clip.id))) {
-            return { ...clip, ...updates };
+            const nextClip = { ...clip, ...updates };
+            if (updates.startTime !== undefined) nextClip.startTime = Math.round(updates.startTime * 1000) / 1000;
+            if (updates.duration !== undefined) nextClip.duration = Math.round(updates.duration * 1000) / 1000;
+            if (updates.offset !== undefined) nextClip.offset = Math.round(updates.offset * 1000) / 1000;
+            return nextClip;
           }
           return clip;
         })

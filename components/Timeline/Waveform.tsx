@@ -11,7 +11,7 @@ interface WaveformProps {
   fps?: number;
 }
 
-export const Waveform: React.FC<WaveformProps> = ({ asset, clip, isExpanded, waveformStyle = 'solid', pxPerSec, fps = 30 }) => {
+export const Waveform = ({ asset, clip, isExpanded, waveformStyle = 'solid', pxPerSec, fps = 30 }: WaveformProps) => {
   const svgWidth = clip.duration * pxPerSec;
   const svgHeight = 100;
   const mid = svgHeight / 2;

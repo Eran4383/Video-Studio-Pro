@@ -59,7 +59,7 @@ export const useMoveActions = (
               if (c) { originalClip = c; originalTrackIndex = i; break; }
           }
           if (originalClip && originalTrackIndex !== -1) {
-              const newStartTime = Math.max(0, originalClip.startTime + deltaX);
+              const newStartTime = Math.round(Math.max(0, originalClip.startTime + deltaX) * 1000) / 1000;
               const newTrackIndex = originalTrackIndex + trackDelta;
               if (newTrackIndex >= 0 && newTrackIndex < prev.tracks.length) {
                   movePlan.set(mId, { newStartTime, targetTrackId: prev.tracks[newTrackIndex].id });
@@ -95,12 +95,19 @@ export const useMoveActions = (
         if (clipsToSplit.length === 0) return track;
         let newClips = [...track.clips];
         for (const clip of clipsToSplit) {
-          const relativeSplitPoint = time - clip.startTime;
-          if (relativeSplitPoint <= 0.1 || relativeSplitPoint >= clip.duration - 0.1) continue;
+          const relativeSplitPoint = Math.round((time - clip.startTime) * 1000) / 1000;
+          if (relativeSplitPoint <= 0.01 || relativeSplitPoint >= clip.duration - 0.01) continue;
           const leftClip: Clip = { ...clip, duration: relativeSplitPoint };
           const rightClipId = `clip-${Math.random().toString(36).substr(2, 9)}`;
           newlyCreatedIds.push(rightClipId);
-          const rightClip: Clip = { ...clip, id: rightClipId, startTime: time, offset: clip.offset + relativeSplitPoint, duration: clip.duration - relativeSplitPoint, linkedClipId: undefined };
+          const rightClip: Clip = { 
+            ...clip, 
+            id: rightClipId, 
+            startTime: Math.round(time * 1000) / 1000, 
+            offset: Math.round((clip.offset + relativeSplitPoint) * 1000) / 1000, 
+            duration: Math.round((clip.duration - relativeSplitPoint) * 1000) / 1000, 
+            linkedClipId: undefined 
+          };
           const clipIdx = newClips.findIndex(c => c.id === clip.id);
           newClips.splice(clipIdx, 1, leftClip, rightClip);
         }

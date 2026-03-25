@@ -2,6 +2,8 @@ import React, { useCallback } from 'react';
 import { Project, Asset, Clip } from '../types';
 import { SubtitleItem } from '../utils/srtParser';
 
+import { sanitizeTrackClips } from '../utils/timelineUtils';
+
 export const useSubtitleActions = (
   setProject: React.Dispatch<React.SetStateAction<Project>>,
   pushToHistory: (p: Project) => void,
@@ -21,7 +23,7 @@ export const useSubtitleActions = (
           newTracks.push(targetTrack);
       }
       const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'bold', textAlign: 'center', opacity: 1, shadow: true };
-      newTracks = newTracks.map(t => t.id === targetTrack!.id ? { ...t, clips: [...t.clips, newClip] } : t);
+      newTracks = newTracks.map(t => t.id === targetTrack!.id ? { ...t, clips: sanitizeTrackClips([...t.clips, newClip]) } : t);
       const next = { ...prev, tracks: newTracks };
       pushToHistory(next);
       setTimeout(() => setSelectedClipIds([newClip.id]), 0);
@@ -75,7 +77,8 @@ export const useSubtitleActions = (
               anchorIndex = bestAnchor + 1;
             }
           }
-          return { ...track, clips: track.clips.map(c => newClipsMap.has(c.id) ? { ...c, ...newClipsMap.get(c.id) } : c) };
+          const updatedClips = track.clips.map(c => newClipsMap.has(c.id) ? { ...c, ...newClipsMap.get(c.id) } : c);
+          return { ...track, clips: sanitizeTrackClips(updatedClips) };
         })
       };
       pushToHistory(next);
@@ -125,7 +128,7 @@ export const useSubtitleActions = (
       }));
 
       newTracks = newTracks.map(t =>
-        t.id === targetTrack!.id ? { ...t, clips: [...t.clips, ...newClips] } : t
+        t.id === targetTrack!.id ? { ...t, clips: sanitizeTrackClips([...t.clips, ...newClips]) } : t
       );
 
       const next = { ...prev, tracks: newTracks };

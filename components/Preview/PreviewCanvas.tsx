@@ -34,20 +34,20 @@ interface PreviewCanvasProps {
   snapGuides: { x: boolean, y: boolean };
 }
 
-export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
+export const PreviewCanvas = ({
   project, assets, renderTime, scale, pan, selectedClipIds,
   isCanvasMagnetEnabled, showTransformControls, videoRef, imageRef, containerRef, store,
   setIsCanvasMagnetEnabled, setShowTransformControls, onMouseDown, onMouseMove, onMouseUp,
   onSubMouseDown, onSubDoubleClick, isDraggingSub, editingSubId, snapGuides
-}) => {
+}: PreviewCanvasProps) => {
   const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
   const liveOverrides = useRef<Record<string, any>>({});
 
   const selectedClip = project.tracks.flatMap(t => t.clips).find(c => selectedClipIds.includes(c.id));
   const activeVideoClip = project.tracks.slice().reverse()
-    .filter(t => (t.type === 'video' || t.type === 'image') && t.isVisible)
+    .filter(t => (t.type === 'video' || (t.type as string) === 'image') && t.isVisible)
     .flatMap(t => t.clips)
-    .find(c => renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
+    .find(c => renderTime >= c.startTime && renderTime < c.startTime + c.duration);
   const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
 
   // Render GFX
@@ -70,7 +70,7 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const activeSubs = project.tracks
     .filter(t => t.isVisible)
     .flatMap(t => t.clips)
-    .filter(c => c.content && renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
+    .filter(c => c.content && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
 
   const activeKineticBlocks = (project.kineticBlocks || []).map((b: any) => {
     const clips = project.tracks.flatMap(t => t.clips).filter(c => b.clipIds.includes(c.id));
@@ -78,7 +78,7 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     const startTime = Math.min(...clips.map(c => c.startTime));
     const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
     return { ...b, startTime, endTime };
-  }).filter((b: any) => b && renderTime >= b.startTime && renderTime <= b.endTime);
+  }).filter((b: any) => b && renderTime >= b.startTime && renderTime < b.endTime);
 
   return (
     <div 
@@ -167,8 +167,8 @@ export const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {showTransformControls && selectedClip && (
           (() => {
             const track = project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id));
-            const isVisual = track && (track.type === 'video' || track.type === 'image' || track.type === 'subtitle');
-            const isVisible = renderTime >= selectedClip.startTime && renderTime <= selectedClip.startTime + selectedClip.duration;
+            const isVisual = track && (track.type === 'video' || (track.type as string) === 'image' || track.type === 'subtitle');
+            const isVisible = renderTime >= selectedClip.startTime && renderTime < selectedClip.startTime + selectedClip.duration;
             return isVisual && isVisible;
           })()
         ) && (

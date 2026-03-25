@@ -35,7 +35,7 @@ export const useAudioSync = (
         // For now, we skip if it's the active video clip to avoid double audio
         if (activeVideoClipId && item.clip.id === activeVideoClipId) return false;
         
-        return renderTime >= item.clip.startTime && renderTime <= item.clip.startTime + item.clip.duration;
+        return renderTime >= item.clip.startTime && renderTime < item.clip.startTime + item.clip.duration;
       });
 
     const currentActiveIds = new Set(currentActiveSources.map(s => s.clip.id));

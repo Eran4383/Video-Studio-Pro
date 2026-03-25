@@ -13,7 +13,7 @@ interface ConfirmModalProps {
   variant?: 'danger' | 'warning' | 'info';
 }
 
-export const ConfirmModal: React.FC<ConfirmModalProps> = ({
+export const ConfirmModal = ({
   isOpen,
   title,
   message,
@@ -22,7 +22,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
   variant = 'danger'
-}) => {
+}: ConfirmModalProps) => {
   if (!isOpen) return null;
 
   const variantStyles = {

@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { Project, Clip, Track, Asset } from '../../types';
+import { Project, Clip, Track, Asset, MediaType } from '../../types';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
 import { MagneticAnchorService } from '../../services/MagneticAnchorService';
@@ -58,9 +58,9 @@ interface DragState {
   };
 }
 
-export const Timeline: React.FC<TimelineProps> = ({
+export const Timeline = ({
   project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
-}) => {
+}: TimelineProps) => {
   const store = useProjectStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -74,6 +74,8 @@ export const Timeline: React.FC<TimelineProps> = ({
 
   // Box Selection State
   const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
+
+  const projectDuration = Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
 
   const pxPerSec = zoom * 10;
   const HEADER_WIDTH = 150;
@@ -246,7 +248,7 @@ export const Timeline: React.FC<TimelineProps> = ({
             let snappedRightEdge = getGlobalSnapPoint(rawRightEdge, movingClipIds, shouldSnap);
             
             let newDur = Math.max(0.1, snappedRightEdge - originalState.startTime);
-            const isUnlimited = clip.type === 'image' || clip.type === 'text';
+            const isUnlimited = asset?.type === MediaType.IMAGE || asset?.type === MediaType.TEXT;
             
             if (!isUnlimited && originalState.offset + newDur > assetDuration) {
                 newDur = assetDuration - originalState.offset;
@@ -356,14 +358,15 @@ export const Timeline: React.FC<TimelineProps> = ({
     const handleWheelEvent = (e: WheelEvent) => {
       if (e.ctrlKey) {
         e.preventDefault();
-        const delta = e.deltaY > 0 ? -2 : 2;
-        setZoom(Math.min(100, Math.max(1, zoom + delta)));
+        const delta = e.deltaY > 0 ? -5 : 5;
+        const maxZoom = Math.min(1000, 30000000 / (projectDuration * 10 || 1));
+        setZoom(Math.min(maxZoom, Math.max(1, zoom + delta)));
       }
     };
 
     scrollContainer.addEventListener('wheel', handleWheelEvent, { passive: false });
     return () => scrollContainer.removeEventListener('wheel', handleWheelEvent);
-  }, [zoom, setZoom]);
+  }, [zoom, setZoom, projectDuration]);
 
   const handleDrop = async (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
@@ -479,7 +482,7 @@ export const Timeline: React.FC<TimelineProps> = ({
         isMagnet={isMagnetEnabled} onToggleMagnet={() => setIsMagnetEnabled(!isMagnetEnabled)}
         isAutoScroll={isAutoScrollEnabled} onToggleAutoScroll={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}
         zoom={zoom} setZoom={setZoom} selectedClipCount={selectedClipIds.length}
-        projectDuration={Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration))}
+        projectDuration={projectDuration}
         onSyncToAnchors={onSyncToAnchors}
         onImportSubtitles={onImportSubtitles}
         showAudioMonitor={showAudioMonitor}
@@ -510,7 +513,25 @@ export const Timeline: React.FC<TimelineProps> = ({
               }
           }}>
               <div className="w-[150px] sticky left-0 bg-[#161616] z-40 border-r border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</div>
-              <div className="flex-1 relative h-full" style={{ width: 10000 * pxPerSec }}>{Array.from({ length: 200 }).map((_, i) => i % 5 === 0 && (<div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>))}</div>
+              <div 
+                className="flex-1 relative h-full shrink-0" 
+                style={{ 
+                  width: Math.min(30000000, Math.max(projectDuration + 300, 100) * pxPerSec),
+                  backgroundImage: pxPerSec > 500 
+                    ? `repeating-linear-gradient(to right, transparent, transparent ${pxPerSec/100 - 1}px, rgba(255,255,255,0.03) ${pxPerSec/100 - 1}px, rgba(255,255,255,0.03) ${pxPerSec/100}px), repeating-linear-gradient(to right, transparent, transparent ${pxPerSec/10 - 1}px, rgba(255,255,255,0.1) ${pxPerSec/10 - 1}px, rgba(255,255,255,0.1) ${pxPerSec/10}px)` 
+                    : pxPerSec > 50 
+                    ? `repeating-linear-gradient(to right, transparent, transparent ${pxPerSec/10 - 1}px, rgba(255,255,255,0.05) ${pxPerSec/10 - 1}px, rgba(255,255,255,0.05) ${pxPerSec/10}px)`
+                    : 'none'
+                }}
+              >
+                {Array.from({ length: Math.ceil(Math.max(projectDuration + 300, 100)) }).map((_, i) => {
+                  const showLabel = pxPerSec > 20 ? true : i % 5 === 0;
+                  if (!showLabel) return null;
+                  return (
+                    <div key={i} className="absolute top-0 h-full border-l border-zinc-800/50 pl-1 text-[9px] text-zinc-600 font-mono" style={{ left: i * pxPerSec }}>{i}s</div>
+                  );
+                })}
+              </div>
             </div>
 
             <div className="flex flex-col relative" ref={tracksRef} onMouseDown={handleTrackAreaMouseDown}>

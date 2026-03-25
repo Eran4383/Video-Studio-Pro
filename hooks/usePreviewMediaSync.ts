@@ -56,7 +56,7 @@ export const usePreviewMediaSync = ({
         if (item.clip.content) return false;
         // If it's the active video clip, we use the video element's audio (unless silenced)
         if (activeVideoClip && item.clip.id === activeVideoClip.id) return false;
-        return renderTime >= item.clip.startTime && renderTime <= item.clip.startTime + item.clip.duration;
+        return renderTime >= item.clip.startTime && renderTime < item.clip.startTime + item.clip.duration;
       });
 
     const currentActiveIds = new Set(currentActiveSources.map((s: any) => s.clip.id));

@@ -9,7 +9,7 @@ interface PreviewPlayerProps {
   store: any;
 }
 
-export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
+export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
   const { 
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
@@ -61,7 +61,7 @@ export const PreviewPlayer: React.FC<PreviewPlayerProps> = ({ store }) => {
     const activeVideoClip = project.tracks.slice().reverse()
       .filter(t => t.type === 'video' && t.isVisible)
       .flatMap(t => t.clips)
-      .find(c => renderTime >= c.startTime && renderTime <= c.startTime + c.duration);
+      .find(c => renderTime >= c.startTime && renderTime < c.startTime + c.duration);
 
     if (activeVideoClip) {
       const targetTime = (renderTime - activeVideoClip.startTime) + activeVideoClip.offset;

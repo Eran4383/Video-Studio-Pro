@@ -27,6 +27,12 @@ class WaveformAnalyzer {
 
     const duration = buffer.duration;
     const totalOutputSamples = Math.ceil(duration * samplesPerSecond);
+    
+    if (typeof buffer.getChannelData !== 'function') {
+      console.warn(`[WaveformAnalyzer] buffer.getChannelData is not a function for asset ${assetId}`);
+      return { peaks: new Float32Array(0), rms: new Float32Array(0), resolution: samplesPerSecond };
+    }
+
     const rawData = buffer.getChannelData(0); // Analyze first channel for visualization
     const samplesPerBlock = Math.floor(buffer.sampleRate / samplesPerSecond);
     

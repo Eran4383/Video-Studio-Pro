@@ -15,10 +15,10 @@ interface PreviewControlsProps {
   resetView: () => void;
 }
 
-export const PreviewControls: React.FC<PreviewControlsProps> = ({
+export const PreviewControls = ({
   isPlaying, isLooping, currentTime, scale,
   setIsPlaying, setIsLooping, setCurrentTime, setScale, resetView
-}) => {
+}: PreviewControlsProps) => {
   return (
     <div className="h-14 bg-[#121212] border-t border-zinc-800 flex items-center justify-between px-6 z-20">
       <div className="flex items-center gap-6">

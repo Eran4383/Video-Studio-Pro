@@ -24,7 +24,7 @@ export class GFX_Engine {
       .filter(t => t.isVisible)
       .forEach(track => {
         track.clips.forEach(clip => {
-          if (currentTime >= clip.startTime && currentTime <= clip.startTime + clip.duration) {
+          if (currentTime >= clip.startTime && currentTime < clip.startTime + clip.duration) {
              const override = liveOverrides[clip.id] || {};
              const posX = override.posX !== undefined ? override.posX / 100 : (clip.position?.x ?? 0.5);
              const posY = override.posY !== undefined ? override.posY / 100 : (clip.position?.y ?? (clip.content ? 0.9 : 0.5));

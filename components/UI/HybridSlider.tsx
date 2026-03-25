@@ -12,7 +12,7 @@ interface HybridSliderProps {
   className?: string;
 }
 
-export const HybridSlider: React.FC<HybridSliderProps> = ({
+export const HybridSlider = ({
   value,
   onChange,
   onFinalize,
@@ -22,7 +22,7 @@ export const HybridSlider: React.FC<HybridSliderProps> = ({
   step = 1,
   unit = '',
   className = ''
-}) => {
+}: HybridSliderProps) => {
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
   const requestRef = useRef<number>();

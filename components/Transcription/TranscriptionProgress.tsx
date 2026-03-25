@@ -8,12 +8,12 @@ interface TranscriptionProgressProps {
   onClose: () => void;
 }
 
-export const TranscriptionProgress: React.FC<TranscriptionProgressProps> = ({ 
+export const TranscriptionProgress = ({ 
   status, 
   isMinimized, 
   onToggleMinimize, 
   onClose 
-}) => {
+}: TranscriptionProgressProps) => {
   if (isMinimized) {
     return (
       <div className="fixed bottom-6 right-6 z-[200] bg-zinc-900 border border-zinc-800 rounded-xl shadow-2xl p-4 flex items-center gap-4 animate-in slide-in-from-bottom-5">

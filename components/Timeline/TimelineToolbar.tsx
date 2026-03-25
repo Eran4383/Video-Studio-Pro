@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor, Upload, Box } from 'lucide-react';
+import { Undo, Redo, Scissors, Trash2, Plus, Video, Music, ZoomOut, ZoomIn, Magnet, RotateCcw, Maximize2, MousePointer2, Anchor, Upload } from 'lucide-react';
 import { Tooltip } from '../UI/Tooltip';
 
 interface TimelineToolbarProps {
@@ -15,8 +15,6 @@ interface TimelineToolbarProps {
   onToggleMagnet: () => void;
   isAutoScroll: boolean;
   onToggleAutoScroll: () => void;
-  showDebugBlocks: boolean;
-  onToggleDebugBlocks: () => void;
   zoom: number;
   setZoom: (z: number) => void;
   selectedClipCount: number;
@@ -27,15 +25,18 @@ interface TimelineToolbarProps {
   onToggleAudioMonitor: () => void;
 }
 
-export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({ 
-  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, showDebugBlocks, onToggleDebugBlocks, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
-}) => {
+export const TimelineToolbar = ({ 
+  canUndo, canRedo, onUndo, onRedo, onSplit, onDelete, onAddTrack, isMagnet, onToggleMagnet, isAutoScroll, onToggleAutoScroll, zoom, setZoom, selectedClipCount, projectDuration, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
+}: TimelineToolbarProps) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 300 - 150 : 1000;
+  const minZoom = Math.max(0.1, availableWidth / (projectDuration * 10 || 1));
+  const maxZoom = Math.min(1000, 30000000 / (projectDuration * 10 || 1));
+
   const handleFit = () => {
-    const availableWidth = window.innerWidth - 300 - 150;
     const minZoomValue = availableWidth / (projectDuration * 10 || 1);
-    setZoom(Math.max(0.1, Math.min(100, minZoomValue)));
+    setZoom(Math.max(0.1, Math.min(maxZoom, minZoomValue)));
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,9 +48,6 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
       fileInputRef.current.value = '';
     }
   };
-
-  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 300 - 150 : 1000;
-  const minZoom = Math.max(0.1, availableWidth / (projectDuration * 10 || 1));
 
   return (
     <div className="h-10 bg-[#161616] border-b border-zinc-800 flex items-center px-4 justify-between shrink-0">
@@ -112,15 +110,6 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
           </button>
         </Tooltip>
 
-        <Tooltip text="Toggle Debug Blocks">
-          <button 
-            onClick={onToggleDebugBlocks} 
-            className={`flex items-center gap-2 px-3 py-1 rounded text-[10px] font-bold border transition-all ${showDebugBlocks ? 'bg-orange-500/20 text-orange-400 border-orange-500/30 shadow-sm' : 'bg-zinc-800/50 text-zinc-500 border-zinc-700/50'}`}
-          >
-            <Box size={12} /> {showDebugBlocks ? 'DEBUG ON' : 'DEBUG OFF'}
-          </button>
-        </Tooltip>
-
         <Tooltip text="Toggle Audio Level Monitor">
           <button 
             onClick={onToggleAudioMonitor} 
@@ -167,7 +156,7 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
              <input 
                 type="range" 
                 min={minZoom} 
-                max="100" 
+                max={maxZoom} 
                 step="0.01"
                 value={zoom} 
                 onChange={(e) => setZoom(Number(e.target.value))}
@@ -176,7 +165,7 @@ export const TimelineToolbar: React.FC<TimelineToolbarProps> = ({
         </div>
         
         <Tooltip text="Zoom In" shortcut="CTRL + =">
-          <button onClick={() => setZoom(Math.min(100, zoom + 5))}><ZoomIn size={14} className="text-zinc-500 hover:text-white transition-colors" /></button>
+          <button onClick={() => setZoom(Math.min(maxZoom, zoom + 10))}><ZoomIn size={14} className="text-zinc-500 hover:text-white transition-colors" /></button>
         </Tooltip>
       </div>
     </div>

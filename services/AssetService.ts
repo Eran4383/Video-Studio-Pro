@@ -94,6 +94,12 @@ export class AssetService {
       
       try {
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+        
+        if (typeof audioBuffer.getChannelData !== 'function') {
+          console.warn("[AssetService] decodeAudioData returned an object without getChannelData");
+          return { waveform: [], audioBuffer: undefined };
+        }
+
         const channelData = audioBuffer.getChannelData(0);
         const blockSize = Math.floor(channelData.length / samples);
         const waveform: number[] = [];
@@ -113,7 +119,9 @@ export class AssetService {
         }
         return { waveform, audioBuffer };
       } finally {
-        await audioCtx.close();
+        // We don't close the context here because the AudioBuffer might be tied to it in some browsers
+        // and we want to keep it valid for playback in the main engine.
+        // await audioCtx.close();
       }
     } catch (e) {
       console.warn("Waveform generation error:", e);

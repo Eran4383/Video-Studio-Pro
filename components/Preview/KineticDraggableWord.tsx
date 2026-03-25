@@ -16,9 +16,10 @@ interface KineticDraggableWordProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   showTransformControls?: boolean;
+  key?: React.Key;
 }
 
-export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
+export const KineticDraggableWord = ({
   word,
   blockId,
   store,
@@ -33,7 +34,7 @@ export const KineticDraggableWord: React.FC<KineticDraggableWordProps> = ({
   isSelected,
   onSelect,
   showTransformControls = true
-}) => {
+}: KineticDraggableWordProps) => {
   const spanRef = useRef<HTMLSpanElement>(null);
   const isDragging = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });

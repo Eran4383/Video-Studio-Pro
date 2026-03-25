@@ -8,9 +8,10 @@ interface KineticTextDOMProps {
   currentTime: number;
   store: any;
   showTransformControls?: boolean;
+  key?: React.Key;
 }
 
-export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTime, store, showTransformControls }) => {
+export const KineticTextDOM = ({ block, currentTime, store, showTransformControls }: KineticTextDOMProps) => {
   const { project } = store;
   const { settings, words } = block;
   
@@ -106,14 +107,14 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
           const liveStartTime = clip.startTime + (meta.index * wordDuration);
           const liveEndTime = liveStartTime + wordDuration;
           
-          isActive = currentTime >= liveStartTime && currentTime <= liveEndTime;
+          isActive = currentTime >= liveStartTime && currentTime < liveEndTime;
           isPast = currentTime > liveEndTime;
           
           // Calculate live scene end time based on the offset from the word's original end time
           const sceneOffset = word.sceneEndTime - word.endTime;
           liveSceneEndTime = liveEndTime + sceneOffset;
         } else {
-          isActive = currentTime >= word.startTime && currentTime <= word.endTime;
+          isActive = currentTime >= word.startTime && currentTime < word.endTime;
           isPast = currentTime > word.endTime;
         }
 
@@ -143,7 +144,7 @@ export const KineticTextDOM: React.FC<KineticTextDOMProps> = ({ block, currentTi
         const animDuration = Math.min(0.5, wordDuration);
 
         return (
-          <div key={word.id} className="chunk-wrapper border border-purple-500/20" data-chunk-id={word.chunkId}>
+          <div key={word.id} className="chunk-wrapper" data-chunk-id={word.chunkId}>
             <KineticDraggableWord
               key={word.id}
               word={word}

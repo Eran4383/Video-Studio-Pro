@@ -13,7 +13,7 @@ interface TrackHeaderProps {
   onDelete: () => void;
 }
 
-export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }) => {
+export const TrackHeader = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }: TrackHeaderProps) => {
   console.log('[TrackHeader] Render for track:', track.id, 'onDelete exists:', !!onDelete);
   const isExpanded = (track.height || 72) > 80;
   const [isResizing, setIsResizing] = useState(false);

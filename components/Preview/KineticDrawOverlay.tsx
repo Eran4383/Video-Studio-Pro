@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { useProjectStore } from '../../store/useProjectStore';
 
-export const KineticDrawOverlay: React.FC<{ store: any }> = ({ store }) => {
+export const KineticDrawOverlay = ({ store }: { store: any }) => {
   const { kineticDrawMode, setKineticDrawMode, updateKineticData, updateKineticBlock, selectedClipIds, project } = store;
   const [isDrawing, setIsDrawing] = useState(false);
   const [startPos, setStartPos] = useState({ x: 0, y: 0 });

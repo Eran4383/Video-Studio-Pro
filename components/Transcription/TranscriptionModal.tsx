@@ -16,10 +16,10 @@ interface TranscriptionModalProps {
   onComplete: () => void;
 }
 
-export const TranscriptionModal: React.FC<TranscriptionModalProps> = ({ 
+export const TranscriptionModal = ({ 
   assets, project, selectedClipId, onClose, onMinimize, onAddTrack, onAddClips,
   onStart, onUpdate, onComplete
-}) => {
+}: TranscriptionModalProps) => {
   const [selectedAssetId, setSelectedAssetId] = useState<string>(
     selectedClipId ? (project.tracks.flatMap(t => t.clips).find(c => c.id === selectedClipId)?.assetId || '') : ''
   );

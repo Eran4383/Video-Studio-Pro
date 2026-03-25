@@ -12,7 +12,7 @@ interface ScrubbableInputProps {
   className?: string;
 }
 
-export const ScrubbableInput: React.FC<ScrubbableInputProps> = ({
+export const ScrubbableInput = ({
   value,
   onChange,
   onFinalize,
@@ -22,7 +22,7 @@ export const ScrubbableInput: React.FC<ScrubbableInputProps> = ({
   max,
   unit = '',
   className = ''
-}) => {
+}: ScrubbableInputProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const startX = useRef<number>(0);

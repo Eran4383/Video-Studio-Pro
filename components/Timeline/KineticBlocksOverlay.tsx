@@ -11,7 +11,7 @@ interface KineticBlocksOverlayProps {
   onSelectBlock: (id: string) => void;
 }
 
-export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ project, pxPerSec, selectedClipIds, kineticCutMode, onSelectBlock }) => {
+export const KineticBlocksOverlay = ({ project, pxPerSec, selectedClipIds, kineticCutMode, onSelectBlock }: KineticBlocksOverlayProps) => {
   const blocks = project.kineticBlocks || [];
   const { splitKineticChunk } = useProjectStore();
   if (blocks.length === 0) return null;
@@ -28,8 +28,9 @@ export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ proj
         const startTime = Math.min(...clips.map(c => c.startTime));
         const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
 
-        const left = HEADER_WIDTH + (startTime * pxPerSec);
-        const width = (endTime - startTime) * pxPerSec;
+        const left = Math.round(HEADER_WIDTH + (startTime * pxPerSec));
+        const right = Math.round(HEADER_WIDTH + (endTime * pxPerSec));
+        const width = right - left;
         const isSelected = selectedClipIds.includes(block.id);
 
         const children = blocks.filter(b => b.parentId === block.id);
@@ -45,9 +46,9 @@ export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ proj
                 e.stopPropagation();
                 onSelectBlock(block.id);
               }}
-              className={`absolute top-0 bottom-0 border-l-2 border-r-2 border-t-2 border-dashed pointer-events-auto cursor-pointer transition-all z-10 ${isSelected ? 'opacity-100 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : 'opacity-80 hover:opacity-100'}`}
+              className={`absolute top-0 bottom-0 border-l-2 border-r-2 border-t-2 border-dashed pointer-events-auto cursor-pointer transition-all z-10 will-change-transform ${isSelected ? 'opacity-100 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : 'opacity-80 hover:opacity-100'}`}
               style={{
-                left,
+                transform: `translateX(${left}px)`,
                 width,
                 backgroundColor: isSelected ? block.color.replace('0.3', '0.5') : block.color,
                 borderColor: isSelected ? '#fff' : block.color.replace('0.3', '0.8')
@@ -87,9 +88,9 @@ export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ proj
               e.stopPropagation();
               onSelectBlock(block.id);
             }}
-            className={`absolute ${isChild ? 'top-6' : 'top-0'} bottom-0 border-l-2 border-r-2 border-dashed flex items-start justify-center pt-2 pointer-events-auto cursor-pointer transition-all z-20 ${isSelected ? 'opacity-100 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : 'opacity-80 hover:opacity-100'}`}
+            className={`absolute ${isChild ? 'top-6' : 'top-0'} bottom-0 border-l-2 border-r-2 border-dashed flex items-start justify-center pt-2 pointer-events-auto cursor-pointer transition-all z-20 will-change-transform ${isSelected ? 'opacity-100 shadow-[inset_0_0_20px_rgba(255,255,255,0.1)]' : 'opacity-80 hover:opacity-100'}`}
             style={{
-              left,
+              transform: `translateX(${left}px)`,
               width,
               backgroundColor: isSelected ? block.color.replace('0.3', '0.5') : block.color,
               borderColor: isSelected ? '#fff' : block.color.replace('0.3', '0.8')
@@ -107,8 +108,9 @@ export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ proj
               {Object.entries(chunks).map(([cid, words]: [string, any[]], index) => {
                 const cStart = Math.min(...words.map(w => w.startTime));
                 const cEnd = Math.max(...words.map(w => w.endTime));
-                const cLeft = (cStart - startTime) * pxPerSec;
-                const cWidth = (cEnd - cStart) * pxPerSec;
+                const cLeft = Math.round((cStart - startTime) * pxPerSec);
+                const cRight = Math.round((cEnd - startTime) * pxPerSec);
+                const cWidth = cRight - cLeft;
                 
                 const colors = [
                   'rgba(239, 68, 68, 0.2)', // red
@@ -124,9 +126,9 @@ export const KineticBlocksOverlay: React.FC<KineticBlocksOverlayProps> = ({ proj
                 return (
                   <div 
                     key={cid}
-                    className={`absolute top-0 bottom-0 border-r border-white/20 ${kineticCutMode ? 'cursor-crosshair' : ''}`}
+                    className={`absolute top-0 bottom-0 border-r border-white/20 will-change-transform ${kineticCutMode ? 'cursor-crosshair' : ''}`}
                     style={{
-                      left: cLeft,
+                      transform: `translateX(${cLeft}px)`,
                       width: cWidth,
                       backgroundColor: chunkColor
                     }}

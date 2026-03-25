@@ -82,6 +82,11 @@ export class AudioMuxerService {
     // 4. Render
     ErrorReportingService.logExportEvent(0, 'INFO', 'Starting offlineCtx.startRendering()');
     const renderedBuffer = await offlineCtx.startRendering();
+    
+    if (!renderedBuffer || typeof renderedBuffer.getChannelData !== 'function') {
+        throw new Error('[AudioMuxerService] renderedBuffer is not a valid AudioBuffer');
+    }
+
     console.log('[AudioMuxerService] Audio Render Complete. Encoding...');
     ErrorReportingService.logExportEvent(0, 'INFO', 'Audio Render Complete. Starting encoding loop.');
 
@@ -109,19 +114,6 @@ export class AudioMuxerService {
 
         try {
             const audioData = new AudioData({
-                format: 'f32-planar', // Web Audio API getChannelData returns planar data, but we interleaved it above. Wait, if we interleaved it, it's not planar.
-                // Actually, AudioData constructor expects interleaved if format is 'f32'. Let's use 'f32' and interleave.
-                // Wait, AudioData format 'f32-planar' expects non-interleaved. Let's just use 'f32' (which implies interleaved) since we interleaved it.
-                // Actually, the spec says 'f32' is interleaved, 'f32-planar' is planar.
-                // Let's use 'f32' since we interleaved it.
-                // Wait, let's look at the AudioDataInit dictionary.
-                // format: AudioSampleFormat. 'f32', 'f32-planar', 's16', 's16-planar', 's32', 's32-planar', 'u8', 'u8-planar'
-                // Let's use 'f32' since we interleaved it.
-                // Wait, let's check if we can just pass planar data directly to save CPU.
-                // If we use 'f32-planar', data should be a sequence of planes.
-                // Let's stick to interleaved 'f32' for now as it's more standard for AAC encoders sometimes, though WebCodecs should handle either.
-                // Actually, let's fix the format string. The valid enum values are 'u8', 's16', 's32', 'f32', 'u8-planar', 's16-planar', 's32-planar', 'f32-planar'.
-                // If we interleaved it, it's 'f32'.
                 format: 'f32',
                 sampleRate: this.sampleRate,
                 numberOfFrames: length,

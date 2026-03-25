@@ -39,7 +39,7 @@ interface PreviewWorkspaceProps {
   store: any;
 }
 
-export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
+export const PreviewWorkspace = ({
   playerContainerRef,
   containerRef,
   videoRef,
@@ -73,7 +73,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
   applyToAll,
   setSnapGuides,
   store
-}) => {
+}: PreviewWorkspaceProps) => {
   return (
     <div 
       ref={playerContainerRef}
@@ -168,7 +168,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
         })}
 
         {activeKineticBlocks.map((block: any) => (
-          <KineticTextDOM key={block.id} block={block} currentTime={renderTime} store={store} showTransform={showTransform} />
+          <KineticTextDOM key={block.id} block={block} currentTime={renderTime} store={store} showTransformControls={showTransform} />
         ))}
 
         {snapGuides.x && (
@@ -182,7 +182,7 @@ export const PreviewWorkspace: React.FC<PreviewWorkspaceProps> = ({
           (() => {
             const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === selectedClip.id));
             const isVisual = track && (track.type === 'video' || track.type === 'image' || track.type === 'subtitle');
-            const isVisible = renderTime >= selectedClip.startTime && renderTime <= selectedClip.startTime + selectedClip.duration;
+            const isVisible = renderTime >= selectedClip.startTime && renderTime < selectedClip.startTime + selectedClip.duration;
             if (!isVisual || !isVisible) return null;
 
             const isVideo = track?.type === 'video' || track?.type === 'image';

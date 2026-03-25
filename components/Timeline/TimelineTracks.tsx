@@ -44,7 +44,7 @@ export const TimelineTracks = memo(({
             onSelectAll={() => onSelectAllTrack(track.id)} 
             onDelete={() => onDeleteTrack(track.id)}
           />
-          <div className="flex-1 relative bg-[#0a0a0a] min-w-[5000px]" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
+          <div className="flex-1 relative bg-[#0a0a0a] w-full shrink-0" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
             {track.clips.map(clip => {
               const isSelected = selectedClipIds.includes(clip.id);
               const isLinked = selectedClipIds.length > 0 && selectedClipIds.some(id => project.tracks.flatMap(t=>t.clips).find(c=>c.id === id)?.linkedClipId === clip.id);
@@ -55,8 +55,8 @@ export const TimelineTracks = memo(({
                   onContextMenu={(e) => onContextMenu(e, clip.id, track.type)}
                   onMouseDown={(e) => onClipMouseDown(e, clip, track.id)}
                   onMouseMove={(e) => onClipMouseMove(e, clip)}
-                  className={`absolute top-2 bottom-2 rounded-lg border-2 flex flex-col justify-center px-3 overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 border-indigo-500/50 z-20 border-dashed' : track.type === 'audio' ? 'bg-zinc-900/60 border-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 border-yellow-600/40 z-20' : 'bg-zinc-800/80 border-zinc-700 hover:border-zinc-500 z-10'}`}
-                  style={{ left: clip.startTime * pxPerSec, width: clip.duration * pxPerSec }}
+                  className={`absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`}
+                  style={{ left: `${clip.startTime * pxPerSec}px`, width: `${clip.duration * pxPerSec}px` }}
                 >
                   {track.type === 'audio' && asset?.audioBuffer && (
                     <>
@@ -75,19 +75,22 @@ export const TimelineTracks = memo(({
                     </>
                   )}
                   {track.type === 'subtitle' && (
-                    <div className="w-full h-full flex items-center justify-center text-center">
+                    <div className="w-full h-full flex items-center justify-center text-center absolute inset-0">
                       <span className="text-[10px] font-black text-yellow-200 leading-tight truncate px-1">{clip.content}</span>
                     </div>
                   )}
                   {track.type !== 'subtitle' && (
-                    <div className="flex items-center gap-1 z-10 pointer-events-none">
-                      {clip.linkedClipId && <LinkIcon size={8} className="text-indigo-400" />}
+                    <div className="flex items-center gap-1 z-10 pointer-events-none absolute inset-0 px-1 min-w-0">
+                      {clip.linkedClipId && <LinkIcon size={8} className="text-indigo-400 shrink-0" />}
                       <span className="text-[10px] font-bold text-white truncate uppercase">{clip.id.split('-')[1]}</span>
                     </div>
                   )}
-                  <span className="text-[8px] text-zinc-400 font-mono font-bold tracking-tighter z-10 pointer-events-none absolute bottom-0.5 right-1">{clip.duration.toFixed(2)}s</span>
+                  <span className="text-[8px] text-zinc-400 font-mono font-bold tracking-tighter z-10 pointer-events-none absolute bottom-0.5 right-1 bg-black/40 px-0.5 rounded">{clip.duration.toFixed(2)}s</span>
                   <div className="absolute left-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
                   <div className="absolute right-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
+                  {isLinked && !isSelected && (
+                    <div className="absolute inset-0 border-2 border-dashed border-indigo-500/50 rounded-lg pointer-events-none" />
+                  )}
                 </div>
               );
             })}

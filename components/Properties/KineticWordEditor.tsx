@@ -15,7 +15,7 @@ interface KineticWordEditorProps {
   overrides?: Record<string, Partial<KineticWord>>;
 }
 
-export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({ 
+export const KineticWordEditor = ({ 
   clipId, 
   words, 
   selectedWordId, 
@@ -25,7 +25,7 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({
   onResetProperty,
   settings,
   overrides = {}
-}) => {
+}: KineticWordEditorProps) => {
   const selectedWord = words.find(w => w.id === selectedWordId);
   const wordOverride = selectedWordId ? overrides[selectedWordId] : null;
 
@@ -158,6 +158,159 @@ export const KineticWordEditor: React.FC<KineticWordEditorProps> = ({
               <option value="uppercase">Uppercase</option>
               <option value="lowercase">Lowercase</option>
             </select>
+          </div>
+
+          <div className="flex flex-col gap-2 bg-zinc-900/30 p-2 rounded border border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] text-zinc-500 font-mono uppercase">Text Styles</span>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => onUpdateWord(selectedWord.id, { isBold: !selectedWord.isBold })}
+                className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${selectedWord.isBold ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                B
+              </button>
+              <button
+                onClick={() => onUpdateWord(selectedWord.id, { isItalic: !selectedWord.isItalic })}
+                className={`flex-1 py-1.5 rounded text-xs italic transition-colors ${selectedWord.isItalic ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                I
+              </button>
+              <button
+                onClick={() => onUpdateWord(selectedWord.id, { isUnderline: !selectedWord.isUnderline })}
+                className={`flex-1 py-1.5 rounded text-xs underline transition-colors ${selectedWord.isUnderline ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+              >
+                U
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 bg-zinc-900/30 p-2 rounded border border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-500 font-mono uppercase">Drop Shadow</span>
+                <ResetButton property="hasShadow" />
+              </div>
+              <button 
+                onClick={() => onUpdateWord(selectedWord.id, { hasShadow: !selectedWord.hasShadow })}
+                className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.hasShadow ? 'bg-purple-600' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedWord.hasShadow ? 'left-3.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+            
+            {selectedWord.hasShadow && (
+              <div className="flex flex-col gap-3 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase">Shadow Color</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-zinc-400">{selectedWord.shadowColor || '#000000'}</span>
+                    <input 
+                      type="color" 
+                      value={selectedWord.shadowColor || '#000000'}
+                      onChange={(e) => onUpdateWord(selectedWord.id, { shadowColor: e.target.value })}
+                      className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Blur</label>
+                  <ProSlider 
+                    value={selectedWord.shadowBlur ?? 4} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { shadowBlur: v })}
+                    min={0} max={20} step={1} unit="px" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Offset X</label>
+                  <ProSlider 
+                    value={selectedWord.shadowOffsetX ?? 2} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { shadowOffsetX: v })}
+                    min={-20} max={20} step={1} unit="px" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Offset Y</label>
+                  <ProSlider 
+                    value={selectedWord.shadowOffsetY ?? 2} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { shadowOffsetY: v })}
+                    min={-20} max={20} step={1} unit="px" 
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2 bg-zinc-900/30 p-2 rounded border border-zinc-800/50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] text-zinc-500 font-mono uppercase">Background</span>
+                <ResetButton property="hasBackground" />
+              </div>
+              <button 
+                onClick={() => onUpdateWord(selectedWord.id, { hasBackground: !selectedWord.hasBackground })}
+                className={`w-7 h-4 rounded-full relative transition-colors ${selectedWord.hasBackground ? 'bg-purple-600' : 'bg-zinc-700'}`}
+              >
+                <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${selectedWord.hasBackground ? 'left-3.5' : 'left-0.5'}`} />
+              </button>
+            </div>
+            
+            {selectedWord.hasBackground && (
+              <div className="flex flex-col gap-3 mt-2 animate-in fade-in slide-in-from-top-1 duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9px] text-zinc-500 font-mono uppercase">Bg Color</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-zinc-400">{selectedWord.backgroundColor || '#000000'}</span>
+                    <input 
+                      type="color" 
+                      value={selectedWord.backgroundColor || '#000000'}
+                      onChange={(e) => onUpdateWord(selectedWord.id, { backgroundColor: e.target.value })}
+                      className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Padding</label>
+                  <ProSlider 
+                    value={selectedWord.backgroundPadding ?? 4} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { backgroundPadding: v })}
+                    min={0} max={40} step={1} unit="px" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Border Radius</label>
+                  <ProSlider 
+                    value={selectedWord.backgroundBorderRadius ?? 4} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { backgroundBorderRadius: v })}
+                    min={0} max={40} step={1} unit="px" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Width Scale</label>
+                  <ProSlider 
+                    value={selectedWord.backgroundWidth ?? 100} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { backgroundWidth: v })}
+                    min={50} max={200} step={1} unit="%" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Height Scale</label>
+                  <ProSlider 
+                    value={selectedWord.backgroundHeight ?? 100} 
+                    onChange={(v) => onUpdateWord(selectedWord.id, { backgroundHeight: v })}
+                    min={50} max={200} step={1} unit="%" 
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-1.5">

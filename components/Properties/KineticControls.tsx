@@ -14,7 +14,7 @@ interface KineticControlsProps {
   isBlock?: boolean;
 }
 
-export const KineticControls: React.FC<KineticControlsProps> = ({ selectedClip, store, isBlock }) => {
+export const KineticControls = ({ selectedClip, store, isBlock }: KineticControlsProps) => {
   const { updateKineticData, updateKineticBlock, setKineticDrawMode, kineticDrawMode, generateBlockAnimation, clearAllWordOverrides, setSelectedKineticWordId, kineticCutMode, setKineticCutMode, splitKineticChunk } = store;
   
   // If it's a block, we need to find the actual block object from project

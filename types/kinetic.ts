@@ -36,6 +36,15 @@ export interface KineticWord {
   isCentered?: boolean;
   layoutStyle?: KineticLayoutStyle;
   sceneEndTime: number;
+  rotation?: number;
+  shadowColor?: string;
+  shadowBlur?: number;
+  shadowOffsetX?: number;
+  shadowOffsetY?: number;
+  strokeWidth?: number;
+  strokeColor?: string;
+  backgroundColor?: string;
+  backgroundPadding?: number;
 }
 
 export interface KineticSettings {
@@ -60,6 +69,7 @@ export interface KineticSettings {
   keepPastInCollage?: boolean;
   keepPastInKaraoke?: boolean;
   keepPastInPop?: boolean;
+  keepPastInTetris?: boolean;
   karaokeMode?: 'single-line' | 'multi-line';
   karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
   karaokePosition?: 'top' | 'middle' | 'bottom' | 'random' | 'custom';

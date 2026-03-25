@@ -10,7 +10,7 @@ interface ExportModalProps {
   assets: Asset[];
 }
 
-export const ExportModal: React.FC<ExportModalProps> = ({ onClose, project, assets }) => {
+export const ExportModal = ({ onClose, project, assets }: ExportModalProps) => {
   const [step, setStep] = useState<'settings' | 'exporting' | 'finished'>('settings');
   const [progress, setProgress] = useState(0);
   const [filename, setFilename] = useState(project.name.toLowerCase().replace(/\s+/g, '_') || 'nexus_export');

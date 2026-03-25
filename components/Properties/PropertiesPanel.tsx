@@ -22,7 +22,7 @@ const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => 
   </div>
 );
 
-export const PropertiesPanel: React.FC<{ store: any }> = ({ store }) => {
+export const PropertiesPanel = ({ store }: { store: any }) => {
   const { selectedClipIds, project, setProject, finalizeMove, updateClip: storeUpdateClip, applyToAll, setApplyToAll } = store;
   
   const primaryClipId = selectedClipIds[0];

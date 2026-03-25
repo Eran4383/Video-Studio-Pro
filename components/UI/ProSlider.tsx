@@ -2,20 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { RotateCcw } from 'lucide-react';
 
 interface ProSliderProps {
-  label: string;
+  label?: string;
   value: number;
   onChange: (value: number) => void;
-  previewId: string; // Property name for live override (e.g., 'scale', 'rotation')
-  clipId: string;
+  previewId?: string; // Property name for live override (e.g., 'scale', 'rotation')
+  clipId?: string;
   min?: number;
   max?: number;
   step?: number;
   unit?: string;
   className?: string;
   defaultValue?: number;
+  key?: React.Key;
 }
 
-export const ProSlider: React.FC<ProSliderProps> = ({
+export const ProSlider = ({
   label,
   value,
   onChange,
@@ -27,7 +28,7 @@ export const ProSlider: React.FC<ProSliderProps> = ({
   unit = '',
   className = '',
   defaultValue
-}) => {
+}: ProSliderProps) => {
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -43,13 +44,15 @@ export const ProSlider: React.FC<ProSliderProps> = ({
     setLocalValue(newVal);
     
     // Dispatch visual override event - bypasses React/Store
-    window.dispatchEvent(new CustomEvent('gfx-override', { 
-      detail: { 
-        clipId, 
-        property: previewId, 
-        value: newVal 
-      } 
-    }));
+    if (clipId && previewId) {
+      window.dispatchEvent(new CustomEvent('gfx-override', { 
+        detail: { 
+          clipId, 
+          property: previewId, 
+          value: newVal 
+        } 
+      }));
+    }
   };
 
   const handleCommit = () => {
@@ -57,14 +60,18 @@ export const ProSlider: React.FC<ProSliderProps> = ({
     onChange(localValue);
     
     // Clear override so the store value takes over
-    window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+    if (clipId && previewId) {
+      window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+    }
   };
 
   const handleReset = () => {
     if (defaultValue !== undefined) {
         setLocalValue(defaultValue);
         onChange(defaultValue);
-        window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+        if (clipId && previewId) {
+          window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+        }
     }
   };
 
@@ -77,13 +84,15 @@ export const ProSlider: React.FC<ProSliderProps> = ({
     if (!isNaN(val)) {
       setLocalValue(val);
       // Also dispatch override for number input
-      window.dispatchEvent(new CustomEvent('gfx-override', { 
-        detail: { 
-          clipId, 
-          property: previewId, 
-          value: val 
-        } 
-      }));
+      if (clipId && previewId) {
+        window.dispatchEvent(new CustomEvent('gfx-override', { 
+          detail: { 
+            clipId, 
+            property: previewId, 
+            value: val 
+          } 
+        }));
+      }
     }
   };
 

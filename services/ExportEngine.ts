@@ -264,7 +264,7 @@ export class ExportEngine {
                     continue;
                 }
 
-                if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
+                if (elapsed >= clip.startTime && elapsed < clip.startTime + clip.duration) {
                   const targetTime = (elapsed - clip.startTime) + clip.offset;
                   
                   // Sync Time
@@ -299,7 +299,7 @@ export class ExportEngine {
             // Draw Subtitles
             for (const track of subtitleTracks) {
               for (const clip of track.clips) {
-                if (elapsed >= clip.startTime && elapsed <= clip.startTime + clip.duration) {
+                if (elapsed >= clip.startTime && elapsed < clip.startTime + clip.duration) {
                   if (clip.content) {
                     try {
                         this.ctx.save();

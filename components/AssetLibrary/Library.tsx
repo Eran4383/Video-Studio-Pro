@@ -11,7 +11,7 @@ interface LibraryProps {
   onDragAssetToTimeline: (asset: Asset) => void;
 }
 
-export const Library: React.FC<LibraryProps> = ({ assets, onAddAsset, onGenerateAI, onDragAssetToTimeline }) => {
+export const Library = ({ assets, onAddAsset, onGenerateAI, onDragAssetToTimeline }: LibraryProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wasFullscreenRef = useRef(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);

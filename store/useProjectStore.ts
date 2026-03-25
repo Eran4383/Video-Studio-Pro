@@ -9,9 +9,19 @@ import { useMoveActions } from './useMoveActions';
 import { useSubtitleActions } from './useSubtitleActions';
 import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
 
+const generateDefaultName = () => {
+  const now = new Date();
+  const d = String(now.getDate()).padStart(2, '0');
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const y = String(now.getFullYear()).slice(-2);
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  return `KVG_${d}${m}${y}_${hh}${mm}`;
+};
+
 const INITIAL_PROJECT: Project = {
   id: 'proj-1',
-  name: 'New Project',
+  name: generateDefaultName(),
   resolution: { width: 1920, height: 1080 },
   fps: 30,
   tracks: [
@@ -34,13 +44,14 @@ export const useProjectStore = () => {
   const [zoom, setZoom] = useState(10);
   const [isMagnetEnabled, setIsMagnetEnabled] = useState(true);
   const [isCanvasMagnetEnabled, setIsCanvasMagnetEnabled] = useState(true);
-  const [showTransformControls, setShowTransformControls] = useState(true);
+  const [showTransformControls, setShowTransformControls] = useState(false);
   const [applyToAll, setApplyToAll] = useState(false);
   const [kineticDrawMode, setKineticDrawMode] = useState(false);
   const [kineticCutMode, setKineticCutMode] = useState(false);
   const [showAudioMonitor, setShowAudioMonitor] = useState(true);
   const [lastKineticBox, setLastKineticBox] = useState<KineticBoundingBox | null>(null);
   const [selectedKineticWordId, setSelectedKineticWordId] = useState<string | null>(null);
+  const [fileHandle, setFileHandle] = useState<any>(null);
 
   const { pushToHistory, pushToHistoryDebounced, undo, redo, historyIndexRef, historyRef } = useHistory(setProject, INITIAL_PROJECT);
   
@@ -131,11 +142,56 @@ export const useProjectStore = () => {
     setAssets(prev => [...prev, asset]);
   }, []);
 
+  const resetProject = useCallback(() => {
+    const newProj = { ...INITIAL_PROJECT, id: `proj-${Date.now()}`, name: generateDefaultName() };
+    setProject(newProj);
+    setAssets([]);
+    setCurrentTime(0);
+    setSelectedClipIds([]);
+    setFileHandle(null);
+    pushToHistory(newProj);
+  }, [pushToHistory]);
+
+  const loadProjectData = useCallback((newProject: Partial<Project>, newAssets: Asset[]) => {
+    const sanitizedProject: Project = {
+      ...INITIAL_PROJECT,
+      ...newProject,
+      tracks: (newProject.tracks || []).map(track => ({
+        ...track,
+        isVisible: track.isVisible ?? true,
+        isMuted: track.isMuted ?? false,
+        isLocked: track.isLocked ?? false,
+        height: track.height ?? (track.type === 'subtitle' ? 40 : 72),
+        clips: (track.clips || []).map(clip => ({
+          ...clip,
+          effects: clip.effects || [],
+          startTime: clip.startTime || 0,
+          offset: clip.offset || 0,
+          duration: clip.duration || 1,
+          layer: clip.layer || 0,
+        }))
+      })),
+      kineticBlocks: newProject.kineticBlocks || [],
+      backgroundColor: newProject.backgroundColor || '#000000',
+      waveformStyle: newProject.waveformStyle || 'lines',
+      waveformScale: newProject.waveformScale || 1.0,
+      resolution: newProject.resolution || { width: 1920, height: 1080 },
+      fps: newProject.fps || 30
+    };
+    
+    setProject(sanitizedProject);
+    setAssets(newAssets || []);
+    setCurrentTime(0);
+    setSelectedClipIds([]);
+    pushToHistory(sanitizedProject);
+  }, [pushToHistory]);
+
   const detachAudio = useCallback(() => { /* Placeholder */ }, []);
 
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId, fileHandle,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
+    resetProject, loadProjectData,
     ...trackActions,
     ...clipActions,
     ...kineticActions,

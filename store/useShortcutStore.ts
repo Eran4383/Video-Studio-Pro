@@ -1,7 +1,7 @@
 
 import { useState } from 'react';
 
-export type ShortcutAction = 'play_pause' | 'split' | 'delete' | 'undo' | 'redo' | 'zoom_in' | 'zoom_out' | 'toggle_magnet' | 'add_marker';
+export type ShortcutAction = 'play_pause' | 'split' | 'delete' | 'undo' | 'redo' | 'zoom_in' | 'zoom_out' | 'toggle_magnet' | 'add_marker' | 'select_all';
 
 export interface ShortcutMapping {
   action: ShortcutAction;
@@ -23,6 +23,7 @@ const DEFAULT_SHORTCUTS: ShortcutMapping[] = [
   { action: 'zoom_out', key: 'Minus', label: 'Zoom Out', ctrl: true },
   { action: 'toggle_magnet', key: 'KeyM', label: 'Toggle Magnetism', shift: true },
   { action: 'add_marker', key: 'KeyM', label: 'Add Marker' },
+  { action: 'select_all', key: 'KeyA', label: 'Select All', ctrl: true },
 ];
 
 export const useShortcutStore = () => {

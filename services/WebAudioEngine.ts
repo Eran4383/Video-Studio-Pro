@@ -65,8 +65,8 @@ class WebAudioEngine {
     const ctx = this.getContext();
     const buffer = this.audioBuffers.get(assetId);
     
-    if (!buffer) {
-      console.warn(`[WebAudioEngine] No buffer found for asset: ${assetId}`);
+    if (!buffer || !(buffer instanceof AudioBuffer)) {
+      console.warn(`[WebAudioEngine] No valid AudioBuffer found for asset: ${assetId}`);
       return;
     }
 
