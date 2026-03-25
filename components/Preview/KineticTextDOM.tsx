@@ -118,10 +118,26 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
           isPast = currentTime > word.endTime;
         }
 
-        const isKeepVisible = 
-          (word.layoutStyle === 'dynamic-collage' && settings.keepPastInCollage) ||
-          (word.layoutStyle === 'karaoke' && settings.keepPastInKaraoke) ||
-          (word.layoutStyle === 'pop-in-place' && settings.keepPastInPop) || false;
+        const isKeepVisible = (() => {
+          const resolve = (val: any, seed: string) => {
+            if (val === 'random') {
+              // Simple deterministic random based on seed
+              let hash = 0;
+              for (let i = 0; i < seed.length; i++) {
+                hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+                hash |= 0;
+              }
+              return (Math.abs(hash) % 100) < 50;
+            }
+            return !!val;
+          };
+
+          if (word.layoutStyle === 'dynamic-collage') return resolve(settings.keepPastInCollage, block.id + 'collage');
+          if (word.layoutStyle === 'karaoke') return resolve(settings.keepPastInKaraoke, block.id + 'karaoke');
+          if (word.layoutStyle === 'pop-in-place') return resolve(settings.keepPastInPop, block.id + 'pop');
+          if (word.layoutStyle === 'tetris') return resolve(settings.keepPastInTetris, block.id + 'tetris');
+          return false;
+        })();
 
         const isSceneDone = currentTime > liveSceneEndTime;
         if (isSceneDone) return null;

@@ -1,6 +1,6 @@
 import { Clip } from '../types';
 
-export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke';
+export type KineticLayoutStyle = 'pop-in-place' | 'dynamic-collage' | 'karaoke' | 'tetris';
 export type KineticAnimationStyle = 'pop' | 'slide-up' | 'scale' | 'fade';
 
 export interface KineticBoundingBox {
@@ -37,6 +37,7 @@ export interface KineticWord {
   layoutStyle?: KineticLayoutStyle;
   sceneEndTime: number;
   rotation?: number;
+  shadowEnabled?: boolean;
   shadowColor?: string;
   shadowBlur?: number;
   shadowOffsetX?: number;
@@ -45,6 +46,14 @@ export interface KineticWord {
   strokeColor?: string;
   backgroundColor?: string;
   backgroundPadding?: number;
+  isBold?: boolean;
+  isItalic?: boolean;
+  isUnderline?: boolean;
+  hasShadow?: boolean;
+  hasBackground?: boolean;
+  backgroundBorderRadius?: number;
+  backgroundWidth?: number;
+  backgroundHeight?: number;
 }
 
 export interface KineticSettings {
@@ -66,10 +75,10 @@ export interface KineticSettings {
   showBox?: boolean;
   customColors?: string[];
   savedCustomPalettes?: string[][];
-  keepPastInCollage?: boolean;
-  keepPastInKaraoke?: boolean;
-  keepPastInPop?: boolean;
-  keepPastInTetris?: boolean;
+  keepPastInCollage?: boolean | 'random';
+  keepPastInKaraoke?: boolean | 'random';
+  keepPastInPop?: boolean | 'random';
+  keepPastInTetris?: boolean | 'random';
   karaokeMode?: 'single-line' | 'multi-line';
   karaokeSizePattern?: 'uniform' | 'random' | 'ascending' | 'descending';
   karaokePosition?: 'top' | 'middle' | 'bottom' | 'random' | 'custom';
@@ -82,6 +91,26 @@ export interface KineticSettings {
   textCase?: 'uppercase' | 'lowercase' | 'original' | 'random';
   lineHeight?: number; // default 1
   
+  // Shadow settings in global settings
+  shadowEnabled?: boolean | 'random';
+  shadowColor?: string | 'random';
+  shadowBlur?: number | 'random';
+  shadowOffsetX?: number | 'random';
+  shadowOffsetY?: number | 'random';
+
+  // Text Style
+  isBold?: boolean;
+  isItalic?: boolean;
+  isUnderline?: boolean;
+
+  // Text Background
+  hasBackground?: boolean;
+  backgroundColor?: string;
+  backgroundPadding?: number;
+  backgroundBorderRadius?: number;
+  backgroundWidth?: number;
+  backgroundHeight?: number;
+
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;
   keepPreviousWordsVisible?: boolean;

@@ -29,7 +29,9 @@ class WaveformAnalyzer {
     const totalOutputSamples = Math.ceil(duration * samplesPerSecond);
     
     if (typeof buffer.getChannelData !== 'function') {
-      console.warn(`[WaveformAnalyzer] buffer.getChannelData is not a function for asset ${assetId}`);
+      const type = typeof buffer;
+      const isObj = buffer && typeof buffer === 'object';
+      console.warn(`[WaveformAnalyzer] buffer.getChannelData is not a function for asset ${assetId}. Type: ${type}, isObject: ${isObj}`);
       return { peaks: new Float32Array(0), rms: new Float32Array(0), resolution: samplesPerSecond };
     }
 

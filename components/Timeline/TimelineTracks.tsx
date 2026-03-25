@@ -58,7 +58,7 @@ export const TimelineTracks = memo(({
                   className={`absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`}
                   style={{ left: `${clip.startTime * pxPerSec}px`, width: `${clip.duration * pxPerSec}px` }}
                 >
-                  {track.type === 'audio' && asset?.audioBuffer && (
+                  {track.type === 'audio' && asset?.audioBuffer && typeof asset.audioBuffer.getChannelData === 'function' && (
                     <>
                       <WaveformCanvas 
                         assetId={asset.id} 

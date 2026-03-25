@@ -3,6 +3,7 @@ import { KineticBlock, KineticSettings, KineticWord, KineticAnimationStyle, Kine
 import { generateDynamicCollage } from './layouts/DynamicCollage';
 import { generatePopInPlace } from './layouts/PopInPlace';
 import { generateKaraoke } from './layouts/Karaoke';
+import { generateTetrisLayout } from './layouts/TetrisLayout';
 import { assignColors } from './KineticColorEngine';
 
 export interface ProcessedWord {
@@ -14,6 +15,13 @@ export interface ProcessedWord {
 }
 
 const ANIMATIONS: KineticAnimationStyle[] = ['pop', 'slide-up', 'scale', 'fade'];
+
+const DEFAULT_LAYOUT_WEIGHTS: Record<string, number> = {
+  'pop-in-place': 50,
+  'dynamic-collage': 30,
+  'karaoke': 10,
+  'tetris': 10
+};
 
 const applyCase = (text: string, textCase: 'uppercase' | 'lowercase' | 'original'): string => {
   if (textCase === 'uppercase') return text.toUpperCase();
@@ -54,6 +62,25 @@ const getWordTextCase = (settings: KineticSettings): 'uppercase' | 'lowercase' |
   return settings.textCase || 'original';
 };
 
+const resolveRandomBoolean = (val: boolean | 'random' | undefined, defaultValue = false): boolean => {
+  if (val === 'random') return Math.random() > 0.5;
+  return val ?? defaultValue;
+};
+
+const resolveRandomColor = (val: string | 'random' | undefined, defaultValue = '#000000'): string => {
+  if (val === 'random') {
+    return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+  }
+  return val ?? defaultValue;
+};
+
+const resolveRandomNumber = (val: number | 'random' | undefined, min: number, max: number, defaultValue: number): number => {
+  if (val === 'random') {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+  return val ?? defaultValue;
+};
+
 export const generateKineticLayout = (clipId: string, content: string, duration: number, settings: KineticSettings, fallbackFont: string, screenAR: number): KineticWord[] => {
   if (typeof content !== 'string') return [];
   const wordsText = content.split(/\s+/).filter(w => w.length > 0);
@@ -88,6 +115,9 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     case 'karaoke':
       geometricWords = generateKaraoke(processedWords, settings, screenAR);
       break;
+    case 'tetris':
+      geometricWords = generateTetrisLayout(processedWords, settings, isRtl, screenAR);
+      break;
     case 'dynamic-collage':
     default:
       geometricWords = generateDynamicCollage(processedWords, settings, isRtl, screenAR);
@@ -115,7 +145,13 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     animation: getWordAnimation(settings.animationStyle, index),
     isCentered: gw.isCentered,
     layoutStyle: layoutStyle,
-    sceneEndTime: currentSceneEndTime
+    sceneEndTime: currentSceneEndTime,
+    rotation: gw.rotation,
+    shadowEnabled: resolveRandomBoolean(settings.shadowEnabled),
+    shadowColor: resolveRandomColor(settings.shadowColor),
+    shadowBlur: resolveRandomNumber(settings.shadowBlur, 0, 20, 4),
+    shadowOffsetX: resolveRandomNumber(settings.shadowOffsetX, -10, 10, 2),
+    shadowOffsetY: resolveRandomNumber(settings.shadowOffsetY, -10, 10, 2),
   }));
 
   // 4. Assign Colors
@@ -227,8 +263,21 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
 
   // Create weighted pool for layout selection
   const weightedPool: KineticLayoutStyle[] = [];
+  
+  // If user hasn't set weights, or if they want the "Balanced Random" weights
+  const activeWeights = { ...DEFAULT_LAYOUT_WEIGHTS };
+  // Filter weights to only include selected layout styles
+  const selectedStyles = new Set(layoutStyles);
+  
+  let totalWeight = 0;
   layoutStyles.forEach(style => {
-    const weight = block.settings.layoutWeights?.[style] ?? 1;
+    const weight = block.settings.layoutWeights?.[style] ?? activeWeights[style] ?? 1;
+    totalWeight += weight;
+  });
+
+  layoutStyles.forEach(style => {
+    const weight = block.settings.layoutWeights?.[style] ?? activeWeights[style] ?? 1;
+    // Normalize weights if needed, but here we just use them as counts in the pool
     for (let i = 0; i < weight; i++) {
       weightedPool.push(style as KineticLayoutStyle);
     }
@@ -261,6 +310,9 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       case 'karaoke':
         geometricWords = generateKaraoke(processedWords, block.settings, screenAR);
         break;
+      case 'tetris':
+        geometricWords = generateTetrisLayout(processedWords, block.settings, false, screenAR);
+        break;
       case 'dynamic-collage':
       default:
         geometricWords = generateDynamicCollage(processedWords, block.settings, false, screenAR);
@@ -287,7 +339,13 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       animation: getWordAnimation(block.settings.animationStyle, globalWordIndex + j),
       isCentered: gw.isCentered,
       layoutStyle: layoutStyle,
-      sceneEndTime: currentSceneEndTime
+      sceneEndTime: currentSceneEndTime,
+      rotation: gw.rotation,
+      shadowEnabled: resolveRandomBoolean(block.settings.shadowEnabled),
+      shadowColor: resolveRandomColor(block.settings.shadowColor),
+      shadowBlur: resolveRandomNumber(block.settings.shadowBlur, 0, 20, 4),
+      shadowOffsetX: resolveRandomNumber(block.settings.shadowOffsetX, -10, 10, 2),
+      shadowOffsetY: resolveRandomNumber(block.settings.shadowOffsetY, -10, 10, 2),
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);

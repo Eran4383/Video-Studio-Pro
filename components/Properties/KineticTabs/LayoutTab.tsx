@@ -40,6 +40,24 @@ export const LayoutTab = ({ settings, onChange }: LayoutTabProps) => {
             Layout Style <Info size={10} className="text-zinc-700" />
           </label>
           <div className="flex items-center gap-1.5">
+            <button 
+              onClick={() => {
+                const balanced = {
+                  'pop-in-place': 50,
+                  'dynamic-collage': 30,
+                  'karaoke': 10,
+                  'tetris': 10
+                };
+                onChange({ 
+                  layoutMultiSelect: true,
+                  layoutStyle: ['pop-in-place', 'dynamic-collage', 'karaoke', 'tetris'],
+                  layoutWeights: balanced
+                });
+              }}
+              className="text-[8px] px-1.5 py-0.5 bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-400 border border-indigo-500/30 rounded transition-colors uppercase font-bold"
+            >
+              Balanced Random
+            </button>
             <span className="text-[8px] text-zinc-600 uppercase">Multi</span>
             <button 
               onClick={() => onChange({ layoutMultiSelect: !settings.layoutMultiSelect })}
@@ -119,16 +137,46 @@ export const LayoutTab = ({ settings, onChange }: LayoutTabProps) => {
               <ProSlider
                 key={style}
                 label={style.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                value={settings.layoutWeights?.[style] ?? 1}
+                value={settings.layoutWeights?.[style] ?? 25}
                 onChange={(v) => onChange({ layoutWeights: { ...settings.layoutWeights, [style]: v } })}
-                min={1}
-                max={10}
+                min={0}
+                max={100}
                 step={1}
-                unit=""
+                unit="%"
               />
             ))}
           </div>
         )}
+      </div>
+
+      {/* Show Last Words (Keep Past) */}
+      <div className="flex flex-col gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
+        <span className="text-[10px] font-black text-zinc-300 uppercase tracking-tighter">Show Last Words</span>
+        
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { id: 'keepPastInPop', label: 'Pop', key: 'keepPastInPop' },
+            { id: 'keepPastInCollage', label: 'Collage', key: 'keepPastInCollage' },
+            { id: 'keepPastInKaraoke', label: 'Karaoke', key: 'keepPastInKaraoke' },
+            { id: 'keepPastInTetris', label: 'Tetris', key: 'keepPastInTetris' }
+          ].map((item) => (
+            <div key={item.id} className="flex flex-col gap-1.5">
+              <label className="text-[8px] text-zinc-600 font-mono uppercase">{item.label}</label>
+              <select
+                value={settings[item.key as keyof typeof settings] === 'random' ? 'random' : (settings[item.key as keyof typeof settings] ? 'true' : 'false')}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange({ [item.key]: val === 'random' ? 'random' : (val === 'true') });
+                }}
+                className="bg-[#080808] border border-zinc-800 rounded px-1.5 py-1 text-[10px] text-white outline-none w-full"
+              >
+                <option value="true">Show</option>
+                <option value="false">Hide</option>
+                <option value="random">Random</option>
+              </select>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Animation Style */}

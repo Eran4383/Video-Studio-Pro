@@ -83,12 +83,16 @@ export class AssetService {
     };
   }
 
-  private static async extractWaveformAndBuffer(url: string, samples = 1000): Promise<{ waveform: number[], audioBuffer: AudioBuffer | undefined }> {
+  public static async extractWaveformAndBuffer(url: string, samples = 1000): Promise<{ waveform: number[], audioBuffer: AudioBuffer | undefined }> {
     try {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       if (!AudioContextClass) return { waveform: [], audioBuffer: undefined };
 
       const response = await fetch(url);
+      if (!response.ok) {
+        console.warn(`[AssetService] Failed to fetch URL: ${url}. Status: ${response.status}`);
+        return { waveform: [], audioBuffer: undefined };
+      }
       const arrayBuffer = await response.arrayBuffer();
       const audioCtx = new AudioContextClass();
       

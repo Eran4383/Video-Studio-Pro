@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Library } from './components/AssetLibrary/Library';
 import { Timeline } from './components/Timeline/Timeline';
 import { PreviewPlayer } from './components/Preview/PreviewPlayer';
@@ -16,10 +16,12 @@ import { DiagnosticsModal } from './components/Diagnostics/DiagnosticsModal';
 import { VERSION } from './config/version';
 import { PropertiesPanel } from './components/Properties/PropertiesPanel';
 import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2 } from 'lucide-react';
-import { MediaType, Asset } from './types';
+import { MediaType, Asset, WAVEFORM_SAMPLES_PER_SECOND } from './types';
 import { parseSRT } from './utils/srtParser';
 import { ResolutionSwitcher } from './components/ProjectSettings/ResolutionSwitcher';
 import { FileMenu } from './components/UI/FileMenu';
+import { AssetService } from './services/AssetService';
+import { webAudioEngine } from './services/WebAudioEngine';
 
 // Initialize Error Reporting on App Load
 ErrorReportingService.init();
@@ -43,6 +45,42 @@ const App = () => {
       store.setIsPlaying(false);
     }
   }, [isExportModalOpen, transcriptionState.isOpen]);
+
+  const decodingAssetsRef = useRef<Set<string>>(new Set());
+
+  // Re-decode assets if audioBuffer is missing (e.g. after project import)
+  useEffect(() => {
+    const assetsToDecode = store.assets.filter(asset => 
+      (asset.type === MediaType.VIDEO || asset.type === MediaType.AUDIO) && 
+      (!asset.audioBuffer || typeof asset.audioBuffer.getChannelData !== 'function') && 
+      asset.url &&
+      !decodingAssetsRef.current.has(asset.id)
+    );
+
+    if (assetsToDecode.length === 0) return;
+
+    assetsToDecode.forEach(async (asset) => {
+      decodingAssetsRef.current.add(asset.id);
+      try {
+        console.warn(`[App] Re-decoding asset: ${asset.name} (${asset.id}) from URL: ${asset.url}`);
+        const samples = Math.ceil(asset.duration * WAVEFORM_SAMPLES_PER_SECOND);
+        const result = await AssetService.extractWaveformAndBuffer(asset.url, samples);
+        
+        if (result.audioBuffer) {
+          console.log(`[App] Successfully re-decoded asset: ${asset.id}`);
+          webAudioEngine.cacheBuffer(asset.id, result.audioBuffer);
+          store.updateAsset(asset.id, { 
+            audioBuffer: result.audioBuffer,
+            waveform: asset.waveform && asset.waveform.length > 0 ? asset.waveform : result.waveform
+          });
+        } else {
+          console.warn(`[App] Re-decoding returned no buffer for asset: ${asset.id}. URL might be invalid.`);
+        }
+      } catch (err) {
+        console.warn(`[App] Failed to re-decode asset ${asset.id}:`, err);
+      }
+    });
+  }, [store.assets, store.updateAsset]);
 
   const handleTranscriptionStart = () => {
     setTranscriptionState(prev => ({ ...prev, isProcessing: true, status: 'Initializing...' }));

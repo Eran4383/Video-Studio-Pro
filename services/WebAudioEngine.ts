@@ -18,9 +18,12 @@ class WebAudioEngine {
     if (!this.context) {
       const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
       this.context = new AudioContextClass();
+      console.log(`[WebAudioEngine] Created new AudioContext. State: ${this.context.state}`);
     }
     if (this.context.state === 'suspended') {
-      this.context.resume();
+      this.context.resume().then(() => {
+        console.log(`[WebAudioEngine] AudioContext resumed. State: ${this.context?.state}`);
+      });
     }
     return this.context;
   }
@@ -65,8 +68,11 @@ class WebAudioEngine {
     const ctx = this.getContext();
     const buffer = this.audioBuffers.get(assetId);
     
-    if (!buffer || !(buffer instanceof AudioBuffer)) {
-      console.warn(`[WebAudioEngine] No valid AudioBuffer found for asset: ${assetId}`);
+    if (!buffer || typeof buffer.getChannelData !== 'function') {
+      const type = buffer ? typeof buffer : 'undefined';
+      const isObj = buffer && typeof buffer === 'object';
+      const hasGetChannelData = isObj && typeof (buffer as any).getChannelData === 'function';
+      console.warn(`[WebAudioEngine] No valid AudioBuffer found for asset: ${assetId}. Type: ${type}, isObject: ${isObj}, hasGetChannelData: ${hasGetChannelData}`);
       return;
     }
 

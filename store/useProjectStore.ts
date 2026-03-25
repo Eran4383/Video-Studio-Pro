@@ -8,6 +8,7 @@ import { useKineticActions } from './useKineticActions';
 import { useMoveActions } from './useMoveActions';
 import { useSubtitleActions } from './useSubtitleActions';
 import { generateBlockLayout } from '../utils/kinetic/KineticLayoutManager';
+import { webAudioEngine } from '../services/WebAudioEngine';
 
 const generateDefaultName = () => {
   const now = new Date();
@@ -142,8 +143,13 @@ export const useProjectStore = () => {
     setAssets(prev => [...prev, asset]);
   }, []);
 
+  const updateAsset = useCallback((assetId: string, updates: Partial<Asset>) => {
+    setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...updates } : a));
+  }, []);
+
   const resetProject = useCallback(() => {
     const newProj = { ...INITIAL_PROJECT, id: `proj-${Date.now()}`, name: generateDefaultName() };
+    webAudioEngine.clearCache();
     setProject(newProj);
     setAssets([]);
     setCurrentTime(0);
@@ -153,6 +159,7 @@ export const useProjectStore = () => {
   }, [pushToHistory]);
 
   const loadProjectData = useCallback((newProject: Partial<Project>, newAssets: Asset[]) => {
+    webAudioEngine.clearCache();
     const sanitizedProject: Project = {
       ...INITIAL_PROJECT,
       ...newProject,
@@ -190,7 +197,7 @@ export const useProjectStore = () => {
 
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId, fileHandle,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, updateAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
     resetProject, loadProjectData,
     ...trackActions,
     ...clipActions,

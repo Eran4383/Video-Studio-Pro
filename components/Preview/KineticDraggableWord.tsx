@@ -194,12 +194,10 @@ export const KineticDraggableWord = ({
 
   // Advanced styling
   const textShadows = [];
-  if (word.shadowColor || word.shadowBlur || word.shadowOffsetX || word.shadowOffsetY) {
-    textShadows.push(`${word.shadowOffsetX || 0}px ${word.shadowOffsetY || 0}px ${word.shadowBlur || 0}px ${word.shadowColor || 'rgba(0,0,0,0.5)'}`);
-  } else {
-    textShadows.push('2px 2px 0px rgba(0,0,0,0.5)'); // Default
+  if (word.shadowEnabled) {
+    textShadows.push(`${word.shadowOffsetX ?? 2}px ${word.shadowOffsetY ?? 2}px ${word.shadowBlur ?? 4}px ${word.shadowColor || 'rgba(0,0,0,0.5)'}`);
   }
-
+  
   const WebkitTextStroke = word.strokeWidth ? `${word.strokeWidth}px ${word.strokeColor || '#000'}` : undefined;
   const backgroundColor = word.backgroundColor;
   const padding = word.backgroundPadding ? `${word.backgroundPadding}px` : undefined;
