@@ -5,6 +5,7 @@ import { AssetService } from '../../services/AssetService';
 import { MagneticAnchorService } from '../../services/MagneticAnchorService';
 import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
+import { TrackHeader } from './TrackHeader';
 import { KineticBlocksOverlay } from './KineticBlocksOverlay';
 import { useProjectStore } from '../../store/useProjectStore';
 import { AudioMonitor } from './AudioMonitor';
@@ -63,6 +64,7 @@ export const Timeline = ({
 }: TimelineProps) => {
   const store = useProjectStore();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headersScrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [dragging, setDragging] = useState<DragState | null>(null);
@@ -86,16 +88,16 @@ export const Timeline = ({
     if (!scrollRef.current || !isAutoScrollEnabled) return;
     
     const scrollContainer = scrollRef.current;
-    const playheadX = HEADER_WIDTH + (currentTime * pxPerSec);
+    const playheadX = currentTime * pxPerSec;
     if (isNaN(playheadX)) {
-        console.error('PlayheadX is NaN:', { currentTime, pxPerSec, HEADER_WIDTH });
+        console.error('PlayheadX is NaN:', { currentTime, pxPerSec });
     }
     const scrollLeft = scrollContainer.scrollLeft;
     const viewportWidth = scrollContainer.clientWidth;
     
     // Check if playhead is outside visible area (with some padding)
     const padding = 100;
-    if (playheadX > scrollLeft + viewportWidth - padding || playheadX < scrollLeft + HEADER_WIDTH) {
+    if (playheadX > scrollLeft + viewportWidth - padding || playheadX < scrollLeft) {
       // Center the playhead or just scroll it into view
       scrollContainer.scrollLeft = playheadX - (viewportWidth / 2);
     }
@@ -104,7 +106,7 @@ export const Timeline = ({
   const getT = (clientX: number) => {
     if (!scrollRef.current) return 0;
     const rect = scrollRef.current.getBoundingClientRect();
-    return Math.max(0, (clientX - rect.left + scrollRef.current.scrollLeft - HEADER_WIDTH) / pxPerSec);
+    return Math.max(0, (clientX - rect.left + scrollRef.current.scrollLeft) / pxPerSec);
   };
 
   const getResizeMode = (e: React.MouseEvent, clip: Clip): DragMode => {
@@ -299,8 +301,8 @@ export const Timeline = ({
         const endY = Math.max(selectionBox.startY, selectionBox.currentY);
 
         // Convert X to Time
-        const startTime = Math.max(0, (startX - rect.left - HEADER_WIDTH) / pxPerSec);
-        const endTime = Math.max(0, (endX - rect.left - HEADER_WIDTH) / pxPerSec);
+        const startTime = Math.max(0, (startX - rect.left) / pxPerSec);
+        const endTime = Math.max(0, (endX - rect.left) / pxPerSec);
 
         // Find intersecting clips
         const newSelectedIds: string[] = [];
@@ -490,7 +492,45 @@ export const Timeline = ({
       />
 
       <div className="flex-1 flex overflow-hidden min-w-0">
-        <div ref={scrollRef} className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} onMouseDown={(e) => { 
+        {/* Layers Menu (Headers) */}
+        <div className="w-[150px] shrink-0 bg-[#121212] border-r border-zinc-800 flex flex-col overflow-hidden">
+          <div className="h-8 bg-[#161616] border-b border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">
+            {Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}
+          </div>
+          <div 
+            ref={headersScrollRef} 
+            className="flex-1 overflow-hidden"
+            onWheel={(e) => {
+              if (scrollRef.current) {
+                scrollRef.current.scrollTop += e.deltaY;
+              }
+            }}
+          >
+            <div className="flex flex-col">
+              {project.tracks.map(track => (
+                <TrackHeader 
+                  key={track.id} 
+                  track={track} 
+                  onToggle={onToggleTrack} 
+                  onSetHeight={onSetTrackHeight} 
+                  onSelectAll={() => onSelectAllTrack(track.id)} 
+                  onDelete={() => onDeleteTrack(track.id)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Timeline Tracks (Grid) */}
+        <div 
+          ref={scrollRef} 
+          className={`flex-1 overflow-auto relative custom-scrollbar flex flex-col ${middlePanning ? 'cursor-grabbing' : 'cursor-default'}`} 
+          onScroll={(e) => {
+            if (headersScrollRef.current) {
+              headersScrollRef.current.scrollTop = e.currentTarget.scrollTop;
+            }
+          }}
+          onMouseDown={(e) => { 
             if (e.button === 0 && e.target === e.currentTarget) { 
                 onSelectClip(null); 
                 let t = getT(e.clientX);
@@ -511,8 +551,7 @@ export const Timeline = ({
                   }
                   onTimeChange(t);
               }
-          }}>
-              <div className="w-[150px] sticky left-0 bg-[#161616] z-40 border-r border-zinc-800 flex items-center px-4 font-mono text-[11px] text-indigo-400 font-bold">{Math.floor(currentTime / 60)}:{(Math.floor(currentTime % 60)).toString().padStart(2, '0')}:{Math.floor((currentTime % 1) * 30).toString().padStart(2, '0')}</div>
+            }}>
               <div 
                 className="flex-1 relative h-full shrink-0" 
                 style={{ 
@@ -572,12 +611,12 @@ export const Timeline = ({
               )}
             </div>
 
-            <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: HEADER_WIDTH + (currentTime * pxPerSec) }}>
+            <div className="absolute top-0 bottom-0 w-px bg-red-500 z-50 pointer-events-none shadow-[0_0_10px_rgba(239,68,68,0.5)]" style={{ left: currentTime * pxPerSec }}>
                 <div className="absolute top-0 -left-1.5 w-3 h-3 bg-red-500 rounded-sm rotate-45" />
             </div>
 
             {ghostTime !== null && (
-                <div className="absolute top-8 bottom-0 w-px bg-white/20 z-40 pointer-events-none" style={{ left: HEADER_WIDTH + (ghostTime * pxPerSec) }}>
+                <div className="absolute top-8 bottom-0 w-px bg-white/20 z-40 pointer-events-none" style={{ left: ghostTime * pxPerSec }}>
                     <div className="absolute top-2 left-1 text-[9px] font-mono text-zinc-400 bg-black/80 px-1 rounded">{ghostTime.toFixed(2)}s</div>
                 </div>
             )}

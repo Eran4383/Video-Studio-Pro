@@ -16,42 +16,66 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
           
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-zinc-500">In Collage</span>
-            <button 
-              onClick={() => onChange({ keepPastInCollage: !settings.keepPastInCollage })}
-              className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInCollage ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+            <select
+              value={settings.keepPastInCollage === 'random' ? 'random' : (settings.keepPastInCollage ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ keepPastInCollage: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
             >
-              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInCollage ? 'left-4.5' : 'left-0.5'}`} />
-            </button>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+              <option value="random">Random</option>
+            </select>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-zinc-500">In Karaoke</span>
-            <button 
-              onClick={() => onChange({ keepPastInKaraoke: !settings.keepPastInKaraoke })}
-              className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInKaraoke ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+            <select
+              value={settings.keepPastInKaraoke === 'random' ? 'random' : (settings.keepPastInKaraoke ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ keepPastInKaraoke: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
             >
-              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInKaraoke ? 'left-4.5' : 'left-0.5'}`} />
-            </button>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+              <option value="random">Random</option>
+            </select>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-zinc-500">In Pop In Place</span>
-            <button 
-              onClick={() => onChange({ keepPastInPop: !settings.keepPastInPop })}
-              className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInPop ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+            <select
+              value={settings.keepPastInPop === 'random' ? 'random' : (settings.keepPastInPop ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ keepPastInPop: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
             >
-              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInPop ? 'left-4.5' : 'left-0.5'}`} />
-            </button>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+              <option value="random">Random</option>
+            </select>
           </div>
 
           <div className="flex items-center justify-between">
             <span className="text-[10px] text-zinc-500">In Tetris</span>
-            <button 
-              onClick={() => onChange({ keepPastInTetris: !settings.keepPastInTetris })}
-              className={`w-8 h-4 rounded-full transition-all relative ${settings.keepPastInTetris ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+            <select
+              value={settings.keepPastInTetris === 'random' ? 'random' : (settings.keepPastInTetris ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ keepPastInTetris: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
             >
-              <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.keepPastInTetris ? 'left-4.5' : 'left-0.5'}`} />
-            </button>
+              <option value="true">On</option>
+              <option value="false">Off</option>
+              <option value="random">Random</option>
+            </select>
           </div>
         </div>
 
@@ -89,6 +113,7 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
           <option value="auto">Auto Detect</option>
           <option value="ltr">Left to Right</option>
           <option value="rtl">Right to Left</option>
+          <option value="random">Random</option>
         </select>
       </div>
 

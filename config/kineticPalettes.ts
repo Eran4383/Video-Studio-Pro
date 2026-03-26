@@ -42,7 +42,18 @@ export const KINETIC_PALETTES: KineticPalette[] = [
     id: 'Custom',
     name: 'Custom Palette',
     colors: [], // Will be filled from settings.customColors
+  },
+  {
+    id: 'Random',
+    name: 'Random Palette',
+    colors: ['#ffffff', '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'], // Placeholder colors for UI
   }
 ];
 
-export const getPalette = (id: string) => KINETIC_PALETTES.find(p => p.id === id) || KINETIC_PALETTES[0];
+export const getPalette = (id: string) => {
+  if (id === 'Random') {
+    const realPalettes = KINETIC_PALETTES.filter(p => p.id !== 'Random' && p.id !== 'Custom');
+    return realPalettes[Math.floor(Math.random() * realPalettes.length)];
+  }
+  return KINETIC_PALETTES.find(p => p.id === id) || KINETIC_PALETTES[0];
+};

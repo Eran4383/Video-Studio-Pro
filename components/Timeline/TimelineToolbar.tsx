@@ -30,12 +30,16 @@ export const TimelineToolbar = ({
 }: TimelineToolbarProps) => {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - 300 - 150 : 1000;
+  const asideWidth = 56;
+  const headerWidth = 150;
+  const audioMonitorWidth = showAudioMonitor ? 40 : 0;
+  const availableWidth = typeof window !== 'undefined' ? window.innerWidth - asideWidth - headerWidth - audioMonitorWidth : 1000;
   const minZoom = Math.max(0.1, availableWidth / (projectDuration * 10 || 1));
   const maxZoom = Math.min(1000, 30000000 / (projectDuration * 10 || 1));
 
   const handleFit = () => {
-    const minZoomValue = availableWidth / (projectDuration * 10 || 1);
+    // Use 0.99 factor to make the last clip cover 99% of the visible timeline
+    const minZoomValue = (availableWidth * 0.99) / (projectDuration * 10 || 1);
     setZoom(Math.max(0.1, Math.min(maxZoom, minZoomValue)));
   };
 

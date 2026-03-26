@@ -176,16 +176,37 @@ export const KineticControls = ({ selectedClip, store, isBlock }: KineticControl
         <button
           onClick={() => {
             const randomSettings: Partial<KineticSettings> = {
-              layoutStyle: ['pop-in-place', 'dynamic-collage', 'karaoke'],
+              layoutStyle: ['pop-in-place', 'dynamic-collage', 'karaoke', 'tetris'],
               layoutMultiSelect: true,
               fonts: ['Inter', 'Playfair Display', 'JetBrains Mono', 'Space Grotesk', 'Outfit'],
               fontMultiSelect: true,
               animationStyle: ['pop', 'slide-up', 'scale', 'fade'],
               animationMultiSelect: true,
-              customColors: ['#ffffff', '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'],
+              paletteId: 'Random',
               randomMode: true,
               textCase: 'random',
-              fontWeight: 'random'
+              fontWeight: 'random',
+              direction: 'random',
+              keepPastInCollage: 'random',
+              keepPastInKaraoke: 'random',
+              keepPastInPop: 'random',
+              keepPastInTetris: 'random',
+              isBold: 'random',
+              isItalic: 'random',
+              isUnderline: 'random',
+              shadowEnabled: 'random',
+              shadowColor: 'random',
+              shadowBlur: 'random',
+              shadowOffsetX: 'random',
+              shadowOffsetY: 'random',
+              hasBackground: 'random',
+              backgroundColor: 'random',
+              backgroundPadding: 'random',
+              backgroundBorderRadius: 'random',
+              backgroundWidth: 'random',
+              backgroundHeight: 'random',
+              strokeWidth: 'random',
+              strokeColor: 'random'
             };
             
             updateData(selectedClip.id, { settings: { ...settings, ...randomSettings } });

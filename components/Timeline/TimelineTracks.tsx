@@ -1,6 +1,5 @@
 import React, { memo } from 'react';
 import { Project, Clip, Asset } from '../../types';
-import { TrackHeader } from './TrackHeader';
 import { Link as LinkIcon } from 'lucide-react';
 import { WaveformCanvas } from './WaveformCanvas';
 import { MagneticMarkers } from './MagneticMarkers';
@@ -34,18 +33,11 @@ export const TimelineTracks = memo(({
           key={track.id} 
           onDragOver={(e) => e.preventDefault()} 
           onDrop={(e) => onDrop(e, track.id)} 
-          className={`flex border-b border-zinc-800 group/track relative ${track.isVisible ? '' : 'opacity-60'}`}
+          className={`border-b border-zinc-800 group/track relative bg-[#0a0a0a] w-full shrink-0 ${track.isVisible ? '' : 'opacity-60'}`}
           style={{ height: track.height || 72 }}
+          onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}
         >
-          <TrackHeader 
-            track={track} 
-            onToggle={onToggleTrack} 
-            onSetHeight={onSetTrackHeight} 
-            onSelectAll={() => onSelectAllTrack(track.id)} 
-            onDelete={() => onDeleteTrack(track.id)}
-          />
-          <div className="flex-1 relative bg-[#0a0a0a] w-full shrink-0" onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}>
-            {track.clips.map(clip => {
+          {track.clips.map(clip => {
               const isSelected = selectedClipIds.includes(clip.id);
               const isLinked = selectedClipIds.length > 0 && selectedClipIds.some(id => project.tracks.flatMap(t=>t.clips).find(c=>c.id === id)?.linkedClipId === clip.id);
               const asset = assets.find(a => a.id === clip.assetId);
@@ -94,7 +86,6 @@ export const TimelineTracks = memo(({
                 </div>
               );
             })}
-          </div>
         </div>
       ))}
     </div>

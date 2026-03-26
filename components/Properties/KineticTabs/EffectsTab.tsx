@@ -14,25 +14,52 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
       {/* Text Styles */}
       <div className="flex flex-col gap-2">
         <label className="text-[9px] text-zinc-500 font-mono uppercase">Text Styles</label>
-        <div className="flex gap-2">
-          <button
-            onClick={() => onChange({ isBold: !settings.isBold })}
-            className={`flex-1 flex items-center justify-center py-2 rounded border transition-colors ${settings.isBold ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
-          >
-            <Bold size={14} />
-          </button>
-          <button
-            onClick={() => onChange({ isItalic: !settings.isItalic })}
-            className={`flex-1 flex items-center justify-center py-2 rounded border transition-colors ${settings.isItalic ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
-          >
-            <Italic size={14} />
-          </button>
-          <button
-            onClick={() => onChange({ isUnderline: !settings.isUnderline })}
-            className={`flex-1 flex items-center justify-center py-2 rounded border transition-colors ${settings.isUnderline ? 'bg-indigo-600 border-indigo-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'}`}
-          >
-            <Underline size={14} />
-          </button>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-[8px] text-zinc-600 uppercase font-bold">Bold</span>
+            <select
+              value={settings.isBold === 'random' ? 'random' : (settings.isBold ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ isBold: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-[10px] text-white outline-none"
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[8px] text-zinc-600 uppercase font-bold">Italic</span>
+            <select
+              value={settings.isItalic === 'random' ? 'random' : (settings.isItalic ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ isItalic: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-[10px] text-white outline-none"
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className="text-[8px] text-zinc-600 uppercase font-bold">Underline</span>
+            <select
+              value={settings.isUnderline === 'random' ? 'random' : (settings.isUnderline ? 'true' : 'false')}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange({ isUnderline: val === 'random' ? 'random' : (val === 'true') });
+              }}
+              className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-1 text-[10px] text-white outline-none"
+            >
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+              <option value="random">Random</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -165,64 +192,146 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
       <div className="flex flex-col gap-3 bg-zinc-900/50 p-2.5 rounded-lg border border-zinc-800">
         <div className="flex items-center justify-between">
           <span className="text-[10px] font-black text-zinc-300 uppercase tracking-tighter">Text Background</span>
-          <button 
-            onClick={() => onChange({ hasBackground: !settings.hasBackground })}
-            className={`w-8 h-4 rounded-full transition-all relative ${settings.hasBackground ? 'bg-indigo-600' : 'bg-zinc-700'}`}
+          <select
+            value={settings.hasBackground === 'random' ? 'random' : (settings.hasBackground ? 'true' : 'false')}
+            onChange={(e) => {
+              const val = e.target.value;
+              onChange({ hasBackground: val === 'random' ? 'random' : (val === 'true') });
+            }}
+            className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
           >
-            <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${settings.hasBackground ? 'left-4.5' : 'left-0.5'}`} />
-          </button>
+            <option value="true">On</option>
+            <option value="false">Off</option>
+            <option value="random">Random</option>
+          </select>
         </div>
 
-        {settings.hasBackground && (
+        {settings.hasBackground !== false && (
           <div className="flex flex-col gap-4 mt-2">
             <div className="flex items-center justify-between">
               <label className="text-[9px] text-zinc-500 font-mono uppercase">Background Color</label>
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-mono text-zinc-400">{settings.backgroundColor || '#000000'}</span>
-                <input 
-                  type="color" 
-                  value={settings.backgroundColor || '#000000'}
-                  onChange={(e) => onChange({ backgroundColor: e.target.value })}
-                  className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
-                />
+                <select
+                  value={settings.backgroundColor === 'random' ? 'random' : 'custom'}
+                  onChange={(e) => onChange({ backgroundColor: e.target.value === 'random' ? 'random' : '#000000' })}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="random">Random</option>
+                </select>
+                {settings.backgroundColor !== 'random' && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-zinc-400">{settings.backgroundColor || '#000000'}</span>
+                    <input 
+                      type="color" 
+                      value={settings.backgroundColor || '#000000'}
+                      onChange={(e) => onChange({ backgroundColor: e.target.value })}
+                      className="w-6 h-6 rounded cursor-pointer bg-transparent border-none p-0"
+                    />
+                  </div>
+                )}
               </div>
             </div>
-            <ProSlider
-              label="Height"
-              value={settings.backgroundHeight ?? 100}
-              onChange={(v) => onChange({ backgroundHeight: v })}
-              min={10}
-              max={200}
-              step={1}
-              unit="%"
-            />
-            <ProSlider
-              label="Width"
-              value={settings.backgroundWidth ?? 100}
-              onChange={(v) => onChange({ backgroundWidth: v })}
-              min={10}
-              max={200}
-              step={1}
-              unit="%"
-            />
-            <ProSlider
-              label="Border Radius"
-              value={settings.backgroundBorderRadius ?? 4}
-              onChange={(v) => onChange({ backgroundBorderRadius: v })}
-              min={0}
-              max={50}
-              step={1}
-              unit="px"
-            />
-            <ProSlider
-              label="Padding"
-              value={settings.backgroundPadding ?? 4}
-              onChange={(v) => onChange({ backgroundPadding: v })}
-              min={0}
-              max={50}
-              step={1}
-              unit="px"
-            />
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Height</label>
+                <select
+                  value={settings.backgroundHeight === 'random' ? 'random' : 'custom'}
+                  onChange={(e) => onChange({ backgroundHeight: e.target.value === 'random' ? 'random' : 100 })}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="random">Random</option>
+                </select>
+              </div>
+              {settings.backgroundHeight !== 'random' && (
+                <ProSlider
+                  label=""
+                  value={settings.backgroundHeight ?? 100}
+                  onChange={(v) => onChange({ backgroundHeight: v })}
+                  min={10}
+                  max={200}
+                  step={1}
+                  unit="%"
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Width</label>
+                <select
+                  value={settings.backgroundWidth === 'random' ? 'random' : 'custom'}
+                  onChange={(e) => onChange({ backgroundWidth: e.target.value === 'random' ? 'random' : 100 })}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="random">Random</option>
+                </select>
+              </div>
+              {settings.backgroundWidth !== 'random' && (
+                <ProSlider
+                  label=""
+                  value={settings.backgroundWidth ?? 100}
+                  onChange={(v) => onChange({ backgroundWidth: v })}
+                  min={10}
+                  max={200}
+                  step={1}
+                  unit="%"
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Border Radius</label>
+                <select
+                  value={settings.backgroundBorderRadius === 'random' ? 'random' : 'custom'}
+                  onChange={(e) => onChange({ backgroundBorderRadius: e.target.value === 'random' ? 'random' : 4 })}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="random">Random</option>
+                </select>
+              </div>
+              {settings.backgroundBorderRadius !== 'random' && (
+                <ProSlider
+                  label=""
+                  value={settings.backgroundBorderRadius ?? 4}
+                  onChange={(v) => onChange({ backgroundBorderRadius: v })}
+                  min={0}
+                  max={50}
+                  step={1}
+                  unit="px"
+                />
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <label className="text-[9px] text-zinc-500 font-mono uppercase">Padding</label>
+                <select
+                  value={settings.backgroundPadding === 'random' ? 'random' : 'custom'}
+                  onChange={(e) => onChange({ backgroundPadding: e.target.value === 'random' ? 'random' : 10 })}
+                  className="bg-zinc-800 border border-zinc-700 rounded px-1.5 py-0.5 text-[10px] text-white outline-none"
+                >
+                  <option value="custom">Custom</option>
+                  <option value="random">Random</option>
+                </select>
+              </div>
+              {settings.backgroundPadding !== 'random' && (
+                <ProSlider
+                  label=""
+                  value={settings.backgroundPadding ?? 10}
+                  onChange={(v) => onChange({ backgroundPadding: v })}
+                  min={0}
+                  max={50}
+                  step={1}
+                  unit="px"
+                />
+              )}
+            </div>
           </div>
         )}
       </div>

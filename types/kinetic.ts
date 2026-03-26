@@ -63,7 +63,7 @@ export interface KineticSettings {
   layoutWeights?: Record<string, number>;
   animationStyle: KineticAnimationStyle | KineticAnimationStyle[] | 'random';
   animationOrder: 'reading' | 'random';
-  direction: 'ltr' | 'rtl' | 'auto';
+  direction: 'ltr' | 'rtl' | 'auto' | 'random';
   paletteId: string;
   primaryFont: string;
   secondaryFont: string;
@@ -99,17 +99,19 @@ export interface KineticSettings {
   shadowOffsetY?: number | 'random';
 
   // Text Style
-  isBold?: boolean;
-  isItalic?: boolean;
-  isUnderline?: boolean;
+  isBold?: boolean | 'random';
+  isItalic?: boolean | 'random';
+  isUnderline?: boolean | 'random';
+  strokeWidth?: number | 'random';
+  strokeColor?: string | 'random';
 
   // Text Background
-  hasBackground?: boolean;
-  backgroundColor?: string;
-  backgroundPadding?: number;
-  backgroundBorderRadius?: number;
-  backgroundWidth?: number;
-  backgroundHeight?: number;
+  hasBackground?: boolean | 'random';
+  backgroundColor?: string | 'random';
+  backgroundPadding?: number | 'random';
+  backgroundBorderRadius?: number | 'random';
+  backgroundWidth?: number | 'random';
+  backgroundHeight?: number | 'random';
 
   // Legacy compatibility (optional, to be removed after full refactor)
   preset?: string;

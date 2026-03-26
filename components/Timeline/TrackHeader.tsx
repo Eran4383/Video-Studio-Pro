@@ -13,10 +13,12 @@ interface TrackHeaderProps {
   onDelete: () => void;
 }
 
-export const TrackHeader = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }: TrackHeaderProps) => {
+export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }) => {
   console.log('[TrackHeader] Render for track:', track.id, 'onDelete exists:', !!onDelete);
   const isExpanded = (track.height || 72) > 80;
   const [isResizing, setIsResizing] = useState(false);
+  const resizeStartY = useRef<number>(0);
+  const resizeStartHeight = useRef<number>(0);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const isDefaultTrack = track.id === 'track-v1' || track.id === 'track-a1';
 
@@ -27,7 +29,8 @@ export const TrackHeader = ({ track, onToggle, onSetHeight, onSelectAll, onDelet
   useEffect(() => {
       const handleMove = (e: MouseEvent) => {
           if (!isResizing) return;
-          onSetHeight(track.id, Math.max(40, e.movementY + (track.height || 72)));
+          const deltaY = e.clientY - resizeStartY.current;
+          onSetHeight(track.id, Math.max(40, resizeStartHeight.current + deltaY));
       };
       const handleUp = () => setIsResizing(false);
       if (isResizing) {
@@ -38,12 +41,13 @@ export const TrackHeader = ({ track, onToggle, onSetHeight, onSelectAll, onDelet
           window.removeEventListener('mousemove', handleMove);
           window.removeEventListener('mouseup', handleUp);
       };
-  }, [isResizing, track.height, onSetHeight, track.id]);
+  }, [isResizing, onSetHeight, track.id]);
 
   return (
     <div 
-      className="w-[150px] sticky left-0 bg-[#121212] z-[45] border-r border-zinc-800 p-2 flex flex-col justify-between shadow-lg group"
+      className="w-[150px] bg-[#121212] border-r border-zinc-800 p-2 flex flex-col justify-between shadow-lg group relative shrink-0"
       style={{ height: track.height || 72 }}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <div className="flex flex-col gap-1">
         <div className="flex items-center justify-between">
@@ -100,7 +104,13 @@ export const TrackHeader = ({ track, onToggle, onSetHeight, onSelectAll, onDelet
 
       {/* Resize Handle */}
       <div 
-        onMouseDown={(e) => { e.preventDefault(); setIsResizing(true); }}
+        onMouseDown={(e) => { 
+          e.preventDefault(); 
+          e.stopPropagation();
+          resizeStartY.current = e.clientY;
+          resizeStartHeight.current = track.height || 72;
+          setIsResizing(true); 
+        }}
         className="absolute bottom-0 left-0 right-0 h-1 cursor-row-resize hover:bg-indigo-500/50 z-50 opacity-0 group-hover:opacity-100 transition-opacity"
       />
 

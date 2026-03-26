@@ -14,7 +14,24 @@ export const ColorsTab = ({ settings, onChange }: ColorsTabProps) => {
       <div className="flex flex-col gap-2">
         <label className="text-[9px] text-zinc-500 font-mono uppercase">Color Palette</label>
         <div className="grid grid-cols-1 gap-2">
-          {KINETIC_PALETTES.map((palette) => {
+          {/* Random Palette Option */}
+          <div
+            role="button"
+            onClick={() => onChange({ paletteId: 'Random' })}
+            className={`flex flex-col gap-2 p-2.5 rounded-lg border transition-all text-left cursor-pointer ${settings.paletteId === 'Random' ? 'bg-indigo-600/20 border-indigo-500 ring-1 ring-indigo-500/30' : 'bg-zinc-900/50 border-zinc-800 hover:border-zinc-700'}`}
+          >
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-black uppercase tracking-tight ${settings.paletteId === 'Random' ? 'text-indigo-400' : 'text-zinc-500'}`}>🎲 Random Palette</span>
+              {settings.paletteId === 'Random' && <Check size={12} className="text-indigo-500" />}
+            </div>
+            <div className="flex gap-1.5 flex-wrap opacity-60">
+              {['#ffffff', '#f87171', '#60a5fa', '#34d399', '#fbbf24', '#a78bfa', '#f472b6'].map((c, i) => (
+                <div key={i} className="w-4 h-4 rounded-sm border border-black/20 shadow-sm" style={{ backgroundColor: c }} />
+              ))}
+            </div>
+          </div>
+
+          {KINETIC_PALETTES.filter(p => p.id !== 'Random').map((palette) => {
             const isSelected = settings.paletteId === palette.id;
             const colors = palette.id === 'Custom' && settings.customColors?.length ? settings.customColors : palette.colors;
             

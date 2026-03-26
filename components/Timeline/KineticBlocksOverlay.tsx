@@ -16,8 +16,6 @@ export const KineticBlocksOverlay = ({ project, pxPerSec, selectedClipIds, kinet
   const { splitKineticChunk } = useProjectStore();
   if (blocks.length === 0) return null;
 
-  const HEADER_WIDTH = 150;
-
   return (
     <div className={`absolute inset-0 z-10 overflow-hidden ${kineticCutMode ? 'pointer-events-auto' : 'pointer-events-none'}`}>
       {blocks.map(block => {
@@ -28,8 +26,8 @@ export const KineticBlocksOverlay = ({ project, pxPerSec, selectedClipIds, kinet
         const startTime = Math.min(...clips.map(c => c.startTime));
         const endTime = Math.max(...clips.map(c => c.startTime + c.duration));
 
-        const left = Math.round(HEADER_WIDTH + (startTime * pxPerSec));
-        const right = Math.round(HEADER_WIDTH + (endTime * pxPerSec));
+        const left = Math.round(startTime * pxPerSec);
+        const right = Math.round(endTime * pxPerSec);
         const width = right - left;
         const isSelected = selectedClipIds.includes(block.id);
 
@@ -41,6 +39,7 @@ export const KineticBlocksOverlay = ({ project, pxPerSec, selectedClipIds, kinet
           return (
             <div
               key={block.id}
+              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 if (kineticCutMode) return;
                 e.stopPropagation();
@@ -83,6 +82,7 @@ export const KineticBlocksOverlay = ({ project, pxPerSec, selectedClipIds, kinet
         return (
           <div
             key={block.id}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               if (kineticCutMode) return;
               e.stopPropagation();

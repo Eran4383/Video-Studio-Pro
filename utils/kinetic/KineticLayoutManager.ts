@@ -67,6 +67,13 @@ const resolveRandomBoolean = (val: boolean | 'random' | undefined, defaultValue 
   return val ?? defaultValue;
 };
 
+const resolveRandomDirection = (val: 'ltr' | 'rtl' | 'auto' | 'random' | undefined, content: string): boolean => {
+  if (val === 'random') return Math.random() > 0.5;
+  if (val === 'rtl') return true;
+  if (val === 'ltr') return false;
+  return /[\u0590-\u05FF]/.test(content); // auto
+};
+
 const resolveRandomColor = (val: string | 'random' | undefined, defaultValue = '#000000'): string => {
   if (val === 'random') {
     return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
@@ -100,7 +107,7 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
   });
 
   // RTL Detection
-  const isRtl = settings.direction === 'rtl' || (settings.direction === 'auto' && /[\u0590-\u05FF]/.test(content));
+  const isRtl = resolveRandomDirection(settings.direction, content);
 
   // 1. Layout Algorithm
   let geometricWords: any[] = [];
@@ -152,6 +159,17 @@ export const generateKineticLayout = (clipId: string, content: string, duration:
     shadowBlur: resolveRandomNumber(settings.shadowBlur, 0, 20, 4),
     shadowOffsetX: resolveRandomNumber(settings.shadowOffsetX, -10, 10, 2),
     shadowOffsetY: resolveRandomNumber(settings.shadowOffsetY, -10, 10, 2),
+    isBold: resolveRandomBoolean(settings.isBold),
+    isItalic: resolveRandomBoolean(settings.isItalic),
+    isUnderline: resolveRandomBoolean(settings.isUnderline),
+    strokeWidth: resolveRandomNumber(settings.strokeWidth, 0, 10, 0),
+    strokeColor: resolveRandomColor(settings.strokeColor),
+    hasBackground: resolveRandomBoolean(settings.hasBackground),
+    backgroundColor: resolveRandomColor(settings.backgroundColor, '#000000'),
+    backgroundPadding: resolveRandomNumber(settings.backgroundPadding, 0, 50, 10),
+    backgroundBorderRadius: resolveRandomNumber(settings.backgroundBorderRadius, 0, 50, 4),
+    backgroundWidth: resolveRandomNumber(settings.backgroundWidth, 0, 200, 100),
+    backgroundHeight: resolveRandomNumber(settings.backgroundHeight, 0, 200, 100),
   }));
 
   // 4. Assign Colors
@@ -301,6 +319,10 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       ? weightedPool[Math.floor(Math.random() * weightedPool.length)]
       : layoutStyles[chunkIndex % layoutStyles.length];
     
+    // RTL Detection for this scene
+    const sceneContent = chunk.map(w => w.text).join(' ');
+    const isRtl = resolveRandomDirection(block.settings.direction, sceneContent);
+
     // Generate layout for this scene
     let geometricWords: any[] = [];
     switch (layoutStyle) {
@@ -311,11 +333,11 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
         geometricWords = generateKaraoke(processedWords, block.settings, screenAR);
         break;
       case 'tetris':
-        geometricWords = generateTetrisLayout(processedWords, block.settings, false, screenAR);
+        geometricWords = generateTetrisLayout(processedWords, block.settings, isRtl, screenAR);
         break;
       case 'dynamic-collage':
       default:
-        geometricWords = generateDynamicCollage(processedWords, block.settings, false, screenAR);
+        geometricWords = generateDynamicCollage(processedWords, block.settings, isRtl, screenAR);
         break;
     }
     
@@ -346,6 +368,17 @@ export const generateBlockLayout = (block: KineticBlock, projectClips: Clip[], s
       shadowBlur: resolveRandomNumber(block.settings.shadowBlur, 0, 20, 4),
       shadowOffsetX: resolveRandomNumber(block.settings.shadowOffsetX, -10, 10, 2),
       shadowOffsetY: resolveRandomNumber(block.settings.shadowOffsetY, -10, 10, 2),
+      isBold: resolveRandomBoolean(block.settings.isBold),
+      isItalic: resolveRandomBoolean(block.settings.isItalic),
+      isUnderline: resolveRandomBoolean(block.settings.isUnderline),
+      strokeWidth: resolveRandomNumber(block.settings.strokeWidth, 0, 10, 0),
+      strokeColor: resolveRandomColor(block.settings.strokeColor),
+      hasBackground: resolveRandomBoolean(block.settings.hasBackground),
+      backgroundColor: resolveRandomColor(block.settings.backgroundColor, '#000000'),
+      backgroundPadding: resolveRandomNumber(block.settings.backgroundPadding, 0, 50, 10),
+      backgroundBorderRadius: resolveRandomNumber(block.settings.backgroundBorderRadius, 0, 50, 4),
+      backgroundWidth: resolveRandomNumber(block.settings.backgroundWidth, 0, 200, 100),
+      backgroundHeight: resolveRandomNumber(block.settings.backgroundHeight, 0, 200, 100),
     }));
 
     assignColors(sceneWords, block.settings.paletteId, block.settings.randomMode, block.settings.customColors);
