@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactQuill from 'react-quill-new';
-import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
+import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Trash2, Settings, Sparkles, Layers } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
+import { EFFECTS_LIBRARY } from '../../config/effects';
+import { MediaType } from '../../types';
 
 import { KineticControls } from './KineticControls';
 import { KineticWordEditor } from './KineticWordEditor';
@@ -34,14 +36,15 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
   const selectedClip = selectedClips.find((c: any) => c.id === primaryClipId);
   const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === primaryClipId));
   const isSubtitle = track?.type === 'subtitle';
-  const isVisual = track?.type === 'video' || track?.type === 'image' || isSubtitle;
+  const isEffectClip = selectedClip?.type === MediaType.EFFECT;
+  const isVisual = track?.type === 'video' || track?.type === 'image' || isSubtitle || isEffectClip;
 
   const allSelectedAreSubtitles = selectedClips.length > 1 && selectedClips.every((c: any) => {
     const t = project.tracks.find((tr: any) => tr.clips.some((cl: any) => cl.id === c.id));
     return t?.type === 'subtitle';
   });
 
-  const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true });
+  const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true, color: true });
   const [editingText, setEditingText] = useState('');
   const [activeTab, setActiveTab] = useState<'basic' | 'kinetic'>('basic');
   const quillRef = useRef<any>(null);
@@ -215,9 +218,11 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
     <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
       <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10">
         <div className="flex items-center gap-2 mb-1">
-          {isSubtitle ? <Type size={14} className="text-indigo-400" /> : <MonitorPlay size={14} className="text-emerald-400" />}
+          {isSubtitle ? <Type size={14} className="text-indigo-400" /> : 
+           isEffectClip ? <Layers size={14} className="text-purple-400" /> :
+           <MonitorPlay size={14} className="text-emerald-400" />}
           <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
-            {isSubtitle ? 'Text' : 'Video'} Properties
+            {isSubtitle ? 'Text' : isEffectClip ? 'Adjustment Layer' : 'Video'} Properties
           </h2>
         </div>
         <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{selectedClip.id}</p>
@@ -476,6 +481,63 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
         </Section>
       )}
 
+      {/* Color Grading Section */}
+      {isVisual && !isSubtitle && !isEffectClip && (
+        <Section id="color" title="Color Grading" icon={Sun} isOpen={sections.color} onToggle={toggleSection}>
+          <div className="space-y-4">
+            <ProSlider 
+              label="Brightness" 
+              value={(selectedClip.brightness ?? 1) * 100} 
+              onChange={(v) => updateClip({ brightness: v / 100 }, true)}
+              min={0} max={200} step={1} unit="%" defaultValue={100}
+            />
+            <ProSlider 
+              label="Contrast" 
+              value={(selectedClip.contrast ?? 1) * 100} 
+              onChange={(v) => updateClip({ contrast: v / 100 }, true)}
+              min={0} max={200} step={1} unit="%" defaultValue={100}
+            />
+            <ProSlider 
+              label="Saturation" 
+              value={(selectedClip.saturation ?? 1) * 100} 
+              onChange={(v) => updateClip({ saturation: v / 100 }, true)}
+              min={0} max={200} step={1} unit="%" defaultValue={100}
+            />
+            <ProSlider 
+              label="Hue Rotate" 
+              value={selectedClip.hue ?? 0} 
+              onChange={(v) => updateClip({ hue: v }, true)}
+              min={-180} max={180} step={1} unit="°" defaultValue={0}
+            />
+            <div className="h-px bg-zinc-800/50 my-2" />
+            <ProSlider 
+              label="Blur" 
+              value={selectedClip.blur ?? 0} 
+              onChange={(v) => updateClip({ blur: v }, true)}
+              min={0} max={50} step={0.5} unit="px" defaultValue={0}
+            />
+            <ProSlider 
+              label="Sepia" 
+              value={(selectedClip.sepia ?? 0) * 100} 
+              onChange={(v) => updateClip({ sepia: v / 100 }, true)}
+              min={0} max={100} step={1} unit="%" defaultValue={0}
+            />
+            <ProSlider 
+              label="Grayscale" 
+              value={(selectedClip.grayscale ?? 0) * 100} 
+              onChange={(v) => updateClip({ grayscale: v / 100 }, true)}
+              min={0} max={100} step={1} unit="%" defaultValue={0}
+            />
+            <ProSlider 
+              label="Invert" 
+              value={(selectedClip.invert ?? 0) * 100} 
+              onChange={(v) => updateClip({ invert: v / 100 }, true)}
+              min={0} max={100} step={1} unit="%" defaultValue={0}
+            />
+          </div>
+        </Section>
+      )}
+
       {/* Effects Section */}
       {isVisual && (
         <Section id="effects" title="Effects" icon={Ghost} isOpen={sections.effects} onToggle={toggleSection}>
@@ -508,6 +570,62 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                    </button>
                 </div>
              </div>
+
+             {/* Active Visual Effects */}
+             {selectedClip.effects && selectedClip.effects.length > 0 && (
+               <div className="flex flex-col gap-3 mt-2">
+                 <div className="flex items-center gap-2 border-t border-zinc-800/50 pt-3">
+                   <Sparkles size={12} className="text-indigo-400" />
+                   <span className="text-[10px] uppercase font-black tracking-widest text-zinc-500">Active Filters</span>
+                 </div>
+                 
+                 {selectedClip.effects.map((effect: any, index: number) => {
+                   const def = EFFECTS_LIBRARY.find(e => e.id === effect.name);
+                   if (!def) return null;
+                   
+                   return (
+                     <div key={effect.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-3 space-y-3">
+                       <div className="flex items-center justify-between">
+                         <div className="flex items-center gap-2">
+                           <Settings size={12} className="text-zinc-500" />
+                           <span className="text-[10px] font-bold text-zinc-300">{def.name}</span>
+                         </div>
+                         <button 
+                           onClick={() => {
+                             const newEffects = [...selectedClip.effects];
+                             newEffects.splice(index, 1);
+                             updateClip({ effects: newEffects }, true);
+                           }}
+                           className="text-zinc-600 hover:text-red-400 transition-colors"
+                         >
+                           <Trash2 size={12} />
+                         </button>
+                       </div>
+                       
+                       {def.controls.map(control => (
+                         <ProSlider 
+                           key={control.id}
+                           label={control.name}
+                           value={effect.params[control.id]}
+                           onChange={(v) => {
+                             const newEffects = [...selectedClip.effects];
+                             newEffects[index] = {
+                               ...newEffects[index],
+                               params: { ...newEffects[index].params, [control.id]: v }
+                             };
+                             updateClip({ effects: newEffects }, true);
+                           }}
+                           min={control.min}
+                           max={control.max}
+                           step={control.step}
+                           unit={control.unit}
+                         />
+                       ))}
+                     </div>
+                   );
+                 })}
+               </div>
+             )}
              
              {/* Removed KineticControls from here as it's now in a tab */}
           </div>

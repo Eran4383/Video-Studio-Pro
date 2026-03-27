@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Project, Asset, Clip } from '../types';
+import { Project, Asset, Clip, MediaType } from '../types';
 import { SubtitleItem } from '../utils/srtParser';
 
 import { sanitizeTrackClips } from '../utils/timelineUtils';
@@ -22,7 +22,7 @@ export const useSubtitleActions = (
           targetTrack = { id: `track-s-${Date.now()}`, name: `Subtitles ${subTracks.length + 1}`, type: 'subtitle', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 40 };
           newTracks.push(targetTrack);
       }
-      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'normal', textAlign: 'center', opacity: 1, shadow: true };
+      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', type: MediaType.TEXT, startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'normal', textAlign: 'center', opacity: 1, shadow: true };
       newTracks = newTracks.map(t => t.id === targetTrack!.id ? { ...t, clips: sanitizeTrackClips([...t.clips, newClip]) } : t);
       const next = { ...prev, tracks: newTracks };
       pushToHistory(next);
@@ -111,6 +111,7 @@ export const useSubtitleActions = (
       const newClips: Clip[] = items.map((item, index) => ({
         id: `sub-import-${Date.now()}-${index}`,
         assetId: 'subtitle-asset',
+        type: MediaType.TEXT,
         startTime: item.startTime,
         duration: Math.max(0.1, item.endTime - item.startTime),
         offset: 0,

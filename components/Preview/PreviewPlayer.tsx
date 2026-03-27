@@ -97,6 +97,13 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
     }
   };
 
+  const handleWheel = (e: React.WheelEvent) => {
+    const zoomSpeed = 0.001;
+    const delta = e.deltaY;
+    const newScale = Math.max(0.1, Math.min(10, scale - delta * zoomSpeed));
+    setScale(newScale);
+  };
+
   const handleMouseUp = () => {
     setIsPanning(false);
     if (isDraggingSub && editingSubId) updateClip(editingSubId, {}, true, applyToAll);
@@ -132,6 +139,7 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
         store={store} setIsCanvasMagnetEnabled={setIsCanvasMagnetEnabled}
         setShowTransformControls={setShowTransformControls}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}
+        onWheel={handleWheel}
         onSubMouseDown={handleSubMouseDown} onSubDoubleClick={() => {}} 
         isDraggingSub={isDraggingSub} editingSubId={editingSubId} snapGuides={snapGuides}
       />

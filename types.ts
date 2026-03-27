@@ -5,7 +5,8 @@ export enum MediaType {
   VIDEO = 'VIDEO',
   AUDIO = 'AUDIO',
   IMAGE = 'IMAGE',
-  TEXT = 'TEXT'
+  TEXT = 'TEXT',
+  EFFECT = 'EFFECT' // Adjustment layers / Global effects
 }
 
 export const WAVEFORM_SAMPLES_PER_SECOND = 30;
@@ -28,6 +29,7 @@ export interface Asset {
 export interface Clip {
   id: string;
   assetId: string;
+  type: MediaType;
   startTime: number; // position on timeline in seconds
   offset: number; // start point within the asset in seconds
   duration: number; // length of the clip on timeline
@@ -44,6 +46,16 @@ export interface Clip {
   scaleY?: number; // Scale factor Y
   rotation?: number; // Rotation in degrees
   
+  // Built-in Color Grading & Adjustments
+  brightness?: number; // 0 to 2 (default 1)
+  contrast?: number;   // 0 to 2 (default 1)
+  saturation?: number; // 0 to 2 (default 1)
+  hue?: number;        // -180 to 180 (default 0)
+  blur?: number;       // 0 to 100 (default 0)
+  sepia?: number;      // 0 to 1 (default 0)
+  grayscale?: number;  // 0 to 1 (default 0)
+  invert?: number;     // 0 to 1 (default 0)
+  
   // New Effects & Styles
   opacity?: number;
   shadow?: boolean;
@@ -58,7 +70,7 @@ export interface Clip {
 
 export interface Effect {
   id: string;
-  type: 'filter' | 'transition' | 'adjustment';
+  type: 'filter' | 'transition' | 'adjustment' | 'motion';
   name: string;
   params: Record<string, any>;
 }

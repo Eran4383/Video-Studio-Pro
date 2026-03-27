@@ -29,6 +29,7 @@ interface PreviewCanvasProps {
   onMouseDown: (e: React.MouseEvent) => void;
   onMouseMove: (e: React.MouseEvent) => void;
   onMouseUp: () => void;
+  onWheel: (e: React.WheelEvent) => void;
   // Subtitle handlers
   onSubMouseDown: (e: React.MouseEvent, subId: string, currentPos: {x: number, y: number}) => void;
   onSubDoubleClick: (e: React.MouseEvent, subId: string, content: string) => void;
@@ -41,6 +42,7 @@ export const PreviewCanvas = ({
   project, assets, renderTime, scale, pan, selectedClipIds,
   isCanvasMagnetEnabled, showTransformControls, videoRef, imageRef, containerRef, store,
   setIsCanvasMagnetEnabled, setShowTransformControls, onMouseDown, onMouseMove, onMouseUp,
+  onWheel,
   onSubMouseDown, onSubDoubleClick, isDraggingSub, editingSubId, snapGuides
 }: PreviewCanvasProps) => {
   const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -90,6 +92,7 @@ export const PreviewCanvas = ({
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
       onMouseLeave={onMouseUp}
+      onWheel={onWheel}
     >
       <div 
         ref={containerRef}

@@ -1,6 +1,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Project, Asset, Clip, Effect, MediaType, WAVEFORM_SAMPLES_PER_SECOND } from './types';
 import { Library } from './components/AssetLibrary/Library';
+import { EffectsSidebar } from './components/AssetLibrary/EffectsSidebar';
 import { Timeline } from './components/Timeline/Timeline';
 import { PreviewPlayer } from './components/Preview/PreviewPlayer';
 import { ShortcutModal } from './components/Shortcuts/ShortcutModal';
@@ -16,9 +18,8 @@ import { DiagnosticsModal } from './components/Diagnostics/DiagnosticsModal';
 import { VERSION } from './config/version';
 import { PropertiesPanel } from './components/Properties/PropertiesPanel';
 import { ProjectDashboard } from './components/Dashboard/ProjectDashboard';
-import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2, Home, ChevronDown, FolderOpen } from 'lucide-react';
+import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2, Home, ChevronDown, FolderOpen, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MediaType, Asset, WAVEFORM_SAMPLES_PER_SECOND } from './types';
 import { parseSRT } from './utils/srtParser';
 import { ResolutionSwitcher } from './components/ProjectSettings/ResolutionSwitcher';
 import { FileMenu } from './components/UI/FileMenu';
@@ -195,6 +196,8 @@ const App = () => {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
+
+  const [activePanel, setActivePanel] = useState<'library' | 'effects'>('library');
 
   const handleAICompose = async () => {
     const aistudio = (window as any).aistudio;
@@ -409,7 +412,24 @@ const App = () => {
 
       <main className="flex-1 flex overflow-hidden">
         <aside className="w-14 bg-[#121212] border-r border-zinc-800/50 flex flex-col items-center py-6 gap-8">
-          <Tooltip text="Asset Layers" position="right"><button className="text-indigo-500 p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"><Layers size={22} /></button></Tooltip>
+          <Tooltip text="Asset Library" position="right">
+            <button 
+              onClick={() => setActivePanel('library')}
+              className={`p-2 rounded-xl transition-all ${activePanel === 'library' ? 'text-indigo-500 bg-indigo-500/10' : 'text-zinc-600 hover:text-indigo-400'}`}
+            >
+              <Layers size={22} />
+            </button>
+          </Tooltip>
+          
+          <Tooltip text="Effects & Transitions" position="right">
+            <button 
+              onClick={() => setActivePanel('effects')}
+              className={`p-2 rounded-xl transition-all ${activePanel === 'effects' ? 'text-indigo-500 bg-indigo-500/10' : 'text-zinc-600 hover:text-indigo-400'}`}
+            >
+              <Sparkles size={22} />
+            </button>
+          </Tooltip>
+
           <Tooltip text="Color & Grading" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><Palette size={22} /></button></Tooltip>
           <Tooltip text="Titles & GFX" position="right"><button onClick={() => store.addSubtitleClip("New Subtitle")} className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
           <Tooltip text="AI Captions" position="right"><button onClick={() => setTranscriptionState(prev => ({ ...prev, isOpen: true, isMinimized: false }))} className="text-zinc-600 hover:text-indigo-400 transition-all"><Captions size={22} /></button></Tooltip>
@@ -422,7 +442,23 @@ const App = () => {
 
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="h-[55%] flex border-b border-zinc-800/50">
-            <Library assets={store.assets} onAddAsset={store.addAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
+            {activePanel === 'library' ? (
+              <Library assets={store.assets} onAddAsset={store.addAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
+            ) : (
+              <EffectsSidebar onApplyEffect={(effect) => {
+                if (store.selectedClipIds.length > 0) {
+                  const clipId = store.selectedClipIds[0];
+                  const clip = store.project.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
+                  if (clip) {
+                    const newEffect: Effect = { ...effect, id: `effect-${Date.now()}` } as Effect;
+                    const currentEffects = clip.effects || [];
+                    store.updateClip(clipId, { effects: [...currentEffects, newEffect] });
+                  }
+                } else {
+                  console.warn("Select a clip on the timeline first to apply an effect.");
+                }
+              }} />
+            )}
             <PreviewPlayer store={store} />
             <PropertiesPanel store={store} />
           </div>

@@ -56,6 +56,7 @@ export class TranscriptionService {
       return {
         id: `sub-${Date.now()}-${index}`,
         assetId: assetId, // We link to the original asset, though it's text
+        type: MediaType.TEXT,
         startTime: res.start + offset,
         offset: 0, // Text clips don't really have an offset into an asset in the same way
         duration: duration,

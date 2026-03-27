@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
-import { Project, Clip, Asset } from '../../types';
-import { Link as LinkIcon } from 'lucide-react';
+import { Project, Clip, Asset, MediaType } from '../../types';
+import { Link as LinkIcon, Layers } from 'lucide-react';
 import { WaveformCanvas } from './WaveformCanvas';
 import { MagneticMarkers } from './MagneticMarkers';
 import { stripRichText } from '../../utils/timelineUtils';
@@ -42,13 +42,16 @@ export const TimelineTracks = memo(({
               const isSelected = selectedClipIds.includes(clip.id);
               const isLinked = selectedClipIds.length > 0 && selectedClipIds.some(id => project.tracks.flatMap(t=>t.clips).find(c=>c.id === id)?.linkedClipId === clip.id);
               const asset = assets.find(a => a.id === clip.assetId);
+              const isEffectClip = clip.type === MediaType.EFFECT;
+              const effectName = isEffectClip && clip.effects?.[0]?.name;
+              
               return (
                 <div
                   key={clip.id} 
                   onContextMenu={(e) => onContextMenu(e, clip.id, track.type)}
                   onMouseDown={(e) => onClipMouseDown(e, clip, track.id)}
                   onMouseMove={(e) => onClipMouseMove(e, clip)}
-                  className={`absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`}
+                  className={`absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : isEffectClip ? 'bg-purple-900/60 ring-1 ring-inset ring-purple-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`}
                   style={{ left: `${clip.startTime * pxPerSec}px`, width: `${clip.duration * pxPerSec}px` }}
                 >
                   {track.type === 'audio' && (
@@ -77,8 +80,9 @@ export const TimelineTracks = memo(({
                   {track.type !== 'subtitle' && (
                     <div className="flex items-center gap-1 z-10 pointer-events-none absolute inset-0 px-1 min-w-0">
                       {clip.linkedClipId && <LinkIcon size={8} className="text-indigo-400 shrink-0" />}
+                      {isEffectClip && <Layers size={10} className="text-purple-300 shrink-0" />}
                       <span className="text-[10px] font-bold text-white truncate uppercase">
-                        {clip.content ? stripRichText(clip.content) : clip.id.split('-')[1]}
+                        {isEffectClip ? (effectName || 'Adjustment Layer') : (clip.content ? stripRichText(clip.content) : clip.id.split('-')[1])}
                       </span>
                     </div>
                   )}

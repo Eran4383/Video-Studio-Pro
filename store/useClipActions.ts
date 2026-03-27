@@ -31,6 +31,7 @@ export const useClipActions = (
       const newClip: Clip = {
         id: `clip-${Math.random().toString(36).substr(2, 9)}`,
         assetId: asset.id,
+        type: asset.type,
         startTime: startTime,
         offset: 0,
         duration: asset.duration || 5,

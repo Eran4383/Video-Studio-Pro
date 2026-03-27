@@ -372,6 +372,51 @@ export const Timeline = ({
 
   const handleDrop = async (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
+    
+    // Handle Effect Drop
+    const effectDataStr = e.dataTransfer.getData('application/json');
+    if (effectDataStr) {
+      try {
+        const data = JSON.parse(effectDataStr);
+        if (data.type === 'effect') {
+          const dropTime = getT(e.clientX);
+          const track = project.tracks.find(t => t.id === trackId);
+          if (track) {
+            // Find clip under drop position
+            const clip = track.clips.find(c => dropTime >= c.startTime && dropTime <= c.startTime + c.duration);
+            if (clip) {
+              const currentEffects = clip.effects || [];
+              const newEffect = { ...data.effect, id: `effect-${Date.now()}` };
+              store.updateClip(clip.id, { effects: [...currentEffects, newEffect] });
+              onSelectClip(clip.id);
+              return;
+            } else {
+              // Create Adjustment Layer (Effect Clip)
+              const newEffectClip: any = {
+                id: `effect-clip-${Date.now()}`,
+                assetId: '', // No asset for adjustment layers
+                type: MediaType.EFFECT,
+                startTime: dropTime,
+                duration: 5, // Default 5s
+                offset: 0,
+                effects: [{ ...data.effect, id: `effect-${Date.now()}` }],
+                position: { x: 0.5, y: 0.5 },
+                scale: 1,
+                rotation: 0,
+                opacity: 1,
+                layer: track.clips.length
+              };
+              store.addClips(trackId, [newEffectClip]);
+              onSelectClip(newEffectClip.id);
+              return;
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to parse drop data:', err);
+      }
+    }
+
     const assetId = e.dataTransfer.getData('assetId');
     if (assetId) {
       const asset = assets.find(a => a.id === assetId);
