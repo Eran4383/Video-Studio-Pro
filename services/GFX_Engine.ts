@@ -91,14 +91,23 @@ export class GFX_Engine {
 
           // Apply Built-in Color Grading & Adjustments
           let filterString = '';
-          if (clip.brightness !== undefined && clip.brightness !== 1) filterString += `brightness(${clip.brightness * 100}%) `;
-          if (clip.contrast !== undefined && clip.contrast !== 1) filterString += `contrast(${clip.contrast * 100}%) `;
-          if (clip.saturation !== undefined && clip.saturation !== 1) filterString += `saturate(${clip.saturation * 100}%) `;
-          if (clip.hue !== undefined && clip.hue !== 0) filterString += `hue-rotate(${clip.hue}deg) `;
-          if (clip.blur !== undefined && clip.blur !== 0) filterString += `blur(${clip.blur}px) `;
-          if (clip.sepia !== undefined && clip.sepia !== 0) filterString += `sepia(${clip.sepia * 100}%) `;
-          if (clip.grayscale !== undefined && clip.grayscale !== 0) filterString += `grayscale(${clip.grayscale * 100}%) `;
-          if (clip.invert !== undefined && clip.invert !== 0) filterString += `invert(${clip.invert * 100}%) `;
+          const brightness = override.brightness !== undefined ? override.brightness / 100 : (clip.brightness ?? 1);
+          const contrast = override.contrast !== undefined ? override.contrast / 100 : (clip.contrast ?? 1);
+          const saturation = override.saturation !== undefined ? override.saturation / 100 : (clip.saturation ?? 1);
+          const hue = override.hue !== undefined ? override.hue : (clip.hue ?? 0);
+          const blur = override.blur !== undefined ? override.blur : (clip.blur ?? 0);
+          const sepia = override.sepia !== undefined ? override.sepia / 100 : (clip.sepia ?? 0);
+          const grayscale = override.grayscale !== undefined ? override.grayscale / 100 : (clip.grayscale ?? 0);
+          const invert = override.invert !== undefined ? override.invert / 100 : (clip.invert ?? 0);
+
+          if (brightness !== 1) filterString += `brightness(${brightness * 100}%) `;
+          if (contrast !== 1) filterString += `contrast(${contrast * 100}%) `;
+          if (saturation !== 1) filterString += `saturate(${saturation * 100}%) `;
+          if (hue !== 0) filterString += `hue-rotate(${hue}deg) `;
+          if (blur !== 0) filterString += `blur(${blur}px) `;
+          if (sepia !== 0) filterString += `sepia(${sepia * 100}%) `;
+          if (grayscale !== 0) filterString += `grayscale(${grayscale * 100}%) `;
+          if (invert !== 0) filterString += `invert(${invert * 100}%) `;
 
           // Apply Visual Effects (Filters)
           if (clip.effects && clip.effects.length > 0) {

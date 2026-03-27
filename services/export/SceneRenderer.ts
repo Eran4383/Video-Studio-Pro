@@ -268,23 +268,98 @@ export class SceneRenderer {
     this.ctx.save();
 
     // 1. Calculate Object-Fit: Contain dimensions
-    // Match PreviewPlayer behavior (object-contain)
     const scaleFactor = Math.min(this.width / srcWidth, this.height / srcHeight);
     const drawWidth = srcWidth * scaleFactor;
     const drawHeight = srcHeight * scaleFactor;
 
-    // 2. Apply Clip Transformations
-    // Default position is center (0.5, 0.5)
+    // 2. Apply Clip Transformations & Effects
     const x = (Number(clip.position?.x) ?? 0.5) * this.width;
     const y = (Number(clip.position?.y) ?? 0.5) * this.height;
     const rotation = Number(clip.rotation) || 0;
     const scale = Number(clip.scale) || 1;
-    const opacity = Number(clip.opacity) ?? 1;
+    let opacity = Number(clip.opacity) ?? 1;
+
+    this.ctx.globalAlpha = opacity;
+
+    // Apply Transition Effects (In/Out)
+    if (clip.effects) {
+      const progress = (time - clip.startTime) / clip.duration;
+      const duration = clip.duration;
+      clip.effects.forEach(effect => {
+        const params = effect.params || {};
+        const transitionDuration = params.duration || 1; 
+        const transitionProgress = transitionDuration / duration;
+
+        if (effect.name === 'crossfade') {
+          if (progress < transitionProgress) {
+            this.ctx.globalAlpha *= (progress / transitionProgress);
+          } else if (progress > (1 - transitionProgress)) {
+            this.ctx.globalAlpha *= ((1 - progress) / transitionProgress);
+          }
+        } else if (effect.name === 'wipe-right') {
+          if (progress < transitionProgress) {
+            const wipeProgress = progress / transitionProgress;
+            this.ctx.beginPath();
+            this.ctx.rect(-drawWidth / 2, -drawHeight / 2, drawWidth * wipeProgress, drawHeight);
+            this.ctx.clip();
+          }
+        }
+      });
+    }
+
+    // Apply Built-in Color Grading & Adjustments
+    let filterString = '';
+    const brightness = clip.brightness ?? 1;
+    const contrast = clip.contrast ?? 1;
+    const saturation = clip.saturation ?? 1;
+    const hue = clip.hue ?? 0;
+    const blur = clip.blur ?? 0;
+    const sepia = clip.sepia ?? 0;
+    const grayscale = clip.grayscale ?? 0;
+    const invert = clip.invert ?? 0;
+
+    if (brightness !== 1) filterString += `brightness(${brightness * 100}%) `;
+    if (contrast !== 1) filterString += `contrast(${contrast * 100}%) `;
+    if (saturation !== 1) filterString += `saturate(${saturation * 100}%) `;
+    if (hue !== 0) filterString += `hue-rotate(${hue}deg) `;
+    if (blur !== 0) filterString += `blur(${blur}px) `;
+    if (sepia !== 0) filterString += `sepia(${sepia * 100}%) `;
+    if (grayscale !== 0) filterString += `grayscale(${grayscale * 100}%) `;
+    if (invert !== 0) filterString += `invert(${invert * 100}%) `;
+
+    // Apply Visual Effects (Filters)
+    if (clip.effects && clip.effects.length > 0) {
+      filterString += clip.effects.map(effect => {
+        const params = effect.params || {};
+        switch (effect.name) {
+          case 'blur': return `blur(${params.amount || 0}px)`;
+          case 'grayscale': return `grayscale(${params.amount || 0}%)`;
+          case 'sepia': return `sepia(${params.amount || 0}%)`;
+          case 'invert': return `invert(${params.amount || 0}%)`;
+          default: return '';
+        }
+      }).filter(Boolean).join(' ');
+    }
+    
+    if (filterString.trim()) this.ctx.filter = filterString.trim();
 
     this.ctx.translate(x, y);
     this.ctx.rotate((rotation * Math.PI) / 180);
-    this.ctx.scale(scale, scale);
-    this.ctx.globalAlpha = opacity;
+    
+    // Apply Motion Effects
+    let motionScale = scale;
+    if (clip.effects) {
+      const progress = (time - clip.startTime) / clip.duration;
+      clip.effects.forEach(effect => {
+        const params = effect.params || {};
+        if (effect.name === 'zoom-in') {
+          motionScale *= (1 + (params.intensity || 0.2) * progress);
+        } else if (effect.name === 'zoom-out') {
+          motionScale *= (1 + (params.intensity || 0.2) * (1 - progress));
+        }
+      });
+    }
+    this.ctx.scale(motionScale, motionScale);
 
     // 3. Draw Centered
     this.ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);

@@ -6,11 +6,12 @@ import { ProSlider } from '../../UI/ProSlider';
 interface FontsTabProps {
   settings: KineticSettings;
   onChange: (updates: Partial<KineticSettings>) => void;
+  clipId: string;
 }
 
 const ALL_FONTS = ['Inter', 'Roboto', 'Montserrat', 'Oswald', 'Poppins', 'Playfair Display', 'Rubik', 'Lora', 'Merriweather', 'Nunito'];
 
-export const FontsTab = ({ settings, onChange }: FontsTabProps) => {
+export const FontsTab = ({ settings, onChange, clipId }: FontsTabProps) => {
   const [isFontDropdownOpen, setIsFontDropdownOpen] = React.useState(false);
   const fontDropdownRef = React.useRef<HTMLDivElement>(null);
 
@@ -141,6 +142,8 @@ export const FontsTab = ({ settings, onChange }: FontsTabProps) => {
         max={2}
         step={0.1}
         unit=""
+        previewId="lineHeight"
+        clipId={clipId}
       />
     </div>
   );

@@ -72,8 +72,26 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
     return 'animate-in fade-in zoom-in fill-mode-forwards'; // pop
   };
 
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleOverride = (e: Event) => {
+      const { clipId, property, value } = (e as CustomEvent).detail;
+      if (clipId !== block.id) return;
+      if (!containerRef.current) return;
+
+      if (property === 'bbox_x') containerRef.current.style.left = `${value}%`;
+      if (property === 'bbox_y') containerRef.current.style.top = `${value}%`;
+      if (property === 'bbox_width') containerRef.current.style.width = `${value}%`;
+      if (property === 'bbox_height') containerRef.current.style.height = `${value}%`;
+    };
+    window.addEventListener('gfx-override', handleOverride);
+    return () => window.removeEventListener('gfx-override', handleOverride);
+  }, [block.id]);
+
   return (
     <div 
+      ref={containerRef}
       style={containerStyle} 
       className={`z-40 ${showBox ? 'border-2 border-dashed border-yellow-500 bg-yellow-500/10' : ''}`}
     >

@@ -8,6 +8,8 @@ export class AudioMuxerService {
   private sampleRate: number = 44100; // Standard AAC sample rate
   private numberOfChannels: number = 2; // Stereo
 
+  private audioBufferCache: Map<string, AudioBuffer> = new Map();
+
   constructor(muxer: Muxer<ArrayBufferTarget>) {
     this.muxer = muxer;
 
@@ -33,7 +35,6 @@ export class AudioMuxerService {
     ErrorReportingService.logExportEvent(0, 'INFO', 'Starting Offline Audio Render');
     
     // 1. Calculate Duration
-    // Include subtitles in duration calculation just in case, but audio usually drives length
     const activeTracks = project.tracks.filter(t => t.isVisible && !t.isMuted);
     const duration = Math.max(...activeTracks.flatMap(t => t.clips.map(c => c.startTime + c.duration)), 1);
     
@@ -42,7 +43,7 @@ export class AudioMuxerService {
     // 2. Create Offline Context
     const offlineCtx = new OfflineAudioContext(
       this.numberOfChannels,
-      duration * this.sampleRate,
+      Math.ceil(duration * this.sampleRate),
       this.sampleRate
     );
 
@@ -56,20 +57,21 @@ export class AudioMuxerService {
         if (!asset || (asset.type !== 'AUDIO' && asset.type !== 'VIDEO')) continue;
 
         try {
-          ErrorReportingService.logExportEvent(0, 'INFO', 'Fetching audio asset', { assetId: asset.id, url: asset.url });
-          // Fetch and decode audio data
-          // Note: In a real app, we might cache decoded buffers. Here we fetch/decode.
-          const response = await fetch(asset.url);
-          if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
-          const arrayBuffer = await response.arrayBuffer();
-          const audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+          let audioBuffer = this.audioBufferCache.get(asset.id);
+          
+          if (!audioBuffer) {
+            ErrorReportingService.logExportEvent(0, 'INFO', 'Fetching and decoding audio asset', { assetId: asset.id, url: asset.url });
+            const response = await fetch(asset.url);
+            if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
+            const arrayBuffer = await response.arrayBuffer();
+            audioBuffer = await offlineCtx.decodeAudioData(arrayBuffer);
+            this.audioBufferCache.set(asset.id, audioBuffer);
+          }
 
           const source = offlineCtx.createBufferSource();
           source.buffer = audioBuffer;
           source.connect(offlineCtx.destination);
           
-          // Handle offset (start point in asset) and startTime (position on timeline)
-          // start(when, offset, duration)
           source.start(clip.startTime, clip.offset, clip.duration);
           ErrorReportingService.logExportEvent(0, 'INFO', 'Scheduled audio clip', { clipId: clip.id });
         } catch (e) {

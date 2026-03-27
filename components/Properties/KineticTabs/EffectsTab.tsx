@@ -6,9 +6,10 @@ import { ProSlider } from '../../UI/ProSlider';
 interface EffectsTabProps {
   settings: KineticSettings;
   onChange: (updates: Partial<KineticSettings>) => void;
+  clipId: string;
 }
 
-export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
+export const EffectsTab = ({ settings, onChange, clipId }: EffectsTabProps) => {
   return (
     <div className="p-3 flex flex-col gap-5 bg-black/20">
       {/* Text Styles */}
@@ -131,6 +132,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={50}
                   step={1}
                   unit="px"
+                  previewId="shadowBlur"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -156,6 +159,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={50}
                   step={1}
                   unit="px"
+                  previewId="shadowOffsetX"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -181,6 +186,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={50}
                   step={1}
                   unit="px"
+                  previewId="shadowOffsetY"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -254,6 +261,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={200}
                   step={1}
                   unit="%"
+                  previewId="backgroundHeight"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -279,6 +288,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={200}
                   step={1}
                   unit="%"
+                  previewId="backgroundWidth"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -304,6 +315,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={50}
                   step={1}
                   unit="px"
+                  previewId="backgroundBorderRadius"
+                  clipId={clipId}
                 />
               )}
             </div>
@@ -329,6 +342,8 @@ export const EffectsTab = ({ settings, onChange }: EffectsTabProps) => {
                   max={50}
                   step={1}
                   unit="px"
+                  previewId="backgroundPadding"
+                  clipId={clipId}
                 />
               )}
             </div>

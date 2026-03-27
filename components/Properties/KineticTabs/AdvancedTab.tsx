@@ -5,9 +5,10 @@ import { ProSlider } from '../../UI/ProSlider';
 interface AdvancedTabProps {
   settings: KineticSettings;
   onChange: (updates: Partial<KineticSettings>) => void;
+  clipId: string;
 }
 
-export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
+export const AdvancedTab = ({ settings, onChange, clipId }: AdvancedTabProps) => {
   return (
     <div className="p-3 flex flex-col gap-5 bg-black/20">
       <div className="flex flex-col gap-3">
@@ -89,6 +90,8 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
               max={100}
               step={5}
               unit="%"
+              previewId="pastWordsOpacity"
+              clipId={clipId}
             />
             <ProSlider
               label="Fade Duration"
@@ -98,6 +101,8 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
               max={5}
               step={0.1}
               unit="s"
+              previewId="pastWordsFadeDuration"
+              clipId={clipId}
             />
           </div>
         )}
@@ -125,6 +130,8 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
         max={2.0}
         step={0.1}
         unit="s"
+        previewId="maxTimeGap"
+        clipId={clipId}
       />
 
       <ProSlider
@@ -135,6 +142,8 @@ export const AdvancedTab = ({ settings, onChange }: AdvancedTabProps) => {
         max={20}
         step={1}
         unit="%"
+        previewId="gap"
+        clipId={clipId}
       />
     </div>
   );

@@ -221,6 +221,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.shadowBlur ?? 4} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { shadowBlur: v })}
                     min={0} max={20} step={1} unit="px" 
+                    previewId={`word_${selectedWord.id}_shadowBlur`}
+                    clipId={clipId}
                   />
                 </div>
                 
@@ -230,6 +232,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.shadowOffsetX ?? 2} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { shadowOffsetX: v })}
                     min={-20} max={20} step={1} unit="px" 
+                    previewId={`word_${selectedWord.id}_shadowOffsetX`}
+                    clipId={clipId}
                   />
                 </div>
                 
@@ -239,6 +243,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.shadowOffsetY ?? 2} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { shadowOffsetY: v })}
                     min={-20} max={20} step={1} unit="px" 
+                    previewId={`word_${selectedWord.id}_shadowOffsetY`}
+                    clipId={clipId}
                   />
                 </div>
               </div>
@@ -280,6 +286,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.backgroundPadding ?? 4} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { backgroundPadding: v })}
                     min={0} max={40} step={1} unit="px" 
+                    previewId={`word_${selectedWord.id}_backgroundPadding`}
+                    clipId={clipId}
                   />
                 </div>
                 
@@ -289,6 +297,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.backgroundBorderRadius ?? 4} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { backgroundBorderRadius: v })}
                     min={0} max={40} step={1} unit="px" 
+                    previewId={`word_${selectedWord.id}_backgroundBorderRadius`}
+                    clipId={clipId}
                   />
                 </div>
                 
@@ -298,6 +308,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.backgroundWidth ?? 100} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { backgroundWidth: v })}
                     min={50} max={200} step={1} unit="%" 
+                    previewId={`word_${selectedWord.id}_backgroundWidth`}
+                    clipId={clipId}
                   />
                 </div>
                 
@@ -307,6 +319,8 @@ export const KineticWordEditor = ({
                     value={selectedWord.backgroundHeight ?? 100} 
                     onChange={(v) => onUpdateWord(selectedWord.id, { backgroundHeight: v })}
                     min={50} max={200} step={1} unit="%" 
+                    previewId={`word_${selectedWord.id}_backgroundHeight`}
+                    clipId={clipId}
                   />
                 </div>
               </div>
@@ -325,6 +339,8 @@ export const KineticWordEditor = ({
               max={300} 
               step={1} 
               unit="%" 
+              previewId={`word_${selectedWord.id}_scale`}
+              clipId={clipId}
             />
           </div>
 

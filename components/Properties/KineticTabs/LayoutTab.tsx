@@ -6,6 +6,7 @@ import { ProSlider } from '../../UI/ProSlider';
 interface LayoutTabProps {
   settings: KineticSettings;
   onChange: (updates: Partial<KineticSettings>) => void;
+  clipId: string;
 }
 
 const LAYOUT_DESCRIPTIONS: Record<string, string> = {
@@ -22,7 +23,7 @@ const ANIMATION_OPTIONS: { id: KineticAnimationStyle; label: string }[] = [
   { id: 'fade', label: 'Fade' }
 ];
 
-export const LayoutTab = ({ settings, onChange }: LayoutTabProps) => {
+export const LayoutTab = ({ settings, onChange, clipId }: LayoutTabProps) => {
   const layoutValue = settings.layoutMultiSelect 
     ? (Array.isArray(settings.layoutStyle) ? settings.layoutStyle : (settings.layoutStyle ? [settings.layoutStyle as string] : []))
     : (Array.isArray(settings.layoutStyle) ? (settings.layoutStyle[0] || 'dynamic-collage') : (settings.layoutStyle || 'dynamic-collage'));
@@ -143,6 +144,8 @@ export const LayoutTab = ({ settings, onChange }: LayoutTabProps) => {
                 max={100}
                 step={1}
                 unit="%"
+                previewId={`layoutWeight_${style}`}
+                clipId={clipId}
               />
             ))}
           </div>

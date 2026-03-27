@@ -55,21 +55,84 @@ export const PreviewCanvas = ({
     .find(c => renderTime >= c.startTime && renderTime < c.startTime + c.duration);
   const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
 
-  // Render GFX
+  const latestProps = useRef({ project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef });
+
   useEffect(() => {
+    latestProps.current = { project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef };
+  }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
+
+  // Render GFX
+  const renderGFX = () => {
     const canvas = gfxCanvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const { project: p, renderTime: rt, activeVideoClip: avc, activeVideoAsset: ava, videoRef: vr, imageRef: ir } = latestProps.current;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const activeMedia = activeVideoClip && (videoRef.current || imageRef.current) ? {
-        element: (activeVideoAsset?.type === 'VIDEO' ? videoRef.current : imageRef.current) as HTMLVideoElement | HTMLImageElement,
-        clipId: activeVideoClip.id,
-        asset: activeVideoAsset
+    const activeMedia = avc && (vr.current || ir.current) ? {
+        element: (ava?.type === 'VIDEO' ? vr.current : ir.current) as HTMLVideoElement | HTMLImageElement,
+        clipId: avc.id,
+        asset: ava
     } : undefined;
 
-    GFX_Engine.render(ctx, project, renderTime, liveOverrides.current, activeMedia);
+    GFX_Engine.render(ctx, p, rt, liveOverrides.current, activeMedia);
+  };
+
+  useEffect(() => {
+    renderGFX();
+  }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
+
+  // Listen for Live Overrides
+  useEffect(() => {
+    let rafId: number;
+    const handleOverride = (e: Event) => {
+      const { clipId, property, value } = (e as CustomEvent).detail;
+      
+      if (!liveOverrides.current[clipId]) {
+        liveOverrides.current[clipId] = {};
+      }
+      liveOverrides.current[clipId][property] = value;
+
+      // Direct DOM manipulation for subtitles
+      const subDom = document.getElementById(`sub-dom-${clipId}`);
+      if (subDom) {
+        const overrides = liveOverrides.current[clipId];
+        const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
+        const x = overrides.posX !== undefined ? overrides.posX : (clip?.position?.x ?? 0.5) * 100;
+        const y = overrides.posY !== undefined ? overrides.posY : (clip?.position?.y ?? 0.9) * 100;
+        const rot = overrides.rotation !== undefined ? overrides.rotation : (clip?.rotation ?? 0);
+        
+        subDom.style.left = `${x}%`;
+        subDom.style.top = `${y}%`;
+        subDom.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+      }
+
+      const subText = document.getElementById(`sub-text-${clipId}`);
+      if (subText && property === 'scale') {
+         subText.style.fontSize = `${(value / 100) * 1.25}rem`;
+      }
+
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(renderGFX);
+    };
+
+    const handleClear = () => {
+      liveOverrides.current = {};
+      // We don't call renderGFX here to avoid a 1-frame flicker.
+      // The canvas will be re-rendered by the useEffect when the React state updates.
+      // If the state doesn't update (value didn't change), the canvas will still look correct
+      // because the override value matches the current state.
+    };
+
+    window.addEventListener('gfx-override', handleOverride);
+    window.addEventListener('gfx-override-clear', handleClear);
+    return () => {
+      window.removeEventListener('gfx-override', handleOverride);
+      window.removeEventListener('gfx-override-clear', handleClear);
+      if (rafId) cancelAnimationFrame(rafId);
+    };
   }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
 
   const activeSubs = project.tracks
@@ -202,10 +265,33 @@ export const PreviewCanvas = ({
             containerRef={containerRef}
             isVideo={project.tracks.find(t => t.clips.some(c => c.id === selectedClip.id))?.type === 'video'}
             onUpdate={(pos, scale, rot, scaleX, scaleY) => {
-              store.updateClip(selectedClip.id, { position: pos, scale, rotation: rot, scaleX, scaleY }, false, store.applyToAll);
+              window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'posX', value: pos.x * 100 } }));
+              window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'posY', value: pos.y * 100 } }));
+              window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'scale', value: scale * 100 } }));
+              window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'rotation', value: rot } }));
+              if (scaleX !== undefined) window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'scaleX', value: scaleX * 100 } }));
+              if (scaleY !== undefined) window.dispatchEvent(new CustomEvent('gfx-override', { detail: { clipId: selectedClip.id, property: 'scaleY', value: scaleY * 100 } }));
             }}
             onFinalize={() => {
-              store.updateClip(selectedClip.id, {}, true, store.applyToAll);
+              const overrides = liveOverrides.current[selectedClip.id];
+              if (overrides) {
+                const updates: any = {};
+                if (overrides.posX !== undefined || overrides.posY !== undefined) {
+                  updates.position = {
+                    x: overrides.posX !== undefined ? overrides.posX / 100 : selectedClip.position?.x ?? 0.5,
+                    y: overrides.posY !== undefined ? overrides.posY / 100 : selectedClip.position?.y ?? 0.5
+                  };
+                }
+                if (overrides.scale !== undefined) updates.scale = overrides.scale / 100;
+                if (overrides.rotation !== undefined) updates.rotation = overrides.rotation;
+                if (overrides.scaleX !== undefined) updates.scaleX = overrides.scaleX / 100;
+                if (overrides.scaleY !== undefined) updates.scaleY = overrides.scaleY / 100;
+                
+                if (Object.keys(updates).length > 0) {
+                  store.updateClip(selectedClip.id, updates, true, store.applyToAll);
+                }
+              }
+              window.dispatchEvent(new CustomEvent('gfx-override-clear'));
             }}
           />
         )}

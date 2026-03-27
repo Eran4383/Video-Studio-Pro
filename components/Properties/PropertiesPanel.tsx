@@ -489,24 +489,28 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
               label="Brightness" 
               value={(selectedClip.brightness ?? 1) * 100} 
               onChange={(v) => updateClip({ brightness: v / 100 }, true)}
+              previewId="brightness" clipId={selectedClip.id}
               min={0} max={200} step={1} unit="%" defaultValue={100}
             />
             <ProSlider 
               label="Contrast" 
               value={(selectedClip.contrast ?? 1) * 100} 
               onChange={(v) => updateClip({ contrast: v / 100 }, true)}
+              previewId="contrast" clipId={selectedClip.id}
               min={0} max={200} step={1} unit="%" defaultValue={100}
             />
             <ProSlider 
               label="Saturation" 
               value={(selectedClip.saturation ?? 1) * 100} 
               onChange={(v) => updateClip({ saturation: v / 100 }, true)}
+              previewId="saturation" clipId={selectedClip.id}
               min={0} max={200} step={1} unit="%" defaultValue={100}
             />
             <ProSlider 
               label="Hue Rotate" 
               value={selectedClip.hue ?? 0} 
               onChange={(v) => updateClip({ hue: v }, true)}
+              previewId="hue" clipId={selectedClip.id}
               min={-180} max={180} step={1} unit="°" defaultValue={0}
             />
             <div className="h-px bg-zinc-800/50 my-2" />
@@ -514,24 +518,28 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
               label="Blur" 
               value={selectedClip.blur ?? 0} 
               onChange={(v) => updateClip({ blur: v }, true)}
+              previewId="blur" clipId={selectedClip.id}
               min={0} max={50} step={0.5} unit="px" defaultValue={0}
             />
             <ProSlider 
               label="Sepia" 
               value={(selectedClip.sepia ?? 0) * 100} 
               onChange={(v) => updateClip({ sepia: v / 100 }, true)}
+              previewId="sepia" clipId={selectedClip.id}
               min={0} max={100} step={1} unit="%" defaultValue={0}
             />
             <ProSlider 
               label="Grayscale" 
               value={(selectedClip.grayscale ?? 0) * 100} 
               onChange={(v) => updateClip({ grayscale: v / 100 }, true)}
+              previewId="grayscale" clipId={selectedClip.id}
               min={0} max={100} step={1} unit="%" defaultValue={0}
             />
             <ProSlider 
               label="Invert" 
               value={(selectedClip.invert ?? 0) * 100} 
               onChange={(v) => updateClip({ invert: v / 100 }, true)}
+              previewId="invert" clipId={selectedClip.id}
               min={0} max={100} step={1} unit="%" defaultValue={0}
             />
           </div>

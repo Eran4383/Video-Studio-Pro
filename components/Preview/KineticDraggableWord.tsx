@@ -171,6 +171,39 @@ export const KineticDraggableWord = ({
     };
   }, [blockId, word.id, store, word.stretchX, word.stretchY]);
 
+  useEffect(() => {
+    const handleOverride = (e: Event) => {
+      const { clipId, property, value } = (e as CustomEvent).detail;
+      if (clipId !== word.id) return;
+      if (!spanRef.current) return;
+
+      const innerSpan = spanRef.current.querySelector('span');
+      if (!innerSpan) return;
+
+      if (property === `word_${word.id}_scale`) {
+         const isStretchX = word.stretchX;
+         const isStretchY = word.stretchY;
+         innerSpan.style.fontSize = isStretchX ? '100cqw' : (isStretchY ? '100cqh' : `${value}cqh`);
+      }
+      if (property === `word_${word.id}_shadowBlur` || property === `word_${word.id}_shadowOffsetX` || property === `word_${word.id}_shadowOffsetY`) {
+         // Reconstruct text shadow
+         const blur = property === `word_${word.id}_shadowBlur` ? value : (word.shadowBlur ?? 4);
+         const ox = property === `word_${word.id}_shadowOffsetX` ? value : (word.shadowOffsetX ?? 2);
+         const oy = property === `word_${word.id}_shadowOffsetY` ? value : (word.shadowOffsetY ?? 2);
+         const color = word.shadowColor || 'rgba(0,0,0,0.5)';
+         innerSpan.style.textShadow = `${ox}px ${oy}px ${blur}px ${color}`;
+      }
+      if (property === `word_${word.id}_backgroundPadding`) {
+         spanRef.current.style.padding = `${value}px`;
+      }
+      if (property === `word_${word.id}_backgroundBorderRadius`) {
+         spanRef.current.style.borderRadius = `${value}px`;
+      }
+    };
+    window.addEventListener('gfx-override', handleOverride);
+    return () => window.removeEventListener('gfx-override', handleOverride);
+  }, [word.id, word.stretchX, word.stretchY, word.shadowBlur, word.shadowOffsetX, word.shadowOffsetY, word.shadowColor]);
+
   const isStretchX = word.stretchX;
   const isStretchY = word.stretchY;
 

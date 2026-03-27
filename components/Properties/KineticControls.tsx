@@ -242,14 +242,14 @@ export const KineticControls = ({ selectedClip, store, isBlock }: KineticControl
 
            {hasBoundingBox && (
              <div className="grid grid-cols-2 gap-2">
-                <ProSlider label="X" value={bbox.x * 100} onChange={(v) => updateBBox('x', v)} min={0} max={100} step={1} unit="%" />
-                <ProSlider label="Y" value={bbox.y * 100} onChange={(v) => updateBBox('y', v)} min={0} max={100} step={1} unit="%" />
-                <ProSlider label="W" value={bbox.width * 100} onChange={(v) => updateBBox('width', v)} min={5} max={100} step={1} unit="%" />
-                <ProSlider label="H" value={bbox.height * 100} onChange={(v) => updateBBox('width', v)} min={5} max={100} step={1} unit="%" />
+                <ProSlider label="X" value={bbox.x * 100} onChange={(v) => updateBBox('x', v)} min={0} max={100} step={1} unit="%" previewId="bbox_x" clipId={selectedClip.id} />
+                <ProSlider label="Y" value={bbox.y * 100} onChange={(v) => updateBBox('y', v)} min={0} max={100} step={1} unit="%" previewId="bbox_y" clipId={selectedClip.id} />
+                <ProSlider label="W" value={bbox.width * 100} onChange={(v) => updateBBox('width', v)} min={5} max={100} step={1} unit="%" previewId="bbox_width" clipId={selectedClip.id} />
+                <ProSlider label="H" value={bbox.height * 100} onChange={(v) => updateBBox('height', v)} min={5} max={100} step={1} unit="%" previewId="bbox_height" clipId={selectedClip.id} />
              </div>
            )}
 
-           <KineticSettingsForm settings={settings} onChange={updateSettings} />
+           <KineticSettingsForm settings={settings} onChange={updateSettings} clipId={selectedClip.id} />
 
            {/* Large Action Buttons */}
            <div className="flex gap-2 mt-2">

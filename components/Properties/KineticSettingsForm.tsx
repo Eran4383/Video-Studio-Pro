@@ -12,11 +12,12 @@ import { EffectsTab } from './KineticTabs/EffectsTab';
 interface KineticSettingsFormProps {
   settings: KineticSettings;
   onChange: (updates: Partial<KineticSettings>) => void;
+  clipId: string;
 }
 
 type TabId = 'Layout' | 'Fonts' | 'Colors' | 'Effects' | 'Advanced' | 'BoundingBox';
 
-export const KineticSettingsForm = ({ settings, onChange }: KineticSettingsFormProps) => {
+export const KineticSettingsForm = ({ settings, onChange, clipId }: KineticSettingsFormProps) => {
   const { applySettingsToAllKineticBlocks } = useProjectStore();
   const [tabOrder, setTabOrder] = React.useState<TabId[]>(['Layout', 'Fonts', 'Colors', 'Effects', 'Advanced', 'BoundingBox']);
 
@@ -52,14 +53,14 @@ export const KineticSettingsForm = ({ settings, onChange }: KineticSettingsFormP
         return (
           <details key={id} className="group mb-2 border border-zinc-800 rounded-md overflow-hidden" open>
             {summary('Layout & Animation')}
-            <LayoutTab settings={settings} onChange={onChange} />
+            <LayoutTab settings={settings} onChange={onChange} clipId={clipId} />
           </details>
         );
       case 'Fonts':
         return (
           <details key={id} className="group mb-2 border border-zinc-800 rounded-md overflow-hidden">
             {summary('Fonts')}
-            <FontsTab settings={settings} onChange={onChange} />
+            <FontsTab settings={settings} onChange={onChange} clipId={clipId} />
           </details>
         );
       case 'Colors':
@@ -73,14 +74,14 @@ export const KineticSettingsForm = ({ settings, onChange }: KineticSettingsFormP
         return (
           <details key={id} className="group mb-2 border border-zinc-800 rounded-md overflow-hidden">
             {summary('Effects & Styles')}
-            <EffectsTab settings={settings} onChange={onChange} />
+            <EffectsTab settings={settings} onChange={onChange} clipId={clipId} />
           </details>
         );
       case 'Advanced':
         return (
           <details key={id} className="group mb-2 border border-zinc-800 rounded-md overflow-hidden">
             {summary('Advanced')}
-            <AdvancedTab settings={settings} onChange={onChange} />
+            <AdvancedTab settings={settings} onChange={onChange} clipId={clipId} />
           </details>
         );
       case 'BoundingBox':
