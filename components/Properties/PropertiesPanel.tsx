@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import ReactQuill from 'react-quill-new';
 import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
@@ -43,6 +44,27 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
   const [sections, setSections] = useState({ transform: true, text: true, style: true, effects: true });
   const [editingText, setEditingText] = useState('');
   const [activeTab, setActiveTab] = useState<'basic' | 'kinetic'>('basic');
+  const quillRef = useRef<any>(null);
+
+  const handleFormatting = (type: 'bold' | 'italic' | 'underline') => {
+    const quill = quillRef.current?.getEditor();
+    if (!quill) return;
+
+    const range = quill.getSelection();
+    if (range) {
+      if (range.length > 0) {
+        const currentFormat = quill.getFormat(range);
+        if (type === 'bold') quill.format('bold', !currentFormat.bold);
+        if (type === 'italic') quill.format('italic', !currentFormat.italic);
+        if (type === 'underline') quill.format('underline', !currentFormat.underline);
+      } else {
+        // No selection - toggle global property for the whole clip
+        if (type === 'bold') updateClip({ fontWeight: selectedClip.fontWeight === 'bold' ? 'normal' : 'bold' }, true);
+        if (type === 'italic') updateClip({ isItalic: !selectedClip.isItalic }, true);
+        if (type === 'underline') updateClip({ isUnderline: !selectedClip.isUnderline }, true);
+      }
+    }
+  };
 
   useEffect(() => {
     if (selectedClip && isSubtitle) setEditingText(selectedClip.content || '');
@@ -267,20 +289,27 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
           {/* Text Section (Subtitles Only) */}
           {isSubtitle && (
             <Section id="text" title="Text Content" icon={Type} isOpen={sections.text} onToggle={toggleSection}>
-          <div className="flex flex-col gap-3">
-            <textarea
-              value={editingText}
-              onChange={(e) => {
-                setEditingText(e.target.value);
-                // Live update for text content
-                updateClip({ content: e.target.value }, false);
-              }}
-              onBlur={() => updateClip({ content: editingText }, true)}
-              className="bg-[#080808] border border-zinc-800 rounded-lg p-3 text-xs text-white resize-y min-h-[100px] focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/20 outline-none block w-full font-sans transition-all placeholder:text-zinc-700"
-              placeholder="Enter subtitle text..."
-            />
-            
-            <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/50">
+            <div className="flex flex-col gap-3">
+              <div className="quill-container">
+                <ReactQuill
+                  ref={quillRef}
+                  theme="snow"
+                  value={editingText}
+                  onChange={(content) => {
+                    setEditingText(content);
+                    // Live update for text content
+                    updateClip({ content: content }, false);
+                  }}
+                  onBlur={() => updateClip({ content: editingText }, true)}
+                  modules={{
+                    toolbar: false
+                  }}
+                  placeholder="Enter subtitle text..."
+                  className="bg-[#080808] border border-zinc-800 rounded-lg text-xs text-white min-h-[100px] focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/20 outline-none block w-full font-sans transition-all"
+                />
+              </div>
+              
+              <div className="flex items-center justify-between bg-zinc-900/50 p-2 rounded-lg border border-zinc-800/50">
                <div className="flex items-center gap-2">
                   <input 
                     type="checkbox" 
@@ -356,13 +385,23 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                 <div className="w-px h-4 bg-zinc-800" />
                 <div className="flex gap-1">
                   <button 
-                    onClick={() => updateClip({ fontWeight: selectedClip.fontWeight === 'bold' ? 'normal' : 'bold' }, true)}
+                    onClick={() => handleFormatting('bold')}
                     className={`p-1.5 rounded transition-colors ${selectedClip.fontWeight === 'bold' ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
                   >
                     <Bold size={12} />
                   </button>
-                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Italic size={12} /></button>
-                  <button className="p-1.5 rounded hover:bg-zinc-800 text-zinc-500 hover:text-white transition-colors"><Underline size={12} /></button>
+                  <button 
+                    onClick={() => handleFormatting('italic')}
+                    className={`p-1.5 rounded transition-colors ${selectedClip.isItalic ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <Italic size={12} />
+                  </button>
+                  <button 
+                    onClick={() => handleFormatting('underline')}
+                    className={`p-1.5 rounded transition-colors ${selectedClip.isUnderline ? 'bg-zinc-800 text-white shadow-sm' : 'hover:bg-zinc-800 text-zinc-500 hover:text-white'}`}
+                  >
+                    <Underline size={12} />
+                  </button>
                 </div>
              </div>
            </div>

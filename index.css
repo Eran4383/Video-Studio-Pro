@@ -1,0 +1,44 @@
+
+/* React Quill Custom Styles */
+.quill-container .ql-container.ql-snow {
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.quill-container .ql-editor {
+  padding: 0 !important;
+  min-height: 100px;
+  color: white !important;
+  font-size: 12px !important;
+  line-height: 1.5;
+}
+
+.quill-container .ql-editor.ql-blank::before {
+  color: #3f3f46 !important;
+  font-style: normal !important;
+  left: 0 !important;
+  right: 0 !important;
+}
+
+.quill-container .ql-editor p {
+  margin-bottom: 0.5em;
+}
+
+.quill-container .ql-editor b, 
+.quill-container .ql-editor strong {
+  font-weight: bold !important;
+}
+
+.quill-container .ql-editor i, 
+.quill-container .ql-editor em {
+  font-style: italic !important;
+}
+
+.quill-container .ql-editor u {
+  text-decoration: underline !important;
+}
+
+/* Hide the toolbar if it's accidentally rendered */
+.quill-container .ql-toolbar {
+  display: none !important;
+}

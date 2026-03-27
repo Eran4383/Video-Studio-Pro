@@ -166,20 +166,20 @@ export const KineticWordEditor = ({
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => onUpdateWord(selectedWord.id, { isBold: !selectedWord.isBold })}
-                className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${selectedWord.isBold ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                onClick={() => onUpdateWord(selectedWord.id, { isBold: !(selectedWord.isBold ?? settings?.isBold) })}
+                className={`flex-1 py-1.5 rounded text-xs font-bold transition-colors ${(selectedWord.isBold ?? settings?.isBold) ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
               >
                 B
               </button>
               <button
-                onClick={() => onUpdateWord(selectedWord.id, { isItalic: !selectedWord.isItalic })}
-                className={`flex-1 py-1.5 rounded text-xs italic transition-colors ${selectedWord.isItalic ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                onClick={() => onUpdateWord(selectedWord.id, { isItalic: !(selectedWord.isItalic ?? settings?.isItalic) })}
+                className={`flex-1 py-1.5 rounded text-xs italic transition-colors ${(selectedWord.isItalic ?? settings?.isItalic) ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
               >
                 I
               </button>
               <button
-                onClick={() => onUpdateWord(selectedWord.id, { isUnderline: !selectedWord.isUnderline })}
-                className={`flex-1 py-1.5 rounded text-xs underline transition-colors ${selectedWord.isUnderline ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
+                onClick={() => onUpdateWord(selectedWord.id, { isUnderline: !(selectedWord.isUnderline ?? settings?.isUnderline) })}
+                className={`flex-1 py-1.5 rounded text-xs underline transition-colors ${(selectedWord.isUnderline ?? settings?.isUnderline) ? 'bg-purple-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
               >
                 U
               </button>

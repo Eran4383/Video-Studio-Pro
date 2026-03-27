@@ -22,6 +22,7 @@ export interface Asset {
   waveform?: number[]; // Normalized amplitude data (0 to 1)
   anchors?: number[]; // Timestamps (in seconds) where audio onsets are detected
   audioBuffer?: AudioBuffer; // Decoded audio data for sample-accurate playback
+  file?: File; // Original file reference for re-processing
 }
 
 export interface Clip {
@@ -47,6 +48,8 @@ export interface Clip {
   opacity?: number;
   shadow?: boolean;
   fontWeight?: string; // 'bold', 'normal', etc.
+  isItalic?: boolean;
+  isUnderline?: boolean;
   textAlign?: 'left' | 'center' | 'right';
   
   // Kinetic Typography Data (Optional)

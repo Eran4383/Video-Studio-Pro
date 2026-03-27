@@ -25,7 +25,7 @@ export const HybridSlider = ({
 }: HybridSliderProps) => {
   const [localValue, setLocalValue] = useState(value);
   const [isDragging, setIsDragging] = useState(false);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | undefined>(undefined);
   const lastValueRef = useRef(value);
 
   useEffect(() => {

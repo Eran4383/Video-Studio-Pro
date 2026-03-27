@@ -4,7 +4,9 @@ import { waveformAnalyzer } from '../../utils/WaveformAnalyzer';
 
 interface WaveformCanvasProps {
   assetId: string;
-  buffer: AudioBuffer;
+  duration: number;
+  buffer?: AudioBuffer;
+  waveform?: number[];
   clipOffset: number;
   clipDuration: number;
   pxPerSec: number;
@@ -21,7 +23,7 @@ interface WaveformCanvasProps {
  * Replaces the old SVG-based Waveform for professional-grade precision.
  */
 export const WaveformCanvas = ({
-  assetId, buffer, clipOffset, clipDuration, pxPerSec, fps, 
+  assetId, duration, buffer, waveform, clipOffset, clipDuration, pxPerSec, fps, 
   color = '#6366f1', isExpanded = false, waveformStyle = 'solid', waveformScale = 1.0
 }: WaveformCanvasProps) => {
   const totalWidth = Math.ceil(clipDuration * pxPerSec);
@@ -40,7 +42,9 @@ export const WaveformCanvas = ({
         <WaveformChunk 
           key={chunk.index}
           assetId={assetId}
+          duration={duration}
           buffer={buffer}
+          waveform={waveform}
           clipOffset={clipOffset}
           pxPerSec={pxPerSec}
           fps={fps}
@@ -60,7 +64,9 @@ export const WaveformCanvas = ({
 
 interface WaveformChunkProps {
   assetId: string;
-  buffer: AudioBuffer;
+  duration: number;
+  buffer?: AudioBuffer;
+  waveform?: number[];
   clipOffset: number;
   pxPerSec: number;
   fps: number;
@@ -76,7 +82,7 @@ interface WaveformChunkProps {
 }
 
 const WaveformChunk = ({
-  assetId, buffer, clipOffset, pxPerSec, fps, color, isExpanded, waveformStyle, waveformScale, chunkWidth, chunkOffsetPx, height
+  assetId, duration, buffer, waveform, clipOffset, pxPerSec, fps, color, isExpanded, waveformStyle, waveformScale, chunkWidth, chunkOffsetPx, height
 }: WaveformChunkProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -115,11 +121,23 @@ const WaveformChunk = ({
     ctx.scale(dpr, dpr);
 
     const resolution = Math.max(fps, Math.round(pxPerSec));
-    const data = waveformAnalyzer.getWaveformData(assetId, buffer, resolution);
     
-    // Calculate the start time for this specific chunk
-    const chunkStartTime = clipOffset + (chunkOffsetPx / pxPerSec);
-    const startIdx = Math.floor(chunkStartTime * resolution);
+    let data: { peaks: Float32Array | number[], rms: Float32Array | number[], resolution: number };
+    
+    if (buffer && typeof buffer.getChannelData === 'function') {
+      data = waveformAnalyzer.getWaveformData(assetId, buffer, resolution);
+    } else if (waveform && waveform.length > 0) {
+      // Fallback to the low-res waveform from asset metadata
+      // The asset.waveform is interleaved [min, max, min, max...]
+      data = { 
+        peaks: waveform, 
+        rms: new Array(waveform.length / 2).fill(0.5), 
+        resolution: waveform.length / 2 / (duration || 1) // Use passed duration
+      };
+    } else {
+      return; // Nothing to draw
+    }
+    
     const midY = height / 2;
     const gain = (isExpanded ? 0.95 : 0.8) * waveformScale;
     
@@ -130,19 +148,37 @@ const WaveformChunk = ({
     ctx.lineWidth = 1;
 
     const step = waveformStyle === 'lines' ? 4 : 1;
+    
+    // If we are using fallback data, we might need a different mapping
+    const isFallback = !buffer || typeof buffer.getChannelData !== 'function';
+
     for (let x = 0; x < chunkWidth; x += step) {
-      const timeAtX = x / pxPerSec;
-      const sampleIdx = startIdx + Math.floor(timeAtX * resolution);
+      const timeAtX = (chunkOffsetPx + x) / pxPerSec;
+      const clipTime = clipOffset + (x / pxPerSec);
       
-      if (sampleIdx * 2 >= data.peaks.length) break;
+      let min = 0;
+      let max = 0;
+      let alpha = 0.5;
 
-      const min = data.peaks[sampleIdx * 2];
-      const max = data.peaks[sampleIdx * 2 + 1];
-      const rms = data.rms[sampleIdx];
+      if (isFallback) {
+        // Map time to waveform index
+        const progress = (clipOffset + (chunkOffsetPx + x) / pxPerSec) / (duration || 1);
+        const idx = Math.floor(progress * (waveform!.length / 2));
+        if (idx * 2 < waveform!.length) {
+          min = waveform![idx * 2];
+          max = waveform![idx * 2 + 1];
+        }
+      } else {
+        const sampleIdx = Math.floor(clipTime * resolution);
+        if (sampleIdx * 2 < data.peaks.length) {
+          min = data.peaks[sampleIdx * 2];
+          max = data.peaks[sampleIdx * 2 + 1];
+          const rms = data.rms[sampleIdx];
+          alpha = Math.min(1, 0.35 + rms * 1.8);
+        }
+      }
 
-      const alpha = Math.min(1, 0.35 + rms * 1.8);
       ctx.globalAlpha = alpha;
-
       const yMin = midY + (min * midY * gain);
       const yMax = midY + (max * midY * gain);
 
@@ -150,11 +186,9 @@ const WaveformChunk = ({
         const segmentHeight = 2;
         const gap = 1;
         const segmentTotal = segmentHeight + gap;
-        
         const amplitude = Math.max(Math.abs(min), Math.abs(max)) * gain;
         const barHeight = amplitude * (isExpanded ? height / 2 : height);
         const segments = Math.floor(barHeight / segmentTotal);
-        
         const centerY = isExpanded ? midY : height;
         
         for (let s = 0; s < segments; s++) {
@@ -166,10 +200,8 @@ const WaveformChunk = ({
           else segColor = '#ef4444';
           
           ctx.fillStyle = segColor;
-          
           const syUp = centerY - (s + 1) * segmentTotal;
           ctx.fillRect(x + 0.5, syUp, 3, segmentHeight);
-          
           if (isExpanded) {
             const syDown = centerY + s * segmentTotal;
             ctx.fillRect(x + 0.5, syDown, 3, segmentHeight);
@@ -190,7 +222,6 @@ const WaveformChunk = ({
       ctx.beginPath();
       ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
       const frameWidth = pxPerSec / fps;
-      // Align grid to the global time
       const offsetRemainder = chunkOffsetPx % frameWidth;
       const startF = offsetRemainder === 0 ? 0 : frameWidth - offsetRemainder;
       
@@ -200,7 +231,7 @@ const WaveformChunk = ({
       }
       ctx.stroke();
     }
-  }, [assetId, buffer, clipOffset, pxPerSec, fps, color, isExpanded, chunkWidth, chunkOffsetPx, height, waveformStyle, waveformScale, isVisible]);
+  }, [assetId, duration, buffer, waveform, clipOffset, pxPerSec, fps, color, isExpanded, chunkWidth, chunkOffsetPx, height, waveformStyle, waveformScale, isVisible]);
 
   return (
     <div ref={containerRef} style={{ width: chunkWidth, height }} className="shrink-0">

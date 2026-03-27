@@ -50,6 +50,10 @@ class WebAudioEngine {
    * Caches an AudioBuffer for a specific asset.
    */
   public cacheBuffer(assetId: string, buffer: AudioBuffer): void {
+    if (!buffer || typeof buffer.getChannelData !== 'function') {
+      console.warn(`[WebAudioEngine] Attempted to cache invalid buffer for asset: ${assetId}`);
+      return;
+    }
     this.audioBuffers.set(assetId, buffer);
   }
 

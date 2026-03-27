@@ -397,7 +397,7 @@ export const Timeline = ({
 
   const handleClipMouseMove = (e: React.MouseEvent, clip: Clip) => {
     const mode = getResizeMode(e, clip);
-    e.currentTarget.style.cursor = mode === 'MOVE' ? 'grab' : 'col-resize';
+    (e.currentTarget as HTMLElement).style.cursor = mode === 'MOVE' ? 'grab' : 'col-resize';
   };
 
   const handleClipMouseDown = (e: React.MouseEvent, clip: Clip, trackId: string) => {
@@ -443,7 +443,7 @@ export const Timeline = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       // Check if focus is within the timeline container
       const activeElement = document.activeElement;
-      const isInput = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA' || activeElement?.getAttribute('contenteditable') === 'true';
+      const isInput = activeElement?.tagName === 'INPUT' || activeElement?.tagName === 'TEXTAREA' || (activeElement instanceof HTMLElement && activeElement.isContentEditable);
       
       if (isInput) return;
       

@@ -8,3 +8,11 @@ import { Clip } from '../types';
 export const sanitizeTrackClips = (clips: Clip[]): Clip[] => {
   return [...clips].sort((a, b) => a.startTime - b.startTime);
 };
+
+/**
+ * Strips HTML tags from a string to return plain text.
+ */
+export const stripRichText = (text: string): string => {
+  if (!text) return '';
+  return text.replace(/<[^>]*>/g, '');
+};

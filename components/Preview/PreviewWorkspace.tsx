@@ -1,4 +1,7 @@
 import React from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import remarkBreaks from 'remark-breaks';
 import { KineticTextDOM } from './KineticTextDOM';
 import { TransformOverlay } from './TransformOverlay';
 import { KineticDrawOverlay } from './KineticDrawOverlay';
@@ -158,10 +161,24 @@ export const PreviewWorkspace = ({
                   textShadow: '0 2px 4px rgba(0,0,0,0.8)',
                   fontFamily: sub.font || 'Inter, sans-serif',
                   fontSize: `${(sub.scale || 1) * 1.25}rem`,
-                  fontWeight: 'bold'
+                  fontWeight: sub.fontWeight || 'normal',
+                  whiteSpace: 'pre-wrap'
                 }}
               >
-                {sub.content}
+                <ReactMarkdown 
+                  rehypePlugins={[rehypeRaw]}
+                  remarkPlugins={[remarkBreaks]}
+                  components={{
+                    p: ({node, ...props}) => <div style={{ margin: 0, display: 'block', width: '100%' }} {...props} />,
+                    b: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                    strong: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                    i: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                    em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                    u: ({node, ...props}) => <u style={{ textDecoration: 'underline' }} {...props} />,
+                  }}
+                >
+                  {sub.content || ""}
+                </ReactMarkdown>
               </div>
             </div>
           )

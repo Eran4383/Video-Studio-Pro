@@ -1,102 +1,120 @@
 
-import { Asset, MediaType, WAVEFORM_SAMPLES_PER_SECOND } from '../types';
-import { MagneticAnchorService } from './MagneticAnchorService';
+import { MediaType, Asset } from '../types';
+import { FilePersistenceService } from './FilePersistenceService';
+import { webAudioEngine } from './WebAudioEngine';
 
+/**
+ * AssetService handles the processing of files into application assets.
+ * It extracts metadata, generates thumbnails, and processes audio for waveforms.
+ */
 export class AssetService {
-  static async processFile(file: File): Promise<Asset> {
+  /**
+   * Processes a File object into an Asset.
+   */
+  public static async processFile(file: File): Promise<Asset> {
+    const id = `asset-${Math.random().toString(36).substr(2, 9)}`;
     const url = URL.createObjectURL(file);
+    const type = this.getMediaType(file);
     
-    // Improved type detection
-    let type = MediaType.IMAGE;
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    
-    if (file.type.startsWith('video/') || ['mp4', 'mov', 'avi', 'mkv', 'webm', 'ts'].includes(ext || '')) {
-      type = MediaType.VIDEO;
-    } else if (file.type.startsWith('audio/') || ['mp3', 'wav', 'aac', 'm4a', 'ogg', 'flac'].includes(ext || '')) {
-      type = MediaType.AUDIO;
-    } else if (file.type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) {
-      type = MediaType.IMAGE;
+    // Persist file to IndexedDB so it survives page refresh
+    try {
+      await FilePersistenceService.saveFile(id, file);
+    } catch (err) {
+      console.warn(`[AssetService] Failed to persist file ${id} to IndexedDB:`, err);
     }
-
+    
     let duration = 0;
-    let thumbnail = '';
     let width = 0;
     let height = 0;
-    let waveform: number[] | undefined = undefined;
-    let audioBuffer: AudioBuffer | undefined = undefined;
+    let thumbnail = '';
+    let waveform: number[] = [];
+    let audioBuffer: AudioBuffer | undefined;
 
-    try {
-      if (type === MediaType.VIDEO) {
-        const metadata = await this.getVideoMetadata(url);
-        duration = metadata.duration;
-        width = metadata.width;
-        height = metadata.height;
-        thumbnail = await this.generateThumbnail(url).catch(() => '');
-        
-        // Extract real waveform data aligned to project standard
-        // WAVEFORM_SAMPLES_PER_SECOND samples per second for frame-accurate alignment
-        const samples = Math.ceil(duration * WAVEFORM_SAMPLES_PER_SECOND);
-        const result = await this.extractWaveformAndBuffer(url, samples).catch(err => {
-          console.warn("Waveform extraction failed", err);
-          return { waveform: undefined, audioBuffer: undefined };
-        });
-        waveform = result.waveform;
-        audioBuffer = result.audioBuffer;
-      } else if (type === MediaType.AUDIO) {
-        duration = await this.getAudioDuration(url);
-        
-        // Extract real waveform data aligned to project standard
-        const samples = Math.ceil(duration * WAVEFORM_SAMPLES_PER_SECOND);
-        const result = await this.extractWaveformAndBuffer(url, samples).catch(err => {
-          console.warn("Waveform extraction failed", err);
-          return { waveform: undefined, audioBuffer: undefined };
-        });
-        waveform = result.waveform;
-        audioBuffer = result.audioBuffer;
-      } else if (type === MediaType.IMAGE) {
-        const metadata = await this.getImageMetadata(url);
-        width = metadata.width;
-        height = metadata.height;
-        duration = 5;
-        thumbnail = url;
-      }
+    if (type === MediaType.VIDEO) {
+      const metadata = await this.getVideoMetadata(url);
+      duration = metadata.duration;
+      width = metadata.width;
+      height = metadata.height;
+      thumbnail = await this.generateVideoThumbnail(url, duration / 2);
       
-      if (waveform) {
-          // ... (existing anchor logic)
+      // Extract audio for waveform
+      const audioResult = await this.extractWaveformAndBuffer(url, 1000, id);
+      waveform = audioResult.waveform;
+      audioBuffer = audioResult.audioBuffer;
+    } else if (type === MediaType.AUDIO) {
+      const audioResult = await this.extractWaveformAndBuffer(url, 1000, id);
+      waveform = audioResult.waveform;
+      audioBuffer = audioResult.audioBuffer;
+      
+      // For audio, we'll use a placeholder or generic icon for thumbnail
+      // In a real app, we might extract album art
+      thumbnail = 'audio-placeholder';
+      
+      // Get duration from AudioBuffer
+      if (audioBuffer) {
+        duration = audioBuffer.duration;
       }
-
-    } catch (e) {
-      console.error("Asset processing failed", e);
+    } else if (type === MediaType.IMAGE) {
+      const metadata = await this.getImageMetadata(url);
+      width = metadata.width;
+      height = metadata.height;
+      thumbnail = url; // Use the image itself as thumbnail
+      duration = 5; // Default duration for images on timeline
     }
 
     return {
-      id: `asset-${Math.random().toString(36).substr(2, 9)}`,
+      id,
       name: file.name,
       type,
       url,
-      duration: duration || 5,
-      thumbnail,
+      duration,
       width,
       height,
+      thumbnail,
       waveform,
-      audioBuffer
+      audioBuffer,
+      file // Keep original file reference if needed
     };
   }
 
-  public static async extractWaveformAndBuffer(url: string, samples = 1000): Promise<{ waveform: number[], audioBuffer: AudioBuffer | undefined }> {
-    try {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (!AudioContextClass) return { waveform: [], audioBuffer: undefined };
+  private static getMediaType(file: File): MediaType {
+    if (file.type.startsWith('video/')) return MediaType.VIDEO;
+    if (file.type.startsWith('audio/')) return MediaType.AUDIO;
+    if (file.type.startsWith('image/')) return MediaType.IMAGE;
+    return MediaType.IMAGE; // Default fallback
+  }
 
-      const response = await fetch(url);
-      if (!response.ok) {
-        console.warn(`[AssetService] Failed to fetch URL: ${url}. Status: ${response.status}`);
-        return { waveform: [], audioBuffer: undefined };
-      }
-      const arrayBuffer = await response.arrayBuffer();
-      const audioCtx = new AudioContextClass();
+  public static async extractWaveformAndBuffer(url: string, samples: number, assetId?: string): Promise<{ waveform: number[], audioBuffer?: AudioBuffer }> {
+    try {
+      console.log(`[AssetService] Fetching asset from URL: ${url}`);
+      let arrayBuffer: ArrayBuffer;
       
       try {
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch asset: ${response.status} ${response.statusText}`);
+        }
+        arrayBuffer = await response.arrayBuffer();
+      } catch (fetchError) {
+        console.warn(`[AssetService] Fetch failed for ${url}. Attempting recovery from IndexedDB...`, fetchError);
+        if (assetId) {
+          const persistedFile = await FilePersistenceService.getFile(assetId);
+          if (persistedFile) {
+            console.log(`[AssetService] Recovered file from IndexedDB for asset: ${assetId}`);
+            arrayBuffer = await persistedFile.arrayBuffer();
+          } else {
+            throw new Error(`Failed to fetch and no persisted file found for asset: ${assetId}`);
+          }
+        } else {
+          throw fetchError;
+        }
+      }
+      
+      const audioCtx = webAudioEngine.getContext();
+      
+      try {
+        console.log(`[AssetService] Decoding audio data for URL: ${url}`);
+        // Use the context from webAudioEngine
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
         
         if (typeof audioBuffer.getChannelData !== 'function') {
@@ -121,14 +139,14 @@ export class AssetService {
           waveform.push(min);
           waveform.push(max);
         }
+        console.log(`[AssetService] Successfully decoded audio and generated waveform for: ${url}`);
         return { waveform, audioBuffer };
-      } finally {
-        // We don't close the context here because the AudioBuffer might be tied to it in some browsers
-        // and we want to keep it valid for playback in the main engine.
-        // await audioCtx.close();
+      } catch (decodeError) {
+        console.error(`[AssetService] Error decoding audio data:`, decodeError);
+        throw decodeError;
       }
     } catch (e) {
-      console.warn("Waveform generation error:", e);
+      console.error("[AssetService] Waveform generation error:", e);
       return { waveform: [], audioBuffer: undefined };
     }
   }
@@ -143,43 +161,16 @@ export class AssetService {
       const video = document.createElement('video');
       video.preload = 'metadata';
       video.muted = true;
-      video.playsInline = true;
-      
-      const onLoaded = () => {
-        // Ensure we have valid dimensions
-        if (video.videoWidth && video.videoHeight) {
-            resolve({
-              duration: video.duration || 0,
-              width: video.videoWidth,
-              height: video.videoHeight
-            });
-        } else {
-            // Retry once if dimensions are missing? Or just resolve with 0
-            // Sometimes seeking helps
-            video.currentTime = 0.1;
-        }
+      video.onloadedmetadata = () => {
+        resolve({
+          duration: video.duration,
+          width: video.videoWidth,
+          height: video.videoHeight
+        });
       };
-
-      video.onloadedmetadata = onLoaded;
-      
-      // Fallback for some browsers that need a seek to get dimensions
-      video.onseeked = () => {
-         if (video.videoWidth && video.videoHeight) {
-            resolve({
-              duration: video.duration || 0,
-              width: video.videoWidth,
-              height: video.videoHeight
-            });
-         } else {
-            resolve({ duration: video.duration || 0, width: 1920, height: 1080 }); // Default fallback
-         }
+      video.onerror = () => {
+        resolve({ duration: 0, width: 0, height: 0 });
       };
-
-      video.onerror = () => resolve({ duration: 0, width: 0, height: 0 });
-      
-      // Timeout
-      setTimeout(() => resolve({ duration: 0, width: 0, height: 0 }), 3000);
-      
       video.src = url;
     });
   }
@@ -189,40 +180,38 @@ export class AssetService {
       const img = new Image();
       img.onload = () => {
         resolve({
-          width: img.naturalWidth,
-          height: img.naturalHeight
+          width: img.width,
+          height: img.height
         });
       };
-      img.onerror = () => resolve({ width: 0, height: 0 });
+      img.onerror = () => {
+        resolve({ width: 0, height: 0 });
+      };
       img.src = url;
     });
   }
 
-  private static getAudioDuration(url: string): Promise<number> {
-    return new Promise((resolve) => {
-      const audio = document.createElement('audio');
-      audio.preload = 'metadata';
-      audio.src = url;
-      audio.onloadedmetadata = () => resolve(audio.duration);
-      audio.onerror = () => resolve(0);
-    });
-  }
-
-  private static generateThumbnail(url: string): Promise<string> {
+  private static generateVideoThumbnail(url: string, time: number): Promise<string> {
     return new Promise((resolve) => {
       const video = document.createElement('video');
-      video.preload = 'metadata';
       video.src = url;
+      video.currentTime = time;
       video.muted = true;
-      video.currentTime = 0.5;
+      video.playsInline = true;
+      
       video.onseeked = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 160;
-        canvas.height = 90;
+        canvas.width = 320;
+        canvas.height = 180;
         const ctx = canvas.getContext('2d');
-        ctx?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg'));
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', 0.7));
+        } else {
+          resolve('');
+        }
       };
+      
       video.onerror = () => resolve('');
     });
   }

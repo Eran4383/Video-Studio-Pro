@@ -53,8 +53,9 @@ export const useAudioSync = (
       if (!asset) return;
       
       // Ensure the buffer is cached in the engine
-      if (asset.audioBuffer && !webAudioEngine.getBuffer(asset.id)) {
-        webAudioEngine.cacheBuffer(asset.id, asset.audioBuffer);
+      const isRealAudioBuffer = asset.audioBuffer && typeof (asset.audioBuffer as any).getChannelData === 'function';
+      if (isRealAudioBuffer && !webAudioEngine.getBuffer(asset.id)) {
+        webAudioEngine.cacheBuffer(asset.id, asset.audioBuffer as AudioBuffer);
       }
       
       const isAlreadyPlaying = playingClipsRef.current.has(clip.id);

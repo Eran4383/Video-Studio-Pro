@@ -15,13 +15,16 @@ import { TranscriptionProgress } from './components/Transcription/TranscriptionP
 import { DiagnosticsModal } from './components/Diagnostics/DiagnosticsModal';
 import { VERSION } from './config/version';
 import { PropertiesPanel } from './components/Properties/PropertiesPanel';
-import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2 } from 'lucide-react';
+import { ProjectDashboard } from './components/Dashboard/ProjectDashboard';
+import { Settings, Download, Layers, Palette, Type as TypeIcon, Scissors, Music, Keyboard, Bug, Captions, Maximize, FileText, Trash2, Home, ChevronDown, FolderOpen } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { MediaType, Asset, WAVEFORM_SAMPLES_PER_SECOND } from './types';
 import { parseSRT } from './utils/srtParser';
 import { ResolutionSwitcher } from './components/ProjectSettings/ResolutionSwitcher';
 import { FileMenu } from './components/UI/FileMenu';
 import { AssetService } from './services/AssetService';
 import { webAudioEngine } from './services/WebAudioEngine';
+import { FilePersistenceService } from './services/FilePersistenceService';
 
 // Initialize Error Reporting on App Load
 ErrorReportingService.init();
@@ -32,6 +35,8 @@ const App = () => {
   const [isShortcutModalOpen, setIsShortcutModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isDiagnosticsModalOpen, setIsDiagnosticsModalOpen] = useState(false);
+  const [isDashboardOpen, setIsDashboardOpen] = useState(false);
+  const [needsRepair, setNeedsRepair] = useState(false);
   const [transcriptionState, setTranscriptionState] = useState({
     isOpen: false,
     isMinimized: false,
@@ -47,40 +52,81 @@ const App = () => {
   }, [isExportModalOpen, transcriptionState.isOpen]);
 
   const decodingAssetsRef = useRef<Set<string>>(new Set());
+  const [decodeRetryCount, setDecodeRetryCount] = useState<Record<string, number>>({});
 
   // Re-decode assets if audioBuffer is missing (e.g. after project import)
+  // Also recover blob URLs from IndexedDB if they are dead
   useEffect(() => {
-    const assetsToDecode = store.assets.filter(asset => 
-      (asset.type === MediaType.VIDEO || asset.type === MediaType.AUDIO) && 
-      (!asset.audioBuffer || typeof asset.audioBuffer.getChannelData !== 'function') && 
-      asset.url &&
+    const assetsToProcess = store.assets.filter(asset => 
       !decodingAssetsRef.current.has(asset.id)
     );
 
-    if (assetsToDecode.length === 0) return;
+    if (assetsToProcess.length === 0) return;
 
-    assetsToDecode.forEach(async (asset) => {
+    assetsToProcess.forEach(async (asset) => {
+      // If we've already tried too many times, skip
+      if ((decodeRetryCount[asset.id] || 0) > 3) return;
+
       decodingAssetsRef.current.add(asset.id);
-      try {
-        console.warn(`[App] Re-decoding asset: ${asset.name} (${asset.id}) from URL: ${asset.url}`);
-        const samples = Math.ceil(asset.duration * WAVEFORM_SAMPLES_PER_SECOND);
-        const result = await AssetService.extractWaveformAndBuffer(asset.url, samples);
-        
-        if (result.audioBuffer) {
-          console.log(`[App] Successfully re-decoded asset: ${asset.id}`);
-          webAudioEngine.cacheBuffer(asset.id, result.audioBuffer);
-          store.updateAsset(asset.id, { 
-            audioBuffer: result.audioBuffer,
-            waveform: asset.waveform && asset.waveform.length > 0 ? asset.waveform : result.waveform
-          });
-        } else {
-          console.warn(`[App] Re-decoding returned no buffer for asset: ${asset.id}. URL might be invalid.`);
+      
+      let currentUrl = asset.url;
+      let needsUrlUpdate = false;
+
+      // Check if blob URL is dead by attempting a HEAD fetch or just checking if it exists in IDB
+      if (currentUrl.startsWith('blob:')) {
+        try {
+          const resp = await fetch(currentUrl, { method: 'HEAD' });
+          if (!resp.ok) throw new Error('Dead blob');
+        } catch (err) {
+          console.warn(`[App] Detected dead blob URL for asset ${asset.id}. Attempting recovery from IndexedDB...`);
+          const file = await FilePersistenceService.getFile(asset.id);
+          if (file) {
+            currentUrl = URL.createObjectURL(file);
+            needsUrlUpdate = true;
+            console.log(`[App] Recovered asset ${asset.id} from IndexedDB. New URL: ${currentUrl}`);
+          } else {
+            console.error(`[App] Could not recover asset ${asset.id} from IndexedDB. User must re-upload.`);
+            // Don't remove from decodingAssetsRef so we don't keep retrying a lost cause
+            return;
+          }
         }
-      } catch (err) {
-        console.warn(`[App] Failed to re-decode asset ${asset.id}:`, err);
+      }
+
+      // If we recovered a new URL, update the store
+      if (needsUrlUpdate) {
+        store.updateAsset(asset.id, { url: currentUrl });
+      }
+
+      // Now handle audio decoding if needed
+      const needsAudioDecoding = (asset.type === MediaType.VIDEO || asset.type === MediaType.AUDIO) && 
+                                (!asset.audioBuffer || typeof asset.audioBuffer.getChannelData !== 'function');
+
+      if (needsAudioDecoding) {
+        try {
+          console.log(`[App] Decoding audio for asset: ${asset.name} (${asset.id})`);
+          const samples = Math.ceil((asset.duration || 5) * WAVEFORM_SAMPLES_PER_SECOND);
+          const result = await AssetService.extractWaveformAndBuffer(currentUrl, samples, asset.id);
+          
+          if (result.audioBuffer) {
+            console.log(`[App] Successfully decoded audio for asset: ${asset.id}`);
+            webAudioEngine.cacheBuffer(asset.id, result.audioBuffer);
+            store.updateAsset(asset.id, { 
+              audioBuffer: result.audioBuffer,
+              waveform: asset.waveform && asset.waveform.length > 0 ? asset.waveform : result.waveform
+            });
+          } else {
+            throw new Error("Decoding returned empty buffer");
+          }
+        } catch (err) {
+          console.warn(`[App] Failed to decode audio for asset ${asset.id}:`, err);
+          // Remove from decodingAssetsRef so it can be retried if the effect runs again
+          decodingAssetsRef.current.delete(asset.id);
+          setDecodeRetryCount(prev => ({ ...prev, [asset.id]: (prev[asset.id] || 0) + 1 }));
+          setNeedsRepair(true);
+        }
       }
     });
-  }, [store.assets, store.updateAsset]);
+  }, [store.assets, store.updateAsset, decodeRetryCount]);
 
   const handleTranscriptionStart = () => {
     setTranscriptionState(prev => ({ ...prev, isProcessing: true, status: 'Initializing...' }));
@@ -106,7 +152,11 @@ const App = () => {
 
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+    if (
+      e.target instanceof HTMLInputElement || 
+      e.target instanceof HTMLTextAreaElement ||
+      (e.target instanceof HTMLElement && e.target.isContentEditable)
+    ) return;
     
     // Frame Stepping with Arrow Keys
     if (e.key === 'ArrowLeft') {
@@ -220,93 +270,140 @@ const App = () => {
         }
       }}
     >
-      <header className="h-12 bg-[#121212] border-b border-zinc-800/50 flex items-center justify-between px-4 z-50">
-        <div className="flex items-center gap-6">
-          <div className="flex items-center gap-2.5 group cursor-pointer">
-            <div className="w-7 h-7 bg-indigo-600 rounded-lg flex items-center justify-center text-[10px] font-black shadow-lg shadow-indigo-600/20 group-hover:scale-105 transition-transform">NX</div>
-            <h1 className="text-sm font-black tracking-tighter uppercase flex items-center gap-2">
+      <header className="h-10 bg-[#0c0c0c] border-b border-zinc-800/30 flex items-center justify-between px-4 z-50 relative">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 group cursor-pointer" onClick={() => setIsDashboardOpen(true)}>
+            <div className="w-6 h-6 bg-indigo-600 rounded-md flex items-center justify-center text-[9px] font-black shadow-lg shadow-indigo-600/20 group-hover:scale-105 transition-transform">NX</div>
+            <h1 className="text-[11px] font-black tracking-tighter uppercase flex items-center gap-1.5">
               Nexus <span className="text-zinc-600 font-medium">Studio</span>
-              <span className="text-[9px] bg-zinc-800 text-zinc-500 px-1.5 py-0.5 rounded-md font-mono border border-zinc-700/50">v{VERSION}</span>
             </h1>
           </div>
-          <div className="h-6 w-px bg-zinc-800/50 mx-2" />
-          <FileMenu store={store} />
-          <div className="h-6 w-px bg-zinc-800/50 mx-2" />
-          <ResolutionSwitcher store={store} />
+          
+          <div className="h-4 w-px bg-zinc-800/50 mx-1" />
+
+          {/* Dashboard Tab */}
+          <button 
+            onClick={() => setIsDashboardOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-700 transition-all group"
+          >
+            <Home size={12} className="text-indigo-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] font-black tracking-widest uppercase text-zinc-400">Dashboard</span>
+          </button>
+
+          {/* File Tab */}
+          <div className="flex items-center gap-1 group/file relative h-full">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800 transition-all cursor-default">
+              <FolderOpen size={12} className="text-indigo-400" />
+              <span className="text-[9px] font-black tracking-widest uppercase text-zinc-400">File</span>
+              <ChevronDown size={10} className="text-zinc-600 group-hover/file:rotate-180 transition-transform" />
+            </div>
+            {/* Transparent bridge to prevent closing on gap */}
+            <div className="absolute top-full left-0 w-full h-2 bg-transparent z-[99]" />
+            <div className="absolute top-full left-0 opacity-0 pointer-events-none group-hover/file:opacity-100 group-hover/file:pointer-events-auto transition-all duration-200 z-[100]">
+              <div className="bg-[#121212] border border-zinc-800 rounded-2xl shadow-2xl p-1 mt-0 min-w-[200px] backdrop-blur-xl">
+                <FileMenu store={store} onOpenDashboard={() => setIsDashboardOpen(true)} headless />
+              </div>
+            </div>
+          </div>
+
+          {/* Resolution Tab */}
+          <div className="flex items-center gap-1 group/res relative h-full">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800 transition-all cursor-default">
+              <Maximize size={12} className="text-indigo-400" />
+              <span className="text-[9px] font-black tracking-widest uppercase text-zinc-400">Resolution</span>
+              <ChevronDown size={10} className="text-zinc-600 group-hover/res:rotate-180 transition-transform" />
+            </div>
+            {/* Transparent bridge */}
+            <div className="absolute top-full left-0 w-full h-2 bg-transparent z-[99]" />
+            <div className="absolute top-full left-0 opacity-0 pointer-events-none group-hover/res:opacity-100 group-hover/res:pointer-events-auto transition-all duration-200 z-[100]">
+              <div className="bg-[#121212] border border-zinc-800 rounded-2xl shadow-2xl p-1 mt-0 min-w-[200px] backdrop-blur-xl">
+                <ResolutionSwitcher store={store} headless />
+              </div>
+            </div>
+          </div>
+
+          {needsRepair && (
+            <button 
+              onClick={() => {
+                decodingAssetsRef.current.clear();
+                setDecodeRetryCount({});
+                setNeedsRepair(false);
+                webAudioEngine.getContext().resume();
+              }} 
+              className="px-3 py-1 bg-orange-500/10 hover:bg-orange-500/20 rounded-full text-orange-400 transition-all flex items-center gap-2 border border-orange-500/20 animate-pulse"
+            >
+              <Music size={12} /> <span className="text-[9px] font-black uppercase tracking-widest">Repair Audio</span>
+            </button>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Tooltip text="Toggle Fullscreen" position="bottom" shortcut="F">
-             <button onClick={handleDoubleClick} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all">
-               <Maximize size={18} />
-             </button>
-          </Tooltip>
-          <Tooltip text="Clear Memory Cache" position="bottom">
-            <button 
-              onClick={() => {
-                if (window.confirm("Clear memory cache? This will reload the page to free up memory.")) {
-                  window.location.reload();
-                }
-              }} 
-              className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-orange-400 transition-all flex items-center gap-2"
-            >
-              <Trash2 size={18} /> <span className="text-[10px] font-bold">CLEAR MEM</span>
-            </button>
-          </Tooltip>
-          <Tooltip text="Generate Debug Report" position="bottom">
-            <button onClick={handleGenerateReport} className="p-2 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-red-400 transition-all flex items-center gap-2">
-              <Bug size={18} /> <span className="text-[10px] font-bold">REPORT ERROR</span>
-            </button>
-          </Tooltip>
-          <Tooltip text="Export Subtitles (SRT)" position="bottom">
-            <button 
-              onClick={() => {
-                const subtitleTrack = store.project.tracks.find(t => t.type === 'subtitle');
-                if (!subtitleTrack || subtitleTrack.clips.length === 0) {
-                  alert("No subtitles found to export.");
-                  return;
-                }
-                
-                // Sort clips by start time
-                const clips = [...subtitleTrack.clips].sort((a, b) => a.startTime - b.startTime);
-                
-                let srtContent = "";
-                clips.forEach((clip, index) => {
-                  const formatTime = (seconds: number) => {
-                    const h = Math.floor(seconds / 3600);
-                    const m = Math.floor((seconds % 3600) / 60);
-                    const s = Math.floor(seconds % 60);
-                    const ms = Math.floor((seconds % 1) * 1000);
-                    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
-                  };
-                  
-                  srtContent += `${index + 1}\n`;
-                  srtContent += `${formatTime(clip.startTime)} --> ${formatTime(clip.startTime + clip.duration)}\n`;
-                  srtContent += `${clip.content || ""}\n\n`;
-                });
-                
-                const blob = new Blob([srtContent], { type: 'text/plain' });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = `${store.project.name.toLowerCase().replace(/\s+/g, '_')}_subtitles.srt`;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-                URL.revokeObjectURL(url);
-              }} 
-              className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all"
-            >
-              <FileText size={18} />
-            </button>
-          </Tooltip>
-          <Tooltip text="Keyboard Mapping" position="bottom" shortcut="K">
-            <button onClick={() => setIsShortcutModalOpen(true)} className="p-1.5 hover:bg-zinc-800 rounded-lg text-zinc-500 hover:text-white transition-all"><Keyboard size={18} /></button>
-          </Tooltip>
-          <Tooltip text="Render MP4" position="bottom">
-            <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-black px-6 py-2 rounded-full transition-all active:scale-95 shadow-lg shadow-indigo-600/30 tracking-widest">
-              <Download size={14} /> EXPORT MP4
-            </button>
-          </Tooltip>
+
+        <div className="flex items-center gap-3">
+          {/* Standalone Fullscreen Button */}
+          <button 
+            onClick={handleDoubleClick}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800 hover:text-white transition-all group"
+            title="Toggle Fullscreen (F)"
+          >
+            <Maximize size={12} className="text-zinc-400 group-hover:scale-110 transition-transform" />
+            <span className="text-[9px] font-black tracking-widest uppercase text-zinc-500 group-hover:text-zinc-300">Fullscreen</span>
+          </button>
+
+          {/* Tools Group */}
+          <div className="flex items-center gap-1 group/tools relative h-full">
+            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900/50 border border-zinc-800/50 hover:bg-zinc-800 transition-all cursor-default">
+              <Settings size={12} className="text-zinc-400" />
+              <span className="text-[9px] font-black tracking-widest uppercase text-zinc-500">Tools</span>
+              <ChevronDown size={10} className="text-zinc-600 group-hover/tools:rotate-180 transition-transform" />
+            </div>
+            {/* Transparent bridge */}
+            <div className="absolute top-full right-0 w-full h-2 bg-transparent z-[99]" />
+            <div className="absolute top-full right-0 opacity-0 pointer-events-none group-hover/tools:opacity-100 group-hover/tools:pointer-events-auto transition-all duration-200 z-[100]">
+              <div className="bg-[#121212] border border-zinc-800 rounded-2xl shadow-2xl p-2 grid grid-cols-2 gap-1 min-w-[280px] backdrop-blur-xl mt-0">
+                <button 
+                  onClick={() => { if (window.confirm("Clear memory cache?")) window.location.reload(); }} 
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-orange-400 transition-all"
+                >
+                  <Trash2 size={14} /> <span className="text-[9px] font-bold uppercase">Clear Mem</span>
+                </button>
+                <button onClick={handleGenerateReport} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-red-400 transition-all">
+                  <Bug size={14} /> <span className="text-[9px] font-bold uppercase">Report Bug</span>
+                </button>
+                <button 
+                  onClick={() => {
+                    const subtitleTrack = store.project.tracks.find(t => t.type === 'subtitle');
+                    if (!subtitleTrack || subtitleTrack.clips.length === 0) { alert("No subtitles found."); return; }
+                    const clips = [...subtitleTrack.clips].sort((a, b) => a.startTime - b.startTime);
+                    let srtContent = "";
+                    clips.forEach((clip, index) => {
+                      const formatTime = (seconds: number) => {
+                        const h = Math.floor(seconds / 3600);
+                        const m = Math.floor((seconds % 3600) / 60);
+                        const s = Math.floor(seconds % 60);
+                        const ms = Math.floor((seconds % 1) * 1000);
+                        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+                      };
+                      srtContent += `${index + 1}\n${formatTime(clip.startTime)} --> ${formatTime(clip.startTime + clip.duration)}\n${clip.content || ""}\n\n`;
+                    });
+                    const blob = new Blob([srtContent], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url; link.download = `${store.project.name.toLowerCase().replace(/\s+/g, '_')}_subtitles.srt`;
+                    document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
+                  }} 
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-white transition-all"
+                >
+                  <FileText size={14} /> <span className="text-[9px] font-bold uppercase">Export SRT</span>
+                </button>
+                <button onClick={() => setIsShortcutModalOpen(true)} className="flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-zinc-800 text-zinc-500 hover:text-white transition-all">
+                  <Keyboard size={14} /> <span className="text-[9px] font-bold uppercase">Shortcuts</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={() => setIsExportModalOpen(true)} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[9px] font-black px-4 py-1.5 rounded-full transition-all active:scale-95 shadow-lg shadow-indigo-600/30 tracking-widest uppercase">
+            <Download size={12} /> Export
+          </button>
         </div>
       </header>
 
@@ -314,7 +411,7 @@ const App = () => {
         <aside className="w-14 bg-[#121212] border-r border-zinc-800/50 flex flex-col items-center py-6 gap-8">
           <Tooltip text="Asset Layers" position="right"><button className="text-indigo-500 p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 transition-all"><Layers size={22} /></button></Tooltip>
           <Tooltip text="Color & Grading" position="right"><button className="text-zinc-600 hover:text-indigo-400 transition-all"><Palette size={22} /></button></Tooltip>
-          <Tooltip text="Titles & GFX" position="right"><button onClick={() => store.addSubtitleClip()} className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
+          <Tooltip text="Titles & GFX" position="right"><button onClick={() => store.addSubtitleClip("New Subtitle")} className="text-zinc-600 hover:text-indigo-400 transition-all"><TypeIcon size={22} /></button></Tooltip>
           <Tooltip text="AI Captions" position="right"><button onClick={() => setTranscriptionState(prev => ({ ...prev, isOpen: true, isMinimized: false }))} className="text-zinc-600 hover:text-indigo-400 transition-all"><Captions size={22} /></button></Tooltip>
           <Tooltip text="Razor Tool" position="right" shortcut="S/B"><button className="text-zinc-600 hover:text-indigo-400 transition-all" onClick={() => store.splitClip(store.selectedClipIds[0], store.currentTime)}><Scissors size={22} /></button></Tooltip>
           
@@ -354,6 +451,12 @@ const App = () => {
       {isShortcutModalOpen && <ShortcutModal shortcuts={shortcutStore.shortcuts} onUpdate={shortcutStore.updateShortcut} onClose={() => setIsShortcutModalOpen(false)} />}
       {isExportModalOpen && <ExportModal project={store.project} assets={store.assets} onClose={() => setIsExportModalOpen(false)} />}
       {isDiagnosticsModalOpen && <DiagnosticsModal onClose={() => setIsDiagnosticsModalOpen(false)} project={store.project} assets={store.assets} />}
+      
+      <AnimatePresence>
+        {isDashboardOpen && (
+          <ProjectDashboard onClose={() => setIsDashboardOpen(false)} />
+        )}
+      </AnimatePresence>
       
       {transcriptionState.isOpen && !transcriptionState.isMinimized && (
         <TranscriptionModal 

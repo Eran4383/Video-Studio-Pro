@@ -22,7 +22,7 @@ export const useSubtitleActions = (
           targetTrack = { id: `track-s-${Date.now()}`, name: `Subtitles ${subTracks.length + 1}`, type: 'subtitle', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 40 };
           newTracks.push(targetTrack);
       }
-      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'bold', textAlign: 'center', opacity: 1, shadow: true };
+      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'normal', textAlign: 'center', opacity: 1, shadow: true };
       newTracks = newTracks.map(t => t.id === targetTrack!.id ? { ...t, clips: sanitizeTrackClips([...t.clips, newClip]) } : t);
       const next = { ...prev, tracks: newTracks };
       pushToHistory(next);
@@ -121,7 +121,7 @@ export const useSubtitleActions = (
         color: '#ffffff',
         scale: 1,
         font: 'Inter, sans-serif',
-        fontWeight: 'bold',
+        fontWeight: 'normal',
         textAlign: 'center',
         opacity: 1,
         shadow: true

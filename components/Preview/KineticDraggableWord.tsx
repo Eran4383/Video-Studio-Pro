@@ -194,13 +194,14 @@ export const KineticDraggableWord = ({
 
   // Advanced styling
   const textShadows = [];
-  if (word.shadowEnabled) {
+  if (word.hasShadow) {
     textShadows.push(`${word.shadowOffsetX ?? 2}px ${word.shadowOffsetY ?? 2}px ${word.shadowBlur ?? 4}px ${word.shadowColor || 'rgba(0,0,0,0.5)'}`);
   }
   
   const WebkitTextStroke = word.strokeWidth ? `${word.strokeWidth}px ${word.strokeColor || '#000'}` : undefined;
-  const backgroundColor = word.backgroundColor;
-  const padding = word.backgroundPadding ? `${word.backgroundPadding}px` : undefined;
+  const backgroundColor = word.hasBackground ? word.backgroundColor : undefined;
+  const padding = word.hasBackground && word.backgroundPadding ? `${word.backgroundPadding}px` : undefined;
+  const borderRadius = word.hasBackground ? (word.backgroundBorderRadius ? `${word.backgroundBorderRadius}px` : '4px') : undefined;
 
   return (
     <span
@@ -221,7 +222,7 @@ export const KineticDraggableWord = ({
         zIndex: isActive ? 10 : 1,
         backgroundColor,
         padding,
-        borderRadius: backgroundColor ? '4px' : undefined,
+        borderRadius,
         ...hardCutoffStyles
       }}
     >
@@ -234,8 +235,9 @@ export const KineticDraggableWord = ({
           fontSize: isStretchX ? '100cqw' : (isStretchY ? '100cqh' : `${(word.fontSize || 0.1) * 100}cqh`),
           lineHeight: settings.lineHeight || 1,
           whiteSpace: (isStretchX || isStretchY) ? 'normal' : 'nowrap',
-          fontWeight: word.fontWeight || settings.fontWeight || '900',
-          textTransform: word.textCase === 'original' ? 'none' : (word.textCase || (settings.textCase !== 'random' ? settings.textCase : undefined) || 'none'),
+          fontWeight: (word.isBold ?? settings.isBold) ? 'bold' : (word.fontWeight || settings.fontWeight || '900'),
+          fontStyle: (word.isItalic ?? settings.isItalic) ? 'italic' : 'normal',
+          textDecoration: (word.isUnderline ?? settings.isUnderline) ? 'underline' : 'none',
           textAlign: isStretchX ? 'center' : 'left',
           textShadow: textShadows.join(', '),
           WebkitTextStroke,

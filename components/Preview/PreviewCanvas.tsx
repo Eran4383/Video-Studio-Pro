@@ -1,5 +1,8 @@
 
 import React, { useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import rehypeRaw from 'rehype-raw';
+import remarkBreaks from 'remark-breaks';
 import { Project, Asset, Clip } from '../../types';
 import { GFX_Engine } from '../../services/GFX_Engine';
 import { TransformOverlay } from './TransformOverlay';
@@ -127,19 +130,38 @@ export const PreviewCanvas = ({
               onMouseDown={(e) => onSubMouseDown(e, sub.id, sub.position || {x: 0.5, y: 0.9})}
               onDoubleClick={(e) => onSubDoubleClick(e, sub.id, sub.content || "")}
             >
-              <div 
-                id={`sub-text-${sub.id}`}
-                className="text-center max-w-[80%] select-none"
-                style={{ 
-                  color: sub.color || '#ffffff', 
-                  textShadow: '0 2px 4px rgba(0,0,0,0.8)',
-                  fontFamily: sub.font || 'Inter, sans-serif',
-                  fontSize: `${(sub.scale || 1) * 1.25}rem`,
-                  fontWeight: 'bold'
-                }}
-              >
-                {sub.content}
-              </div>
+                <div 
+                  id={`sub-text-${sub.id}`}
+                  className="select-none"
+                  style={{ 
+                    color: sub.color || '#ffffff', 
+                    textShadow: '0 2px 4px rgba(0,0,0,0.8)',
+                    fontFamily: sub.font || 'Inter, sans-serif',
+                    fontSize: `${(sub.scale || 1) * 1.25}rem`,
+                    fontWeight: sub.fontWeight || 'normal',
+                    fontStyle: sub.isItalic ? 'italic' : 'normal',
+                    textDecoration: sub.isUnderline ? 'underline' : 'none',
+                    textAlign: sub.textAlign || 'center',
+                    width: 'max-content',
+                    maxWidth: '80vw',
+                    whiteSpace: 'pre-wrap'
+                  }}
+                >
+                  <ReactMarkdown 
+                    rehypePlugins={[rehypeRaw]}
+                    remarkPlugins={[remarkBreaks]}
+                    components={{
+                      p: ({node, ...props}) => <div style={{ margin: 0, display: 'block', width: '100%' }} {...props} />,
+                      b: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                      strong: ({node, ...props}) => <strong style={{ fontWeight: 'bold' }} {...props} />,
+                      i: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                      em: ({node, ...props}) => <em style={{ fontStyle: 'italic' }} {...props} />,
+                      u: ({node, ...props}) => <u style={{ textDecoration: 'underline' }} {...props} />,
+                    }}
+                  >
+                    {sub.content || ""}
+                  </ReactMarkdown>
+                </div>
             </div>
           );
         })}
