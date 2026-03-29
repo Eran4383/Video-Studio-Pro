@@ -1,13 +1,13 @@
 
 import React, { useRef, useState, useEffect } from 'react';
-import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type, CheckSquare, Trash2, Layers } from 'lucide-react';
+import { Video, Music, Eye, EyeOff, Volume2, VolumeX, Lock, Unlock, ChevronDown, ChevronUp, Type, CheckSquare, Trash2 } from 'lucide-react';
 import { Track } from '../../types';
 import { Tooltip } from '../UI/Tooltip';
 import { ConfirmModal } from '../UI/ConfirmModal';
 
 interface TrackHeaderProps {
   track: Track;
-  onToggle: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked' | 'receiveAdjustmentEffects') => void;
+  onToggle: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
   onSetHeight: (trackId: string, height: number) => void;
   onSelectAll: () => void;
   onDelete: () => void;
@@ -88,16 +88,6 @@ export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSet
           <Tooltip text={track.isLocked ? "Unlock Track" : "Lock Track"} position="bottom">
             <button onClick={() => onToggle(track.id, 'isLocked')} className={`p-1 rounded hover:bg-zinc-800 transition-colors ${track.isLocked ? 'text-orange-500' : 'text-zinc-400'}`}>{track.isLocked ? <Lock size={12} /> : <Unlock size={12} />}</button>
           </Tooltip>
-          {track.type === 'video' && (
-            <Tooltip text={track.receiveAdjustmentEffects !== false ? "Disable Adjustment Effects" : "Enable Adjustment Effects"} position="bottom">
-              <button 
-                onClick={() => onToggle(track.id, 'receiveAdjustmentEffects')} 
-                className={`p-1 rounded hover:bg-zinc-800 transition-colors ${track.receiveAdjustmentEffects !== false ? 'text-indigo-400' : 'text-zinc-600'}`}
-              >
-                <Layers size={12} />
-              </button>
-            </Tooltip>
-          )}
           <Tooltip text="Select All Clips" position="bottom">
             <button onClick={onSelectAll} className="p-1 rounded hover:bg-zinc-800 transition-colors text-zinc-400 hover:text-indigo-400"><CheckSquare size={12} /></button>
           </Tooltip>

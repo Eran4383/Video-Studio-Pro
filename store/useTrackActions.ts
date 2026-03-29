@@ -5,7 +5,7 @@ export const useTrackActions = (
   setProject: React.Dispatch<React.SetStateAction<Project>>,
   pushToHistory: (p: Project) => void
 ) => {
-  const toggleTrackProperty = useCallback((trackId: string, property: 'isVisible' | 'isMuted' | 'isLocked' | 'receiveAdjustmentEffects') => {
+  const toggleTrackProperty = useCallback((trackId: string, property: 'isVisible' | 'isMuted' | 'isLocked') => {
     setProject(prev => {
       const next = {
         ...prev,

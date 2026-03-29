@@ -24,7 +24,6 @@ export interface Asset {
   anchors?: number[]; // Timestamps (in seconds) where audio onsets are detected
   audioBuffer?: AudioBuffer; // Decoded audio data for sample-accurate playback
   file?: File; // Original file reference for re-processing
-  isAdjustmentLayer?: boolean; // If true, this asset represents an effect clip
 }
 
 export interface Clip {
@@ -46,7 +45,6 @@ export interface Clip {
   scaleX?: number; // Scale factor X
   scaleY?: number; // Scale factor Y
   rotation?: number; // Rotation in degrees
-  isAdjustmentLayer?: boolean; // If true, this clip applies its effects to tracks below it
   
   // Built-in Color Grading & Adjustments
   brightness?: number; // 0 to 2 (default 1)
@@ -98,7 +96,6 @@ export interface Track {
   isMuted: boolean;
   isLocked: boolean;
   height?: number; // Added: dynamic track height for audio inspection
-  receiveAdjustmentEffects?: boolean; // If true, this track is affected by adjustment layers above it
 }
 
 export interface ProjectState {

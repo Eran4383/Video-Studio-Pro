@@ -3,7 +3,7 @@ export interface EffectDefinition {
   id: string;
   name: string;
   type: 'filter' | 'adjustment' | 'transition' | 'motion';
-  category: 'Filters' | 'Transitions' | 'Motion' | 'Stylize' | 'Adjustment Layers';
+  category: 'Filters' | 'Transitions' | 'Motion' | 'Stylize';
   description: string;
   icon: string;
   defaultParams: Record<string, any>;
@@ -85,54 +85,6 @@ export const EFFECTS_LIBRARY: EffectDefinition[] = [
       { id: 'amount', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
     ]
   },
-  {
-    id: 'brightness',
-    name: 'Brightness',
-    type: 'filter',
-    category: 'Filters',
-    description: 'Adjusts the brightness of the image.',
-    icon: 'Sun',
-    defaultParams: { amount: 100 },
-    controls: [
-      { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 200, step: 1, unit: '%' }
-    ]
-  },
-  {
-    id: 'contrast',
-    name: 'Contrast',
-    type: 'filter',
-    category: 'Filters',
-    description: 'Adjusts the contrast of the image.',
-    icon: 'Contrast',
-    defaultParams: { amount: 100 },
-    controls: [
-      { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 200, step: 1, unit: '%' }
-    ]
-  },
-  {
-    id: 'hue-rotate',
-    name: 'Hue Rotate',
-    type: 'filter',
-    category: 'Filters',
-    description: 'Rotates the hue of the image.',
-    icon: 'RotateCw',
-    defaultParams: { amount: 0 },
-    controls: [
-      { id: 'amount', name: 'Angle', type: 'slider', min: 0, max: 360, step: 1, unit: '°' }
-    ]
-  },
-  {
-    id: 'saturate',
-    name: 'Saturate',
-    type: 'filter',
-    category: 'Filters',
-    description: 'Adjusts the saturation of the image.',
-    icon: 'Droplets',
-    defaultParams: { amount: 100 },
-    controls: [
-      { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 200, step: 1, unit: '%' }
-    ]
-  },
 
   // --- STYLIZE ---
   {
@@ -210,48 +162,6 @@ export const EFFECTS_LIBRARY: EffectDefinition[] = [
     controls: [
       { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
       { id: 'size', name: 'Size', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 'x' }
-    ]
-  },
-
-  // --- ADJUSTMENT LAYERS ---
-  {
-    id: 'color-grade',
-    name: 'Color Grade',
-    type: 'adjustment',
-    category: 'Adjustment Layers',
-    description: 'Global color adjustments for the entire scene.',
-    icon: 'Palette',
-    defaultParams: { brightness: 100, contrast: 100, saturation: 100, hue: 0 },
-    controls: [
-      { id: 'brightness', name: 'Brightness', type: 'slider', min: 0, max: 200, step: 1, unit: '%' },
-      { id: 'contrast', name: 'Contrast', type: 'slider', min: 0, max: 200, step: 1, unit: '%' },
-      { id: 'saturation', name: 'Saturation', type: 'slider', min: 0, max: 200, step: 1, unit: '%' },
-      { id: 'hue', name: 'Hue', type: 'slider', min: 0, max: 360, step: 1, unit: '°' }
-    ]
-  },
-  {
-    id: 'vignette',
-    name: 'Vignette',
-    type: 'adjustment',
-    category: 'Adjustment Layers',
-    description: 'Adds a dark border around the edges.',
-    icon: 'Circle',
-    defaultParams: { amount: 50, size: 70 },
-    controls: [
-      { id: 'amount', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
-      { id: 'size', name: 'Size', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
-    ]
-  },
-  {
-    id: 'cinematic-look',
-    name: 'Cinematic Look',
-    type: 'adjustment',
-    category: 'Adjustment Layers',
-    description: 'Applies a cinematic blue-teal color grade.',
-    icon: 'Film',
-    defaultParams: { intensity: 70 },
-    controls: [
-      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
     ]
   },
 
