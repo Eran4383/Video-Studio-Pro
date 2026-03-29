@@ -8,7 +8,7 @@ interface EffectsSidebarProps {
   onApplyEffect: (effect: { type: string, name: string, params: any }) => void;
 }
 
-const CATEGORIES = ['Filters', 'Stylize', 'Transitions', 'Motion'] as const;
+const CATEGORIES = ['Filters', 'Stylize', 'Adjustment Layers', 'Transitions', 'Motion'] as const;
 
 export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,6 +18,7 @@ export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect })
     'Favorites': true,
     'Filters': true,
     'Stylize': true,
+    'Adjustment Layers': true,
     'Transitions': true,
     'Motion': true
   });
@@ -44,6 +45,7 @@ export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect })
       'Favorites': [],
       'Filters': [],
       'Stylize': [],
+      'Adjustment Layers': [],
       'Transitions': [],
       'Motion': []
     };

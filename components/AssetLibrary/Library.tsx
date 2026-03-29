@@ -1,21 +1,61 @@
-import React, { useRef, useState } from 'react';
-import { Upload, Film, Music, Sparkles, Search, Trash2 } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Upload, Film, Music, Sparkles, Search, Trash2, FolderOpen, Clock, FileJson } from 'lucide-react';
 import { Asset, MediaType } from '../../types';
 import { AssetService } from '../../services/AssetService';
 import { Tooltip } from '../UI/Tooltip';
+import { ProjectPersistenceService, ProjectMetadata } from '../../services/ProjectPersistenceService';
 
 interface LibraryProps {
   assets: Asset[];
   onAddAsset: (asset: Asset) => void;
   onDeleteAsset: (assetId: string) => void;
-  onGenerateAI: () => void;
+  onLoadProject: (project: any, assets: Asset[]) => void;
   onDragAssetToTimeline: (asset: Asset) => void;
 }
 
-export const Library = ({ assets, onAddAsset, onDeleteAsset, onGenerateAI, onDragAssetToTimeline }: LibraryProps) => {
+export const Library = ({ assets, onAddAsset, onDeleteAsset, onLoadProject, onDragAssetToTimeline }: LibraryProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const projectInputRef = useRef<HTMLInputElement>(null);
   const wasFullscreenRef = useRef(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [recentProjects, setRecentProjects] = useState<ProjectMetadata[]>([]);
+
+  useEffect(() => {
+    if (assets.length === 0) {
+      ProjectPersistenceService.getRecentProjects().then(setRecentProjects);
+    }
+  }, [assets.length]);
+
+  const handleRecentProjectClick = async (id: string) => {
+    try {
+      const saved = await ProjectPersistenceService.loadProject(id);
+      if (saved) {
+        onLoadProject(saved.project, saved.assets);
+      }
+    } catch (err) {
+      console.error("Failed to load recent project", err);
+    }
+  };
+
+  const handleProjectFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+      if (data.project && data.assets) {
+        onLoadProject(data.project, data.assets);
+      } else {
+        alert("Invalid project file format.");
+      }
+    } catch (err) {
+      console.error("Failed to load project file", err);
+      alert("Failed to load project file.");
+    }
+
+    if (projectInputRef.current) projectInputRef.current.value = '';
+  };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log("File input changed");
@@ -86,6 +126,13 @@ export const Library = ({ assets, onAddAsset, onDeleteAsset, onGenerateAI, onDra
         accept="video/*,audio/*,image/*,.mkv,.ts,.mov,.avi,.mp4,.webm,.mp3,.wav,.aac,.m4a,.ogg,.flac,.jpg,.jpeg,.png,.gif,.webp,.svg" 
         onChange={handleFileChange}
       />
+      <input 
+        type="file" 
+        ref={projectInputRef} 
+        className="hidden" 
+        accept=".kvg,.json" 
+        onChange={handleProjectFileChange}
+      />
       
       <div className="p-4 border-b border-[#333] bg-[#1c1c1c]">
         <h2 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-4">Master Media Library</h2>
@@ -101,12 +148,12 @@ export const Library = ({ assets, onAddAsset, onDeleteAsset, onGenerateAI, onDra
               <Upload size={14} /> IMPORT
             </button>
           </Tooltip>
-          <Tooltip text="Generate AI Video Asset" position="bottom">
+          <Tooltip text="Open Saved Project" position="bottom">
             <button 
-              onClick={onGenerateAI}
+              onClick={() => projectInputRef.current?.click()}
               className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg px-3 py-2.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-600/20 active:scale-95"
             >
-              <Sparkles size={14} /> AI BUILD
+              <FolderOpen size={14} /> OPEN PROJECT
             </button>
           </Tooltip>
         </div>
@@ -122,12 +169,42 @@ export const Library = ({ assets, onAddAsset, onDeleteAsset, onGenerateAI, onDra
 
       <div className="flex-1 overflow-y-auto p-4 custom-scrollbar space-y-2">
         {assets.length === 0 ? (
-          <div className="h-full flex flex-col items-center justify-center text-center opacity-20 px-10 pointer-events-none">
-            <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center mb-4 border border-zinc-700">
-               <Film size={32} />
+          <div className="h-full flex flex-col">
+            {recentProjects.length > 0 && (
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Clock size={12} className="text-indigo-400" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Recent Projects</h3>
+                </div>
+                <div className="space-y-2">
+                  {recentProjects.map(project => (
+                    <button
+                      key={project.id}
+                      onClick={() => handleRecentProjectClick(project.id)}
+                      className="w-full group flex items-center gap-3 p-3 bg-[#111] rounded-xl border border-[#333] hover:border-indigo-500/50 transition-all text-left hover:bg-[#161616]"
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-zinc-800 flex items-center justify-center text-indigo-400 group-hover:scale-110 transition-transform">
+                        <FileJson size={20} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[11px] font-black truncate text-zinc-300 group-hover:text-white transition-colors">{project.name}</p>
+                        <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-tighter">
+                          {new Date(project.lastModified).toLocaleDateString()} • {project.assetCount} assets
+                        </p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col items-center justify-center text-center opacity-20 px-10 pointer-events-none">
+              <div className="w-16 h-16 rounded-2xl bg-zinc-800 flex items-center justify-center mb-4 border border-zinc-700">
+                 <Film size={32} />
+              </div>
+              <p className="text-[11px] font-black uppercase tracking-tighter">Library Standby</p>
+              <p className="text-[9px] mt-1 font-medium">Drop files here or import to begin.</p>
             </div>
-            <p className="text-[11px] font-black uppercase tracking-tighter">Library Standby</p>
-            <p className="text-[9px] mt-1 font-medium">Drop files here or import to begin.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">

@@ -443,7 +443,7 @@ const App = () => {
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
           <div className="h-[55%] flex border-b border-zinc-800/50">
             {activePanel === 'library' ? (
-              <Library assets={store.assets} onAddAsset={store.addAsset} onDeleteAsset={store.deleteAsset} onGenerateAI={handleAICompose} onDragAssetToTimeline={handleAssetToTimeline} />
+              <Library assets={store.assets} onAddAsset={store.addAsset} onDeleteAsset={store.deleteAsset} onLoadProject={store.loadProjectData} onDragAssetToTimeline={handleAssetToTimeline} />
             ) : (
               <EffectsSidebar onApplyEffect={(effect) => {
                 if (store.selectedClipIds.length > 0) {
