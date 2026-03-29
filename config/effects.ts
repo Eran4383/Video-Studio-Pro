@@ -23,6 +23,21 @@ export interface EffectControl {
 export const EFFECTS_LIBRARY: EffectDefinition[] = [
   // --- FILTERS ---
   {
+    id: 'crop',
+    name: 'Crop',
+    type: 'filter',
+    category: 'Filters',
+    description: 'Crops the edges of the video.',
+    icon: 'Crop',
+    defaultParams: { top: 0, bottom: 0, left: 0, right: 0 },
+    controls: [
+      { id: 'top', name: 'Top', type: 'slider', min: 0, max: 50, step: 1, unit: '%' },
+      { id: 'bottom', name: 'Bottom', type: 'slider', min: 0, max: 50, step: 1, unit: '%' },
+      { id: 'left', name: 'Left', type: 'slider', min: 0, max: 50, step: 1, unit: '%' },
+      { id: 'right', name: 'Right', type: 'slider', min: 0, max: 50, step: 1, unit: '%' }
+    ]
+  },
+  {
     id: 'blur',
     name: 'Gaussian Blur',
     type: 'filter',
@@ -71,7 +86,150 @@ export const EFFECTS_LIBRARY: EffectDefinition[] = [
     ]
   },
 
+  // --- STYLIZE ---
+  {
+    id: 'flicker',
+    name: 'Flicker',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Adds a rapid brightness flicker effect.',
+    icon: 'Zap',
+    defaultParams: { intensity: 50, speed: 50 },
+    controls: [
+      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'flash',
+    name: 'Flash Strobe',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Intense, rhythmic white flashes popular in edits.',
+    icon: 'Sun',
+    defaultParams: { speed: 80, brightness: 100 },
+    controls: [
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'brightness', name: 'Brightness', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'rgb-split',
+    name: 'RGB Split',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Separates color channels for a chromatic aberration effect.',
+    icon: 'Layers',
+    defaultParams: { distance: 10, angle: 45 },
+    controls: [
+      { id: 'distance', name: 'Distance', type: 'slider', min: 0, max: 100, step: 1, unit: 'px' },
+      { id: 'angle', name: 'Angle', type: 'slider', min: 0, max: 360, step: 1, unit: '°' }
+    ]
+  },
+  {
+    id: 'glitch',
+    name: 'Glitch',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Digital distortion and color splitting.',
+    icon: 'Activity',
+    defaultParams: { intensity: 50 },
+    controls: [
+      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'vhs',
+    name: 'VHS Retro',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Vintage VHS tape effect with scanlines.',
+    icon: 'Tv',
+    defaultParams: { noise: 30, colorBleed: 50 },
+    controls: [
+      { id: 'noise', name: 'Noise', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'colorBleed', name: 'Color Bleed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'film-grain',
+    name: 'Film Grain',
+    type: 'filter',
+    category: 'Stylize',
+    description: 'Cinematic 8mm/16mm film grain overlay.',
+    icon: 'Film',
+    defaultParams: { amount: 40, size: 1.5 },
+    controls: [
+      { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'size', name: 'Size', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 'x' }
+    ]
+  },
+
   // --- MOTION ---
+  {
+    id: 'shake',
+    name: 'Camera Shake',
+    type: 'motion',
+    category: 'Motion',
+    description: 'Simulates handheld camera movement.',
+    icon: 'Activity',
+    defaultParams: { intensity: 50, speed: 50 },
+    controls: [
+      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'jitter',
+    name: 'Nervous Jitter',
+    type: 'motion',
+    category: 'Motion',
+    description: 'Rapid, chaotic position jumping.',
+    icon: 'Zap',
+    defaultParams: { amount: 20, speed: 90 },
+    controls: [
+      { id: 'amount', name: 'Amount', type: 'slider', min: 0, max: 100, step: 1, unit: 'px' },
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'pulse',
+    name: 'Heartbeat Pulse',
+    type: 'motion',
+    category: 'Motion',
+    description: 'Rhythmic scaling effect like a heartbeat.',
+    icon: 'Heart',
+    defaultParams: { scale: 1.1, speed: 60 },
+    controls: [
+      { id: 'scale', name: 'Scale', type: 'slider', min: 1, max: 2, step: 0.05, unit: 'x' },
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: 'bpm' }
+    ]
+  },
+  {
+    id: 'spin',
+    name: 'Spin',
+    type: 'motion',
+    category: 'Motion',
+    description: 'Rotates the clip continuously.',
+    icon: 'RotateCw',
+    defaultParams: { speed: 50, direction: 1 },
+    controls: [
+      { id: 'speed', name: 'Speed', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'zoom-blur',
+    name: 'Zoom Blur',
+    type: 'motion',
+    category: 'Motion',
+    description: 'Dynamic zoom with directional blur.',
+    icon: 'Focus',
+    defaultParams: { amount: 50, center: 50 },
+    controls: [
+      { id: 'amount', name: 'Blur Amount', type: 'slider', min: 0, max: 100, step: 1, unit: '%' },
+      { id: 'center', name: 'Center Focus', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
   {
     id: 'zoom-in',
     name: 'Zoom In',
@@ -110,6 +268,18 @@ export const EFFECTS_LIBRARY: EffectDefinition[] = [
     defaultParams: { duration: 1 },
     controls: [
       { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' }
+    ]
+  },
+  {
+    id: 'whip-pan',
+    name: 'Whip Pan',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Fast, blurry camera pan transition.',
+    icon: 'FastForward',
+    defaultParams: { duration: 0.5, direction: 1 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 2, step: 0.1, unit: 's' }
     ]
   },
   {

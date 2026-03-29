@@ -8,7 +8,7 @@ interface EffectsSidebarProps {
   onApplyEffect: (effect: { type: string, name: string, params: any }) => void;
 }
 
-const CATEGORIES = ['Filters', 'Transitions', 'Motion'] as const;
+const CATEGORIES = ['Filters', 'Stylize', 'Transitions', 'Motion'] as const;
 
 export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -17,6 +17,7 @@ export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect })
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
     'Favorites': true,
     'Filters': true,
+    'Stylize': true,
     'Transitions': true,
     'Motion': true
   });
@@ -42,6 +43,7 @@ export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect })
     const groups: Record<string, EffectDefinition[]> = {
       'Favorites': [],
       'Filters': [],
+      'Stylize': [],
       'Transitions': [],
       'Motion': []
     };

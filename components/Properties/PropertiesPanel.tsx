@@ -623,6 +623,8 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                              };
                              updateClip({ effects: newEffects }, true);
                            }}
+                           previewId={`effect_${effect.name}_${control.id}`}
+                           clipId={selectedClip.id}
                            min={control.min}
                            max={control.max}
                            step={control.step}

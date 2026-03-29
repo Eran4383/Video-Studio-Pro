@@ -130,4 +130,5 @@ export interface KineticBlock {
   words: KineticWord[];
   wordOverrides?: Record<string, Partial<KineticWord>>;
   chunkColors?: Record<string, string>;
+  effects?: any[];
 }

@@ -47,6 +47,7 @@ export const PreviewCanvas = ({
 }: PreviewCanvasProps) => {
   const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
   const liveOverrides = useRef<Record<string, any>>({});
+  (window as any).liveOverrides = liveOverrides.current;
 
   const selectedClip = project.tracks.flatMap(t => t.clips).find(c => selectedClipIds.includes(c.id));
   const activeVideoClip = project.tracks.slice().reverse()
@@ -100,13 +101,25 @@ export const PreviewCanvas = ({
       if (subDom) {
         const overrides = liveOverrides.current[clipId];
         const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
-        const x = overrides.posX !== undefined ? overrides.posX : (clip?.position?.x ?? 0.5) * 100;
-        const y = overrides.posY !== undefined ? overrides.posY : (clip?.position?.y ?? 0.9) * 100;
+        const x = overrides.posX !== undefined ? overrides.posX * 100 : (clip?.position?.x ?? 0.5) * 100;
+        const y = overrides.posY !== undefined ? overrides.posY * 100 : (clip?.position?.y ?? 0.9) * 100;
         const rot = overrides.rotation !== undefined ? overrides.rotation : (clip?.rotation ?? 0);
         
         subDom.style.left = `${x}%`;
         subDom.style.top = `${y}%`;
         subDom.style.transform = `translate(-50%, -50%) rotate(${rot}deg)`;
+
+        // Handle Crop Overrides for DOM subtitles
+        const cropT = overrides.effect_crop_top !== undefined ? overrides.effect_crop_top : (clip?.effects?.find(e => e.name === 'crop')?.params?.top ?? 0);
+        const cropB = overrides.effect_crop_bottom !== undefined ? overrides.effect_crop_bottom : (clip?.effects?.find(e => e.name === 'crop')?.params?.bottom ?? 0);
+        const cropL = overrides.effect_crop_left !== undefined ? overrides.effect_crop_left : (clip?.effects?.find(e => e.name === 'crop')?.params?.left ?? 0);
+        const cropR = overrides.effect_crop_right !== undefined ? overrides.effect_crop_right : (clip?.effects?.find(e => e.name === 'crop')?.params?.right ?? 0);
+        
+        if (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) {
+          subDom.style.clipPath = `inset(${cropT}% ${cropR}% ${cropB}% ${cropL}%)`;
+        } else {
+          subDom.style.clipPath = 'none';
+        }
       }
 
       const subText = document.getElementById(`sub-text-${clipId}`);
@@ -118,8 +131,38 @@ export const PreviewCanvas = ({
       rafId = requestAnimationFrame(renderGFX);
     };
 
-    const handleClear = () => {
-      liveOverrides.current = {};
+    const handleClear = (e: Event) => {
+      const { clipId } = (e as CustomEvent).detail || {};
+      if (clipId) {
+        delete liveOverrides.current[clipId];
+        const subDom = document.getElementById(`sub-dom-${clipId}`);
+        if (subDom) {
+          subDom.style.left = '';
+          subDom.style.top = '';
+          subDom.style.transform = '';
+          subDom.style.clipPath = '';
+          subDom.style.opacity = '';
+          subDom.style.filter = '';
+        }
+        const subText = document.getElementById(`sub-text-${clipId}`);
+        if (subText) {
+          subText.style.fontSize = '';
+        }
+      } else {
+        liveOverrides.current = {};
+        // Clear all subtitle DOMs if no specific clipId
+        document.querySelectorAll('[id^="sub-dom-"]').forEach((el: any) => {
+          el.style.left = '';
+          el.style.top = '';
+          el.style.transform = '';
+          el.style.clipPath = '';
+          el.style.opacity = '';
+          el.style.filter = '';
+        });
+        document.querySelectorAll('[id^="sub-text-"]').forEach((el: any) => {
+          el.style.fontSize = '';
+        });
+      }
       // We don't call renderGFX here to avoid a 1-frame flicker.
       // The canvas will be re-rendered by the useEffect when the React state updates.
       // If the state doesn't update (value didn't change), the canvas will still look correct
@@ -181,17 +224,89 @@ export const PreviewCanvas = ({
           const isPartOfBlock = project.kineticBlocks?.some((b: any) => b.clipIds.includes(sub.id));
           if (isPartOfBlock) return null;
 
+          const overrides = liveOverrides.current[sub.id] || {};
+          const getEffectParam = (effectName: string, paramName: string, defaultValue: any) => {
+            const overrideKey = `effect_${effectName}_${paramName}`;
+            if (overrides[overrideKey] !== undefined) return overrides[overrideKey];
+            const effect = sub.effects?.find((e: any) => e.name === effectName);
+            return effect?.params?.[paramName] ?? defaultValue;
+          };
+
+          let effectOpacity = 1;
+          let filterString = '';
+          let transformValue = `translate(-50%, -50%) rotate(${overrides.rotation ?? sub.rotation ?? 0}deg)`;
+          let glitchOffsetX = 0;
+          let glitchOffsetY = 0;
+          let clipPathString = 'none';
+
+          const flickerEffect = sub.effects?.find((e: any) => e.name === 'flicker') || overrides.effect_flicker_speed !== undefined || overrides.effect_flicker_intensity !== undefined;
+          if (flickerEffect) {
+            const speed = getEffectParam('flicker', 'speed', 50) / 100;
+            const intensity = getEffectParam('flicker', 'intensity', 50) / 100;
+            const flickerVal = Math.sin(renderTime * (10 + speed * 50));
+            effectOpacity = flickerVal > 0 ? 1 : 1 - intensity;
+          }
+
+          const glitchEffect = sub.effects?.find((e: any) => e.name === 'glitch') || overrides.effect_glitch_intensity !== undefined;
+          if (glitchEffect) {
+            const intensity = getEffectParam('glitch', 'intensity', 50) / 100;
+            const isGlitching = Math.sin(renderTime * 30) > (1 - intensity * 0.8);
+            if (isGlitching) {
+              glitchOffsetX = (Math.random() - 0.5) * intensity * 20;
+              glitchOffsetY = (Math.random() - 0.5) * intensity * 10;
+              filterString += ` hue-rotate(${Math.random() * 90 - 45}deg) saturate(${100 + intensity * 100}%)`;
+            }
+          }
+
+          const vhsEffect = sub.effects?.find((e: any) => e.name === 'vhs') || overrides.effect_vhs_colorBleed !== undefined || overrides.effect_vhs_noise !== undefined;
+          if (vhsEffect) {
+             const colorBleed = getEffectParam('vhs', 'colorBleed', 50) / 100;
+             filterString += ` sepia(30%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%)`;
+          }
+
+          const shakeEffect = sub.effects?.find((e: any) => e.name === 'shake') || overrides.effect_shake_intensity !== undefined || overrides.effect_shake_speed !== undefined;
+          if (shakeEffect) {
+            const intensity = getEffectParam('shake', 'intensity', 50) / 100;
+            const speed = getEffectParam('shake', 'speed', 50) / 100;
+            glitchOffsetX += Math.sin(renderTime * (10 + speed * 40)) * intensity * 10;
+            glitchOffsetY += Math.cos(renderTime * (12 + speed * 35)) * intensity * 10;
+          }
+
+          const spinEffect = sub.effects?.find((e: any) => e.name === 'spin') || overrides.effect_spin_speed !== undefined || overrides.effect_spin_direction !== undefined;
+          if (spinEffect) {
+            const speed = getEffectParam('spin', 'speed', 50) / 100;
+            const dir = getEffectParam('spin', 'direction', 1);
+            const spinRot = (renderTime * speed * 360) * dir;
+            transformValue += ` rotate(${spinRot}deg)`;
+          }
+
+          const cropEffect = sub.effects?.find((e: any) => e.name === 'crop') || overrides.effect_crop_top !== undefined || overrides.effect_crop_bottom !== undefined || overrides.effect_crop_left !== undefined || overrides.effect_crop_right !== undefined;
+          if (cropEffect) {
+            const cropT = getEffectParam('crop', 'top', 0);
+            const cropB = getEffectParam('crop', 'bottom', 0);
+            const cropL = getEffectParam('crop', 'left', 0);
+            const cropR = getEffectParam('crop', 'right', 0);
+            clipPathString = `inset(${cropT}% ${cropR}% ${cropB}% ${cropL}%)`;
+          }
+
+          if (glitchOffsetX !== 0 || glitchOffsetY !== 0) {
+            transformValue += ` translate(${glitchOffsetX}px, ${glitchOffsetY}px)`;
+          }
+
           return (
             <div 
               key={sub.id}
               id={`sub-dom-${sub.id}`}
               className="absolute z-50"
               style={{
-                left: `${(sub.position?.x ?? 0.5) * 100}%`,
-                top: `${(sub.position?.y ?? 0.9) * 100}%`,
-                transform: `translate(-50%, -50%) rotate(${sub.rotation || 0}deg)`,
+                left: `${(overrides.posX ?? sub.position?.x ?? 0.5) * 100}%`,
+                top: `${(overrides.posY ?? sub.position?.y ?? 0.9) * 100}%`,
+                transform: transformValue,
                 cursor: isDraggingSub ? 'grabbing' : 'grab',
-                pointerEvents: 'auto'
+                pointerEvents: 'auto',
+                opacity: effectOpacity,
+                filter: filterString || undefined,
+                clipPath: clipPathString
               }}
               onMouseDown={(e) => onSubMouseDown(e, sub.id, sub.position || {x: 0.5, y: 0.9})}
               onDoubleClick={(e) => onSubDoubleClick(e, sub.id, sub.content || "")}
@@ -291,7 +406,7 @@ export const PreviewCanvas = ({
                   store.updateClip(selectedClip.id, updates, true, store.applyToAll);
                 }
               }
-              window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+              window.dispatchEvent(new CustomEvent('gfx-override-clear', { detail: { clipId: selectedClip.id } }));
             }}
           />
         )}

@@ -1,8 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { KineticWord, KineticSettings } from '../../types/kinetic';
+import { Clip } from '../../types';
 
 interface KineticDraggableWordProps {
   word: KineticWord;
+  clip?: Clip;
+  currentTime?: number;
   blockId: string;
   store: any;
   isActive: boolean;
@@ -21,6 +24,8 @@ interface KineticDraggableWordProps {
 
 export const KineticDraggableWord = ({
   word,
+  clip,
+  currentTime = 0,
   blockId,
   store,
   isActive,
@@ -39,6 +44,7 @@ export const KineticDraggableWord = ({
   const isDragging = useRef(false);
   const startPos = useRef({ x: 0, y: 0 });
   const startMouse = useRef({ x: 0, y: 0 });
+  const [liveOverrides, setLiveOverrides] = useState<Record<string, any>>({});
 
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 1) return; // Allow middle click to propagate for panning
@@ -187,6 +193,12 @@ export const KineticDraggableWord = ({
   useEffect(() => {
     const handleOverride = (e: Event) => {
       const { clipId, property, value } = (e as CustomEvent).detail;
+      
+      // Handle clip-level effect overrides
+      if (clip && clipId === clip.id) {
+        setLiveOverrides(prev => ({ ...prev, [property]: value }));
+      }
+
       if (clipId !== word.id) return;
       if (!spanRef.current) return;
 
@@ -214,8 +226,31 @@ export const KineticDraggableWord = ({
       }
     };
     window.addEventListener('gfx-override', handleOverride);
-    return () => window.removeEventListener('gfx-override', handleOverride);
-  }, [word.id, word.stretchX, word.stretchY, word.shadowBlur, word.shadowOffsetX, word.shadowOffsetY, word.shadowColor]);
+    
+    const handleClear = (e: Event) => {
+      const { clipId } = (e as CustomEvent).detail || {};
+      if ((clip && clipId === clip.id) || !clipId) {
+        setLiveOverrides({});
+        if (spanRef.current) {
+          spanRef.current.style.opacity = '';
+          spanRef.current.style.filter = '';
+          spanRef.current.style.transform = '';
+          spanRef.current.style.clipPath = '';
+          const innerSpan = spanRef.current.querySelector('span');
+          if (innerSpan) {
+            innerSpan.style.fontSize = '';
+            innerSpan.style.textShadow = '';
+          }
+        }
+      }
+    };
+    window.addEventListener('gfx-override-clear', handleClear);
+    
+    return () => {
+      window.removeEventListener('gfx-override', handleOverride);
+      window.removeEventListener('gfx-override-clear', handleClear);
+    };
+  }, [word.id, word.stretchX, word.stretchY, word.shadowBlur, word.shadowOffsetX, word.shadowOffsetY, word.shadowColor, clip?.id]);
 
   const isStretchX = word.stretchX;
   const isStretchY = word.stretchY;
@@ -245,6 +280,89 @@ export const KineticDraggableWord = ({
   const padding = word.hasBackground && word.backgroundPadding ? `${word.backgroundPadding}px` : undefined;
   const borderRadius = word.hasBackground ? (word.backgroundBorderRadius ? `${word.backgroundBorderRadius}px` : '4px') : undefined;
 
+  // Calculate Clip Effects
+  let filterString = '';
+  let clipPathString = undefined;
+  let effectOpacity = 1;
+  let glitchOffsetX = 0;
+  let glitchOffsetY = 0;
+
+  if (clip) {
+    const getEffectParam = (effectName: string, paramName: string, defaultValue: number) => {
+      const overrideKey = `effect_${effectName}_${paramName}`;
+      if (liveOverrides[overrideKey] !== undefined) return liveOverrides[overrideKey];
+      const effect = clip.effects?.find(e => e.name === effectName);
+      if (effect && effect.params && effect.params[paramName] !== undefined) return effect.params[paramName];
+      return defaultValue;
+    };
+
+    if (clip.effects && clip.effects.length > 0) {
+      filterString += clip.effects.map(effect => {
+        switch (effect.name) {
+          case 'blur': return `blur(${getEffectParam('blur', 'amount', 0)}px)`;
+          case 'grayscale': return `grayscale(${getEffectParam('grayscale', 'amount', 0)}%)`;
+          case 'sepia': return `sepia(${getEffectParam('sepia', 'amount', 0)}%)`;
+          case 'invert': return `invert(${getEffectParam('invert', 'amount', 0)}%)`;
+          default: return '';
+        }
+      }).filter(Boolean).join(' ');
+    }
+
+    const flickerEffect = clip.effects?.find(e => e.name === 'flicker') || liveOverrides.effect_flicker_speed !== undefined || liveOverrides.effect_flicker_intensity !== undefined;
+    if (flickerEffect) {
+      const speed = getEffectParam('flicker', 'speed', 50) / 100;
+      const intensity = getEffectParam('flicker', 'intensity', 50) / 100;
+      const flickerVal = Math.sin(currentTime * (10 + speed * 50));
+      effectOpacity = flickerVal > 0 ? 1 : 1 - intensity;
+    }
+
+    const glitchEffect = clip.effects?.find(e => e.name === 'glitch') || liveOverrides.effect_glitch_intensity !== undefined;
+    if (glitchEffect) {
+      const intensity = getEffectParam('glitch', 'intensity', 50) / 100;
+      const isGlitching = Math.sin(currentTime * 30) > (1 - intensity * 0.8);
+      if (isGlitching) {
+        glitchOffsetX = (Math.random() - 0.5) * intensity * 20;
+        glitchOffsetY = (Math.random() - 0.5) * intensity * 10;
+        filterString += ` hue-rotate(${Math.random() * 90 - 45}deg) saturate(${100 + intensity * 100}%)`;
+      }
+    }
+
+    const vhsEffect = clip.effects?.find(e => e.name === 'vhs') || liveOverrides.effect_vhs_colorBleed !== undefined || liveOverrides.effect_vhs_noise !== undefined;
+    if (vhsEffect) {
+       const colorBleed = getEffectParam('vhs', 'colorBleed', 50) / 100;
+       filterString += ` sepia(30%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%)`;
+    }
+
+    const shakeEffect = clip.effects?.find(e => e.name === 'shake') || liveOverrides.effect_shake_intensity !== undefined || liveOverrides.effect_shake_speed !== undefined;
+    if (shakeEffect) {
+      const intensity = getEffectParam('shake', 'intensity', 50) / 100;
+      const speed = getEffectParam('shake', 'speed', 50) / 100;
+      glitchOffsetX += Math.sin(currentTime * (10 + speed * 40)) * intensity * 10;
+      glitchOffsetY += Math.cos(currentTime * (12 + speed * 35)) * intensity * 10;
+    }
+
+    const spinEffect = clip.effects?.find(e => e.name === 'spin') || liveOverrides.effect_spin_speed !== undefined || liveOverrides.effect_spin_direction !== undefined;
+    if (spinEffect) {
+      const speed = getEffectParam('spin', 'speed', 50) / 100;
+      const dir = getEffectParam('spin', 'direction', 1);
+      const spinRot = (currentTime * speed * 360) * dir;
+      transformValue += ` rotate(${spinRot}deg)`;
+    }
+
+    const cropEffect = clip.effects?.find(e => e.name === 'crop') || liveOverrides.effect_crop_top !== undefined || liveOverrides.effect_crop_bottom !== undefined || liveOverrides.effect_crop_left !== undefined || liveOverrides.effect_crop_right !== undefined;
+    if (cropEffect) {
+      const cropT = getEffectParam('crop', 'top', 0);
+      const cropB = getEffectParam('crop', 'bottom', 0);
+      const cropL = getEffectParam('crop', 'left', 0);
+      const cropR = getEffectParam('crop', 'right', 0);
+      clipPathString = `inset(${cropT}% ${cropR}% ${cropB}% ${cropL}%)`;
+    }
+  }
+
+  if (glitchOffsetX !== 0 || glitchOffsetY !== 0) {
+    transformValue += ` translate(${glitchOffsetX}px, ${glitchOffsetY}px)`;
+  }
+
   return (
     <span
       ref={spanRef}
@@ -259,12 +377,14 @@ export const KineticDraggableWord = ({
         alignItems: isStretchY ? 'center' : undefined,
         justifyContent: isStretchX ? 'center' : undefined,
         transform: transformValue,
-        opacity: opacityValue,
+        opacity: opacityValue * effectOpacity,
         transition: isPast ? `opacity ${fadeDuration}s ease-in-out` : 'none',
         zIndex: isActive ? 10 : 1,
         backgroundColor,
         padding,
         borderRadius,
+        filter: filterString || undefined,
+        clipPath: clipPathString,
         ...hardCutoffStyles
       }}
     >

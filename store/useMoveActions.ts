@@ -75,7 +75,29 @@ export const useMoveActions = (
                   if (originalClip) incomingClips.push({ ...originalClip, startTime: plan.newStartTime });
               }
           });
-          return { ...track, clips: [...remainingClips, ...incomingClips] };
+          
+          let allClips = [...remainingClips, ...incomingClips];
+          
+          if (isMagnetEnabled) {
+              // Sort all clips by their center point to determine sequence
+              allClips.sort((a, b) => {
+                  const centerA = a.startTime + a.duration / 2;
+                  const centerB = b.startTime + b.duration / 2;
+                  return centerA - centerB;
+              });
+
+              // Pack clips to prevent overlaps, pushing subsequent clips to the right
+              let currentX = 0;
+              for (let i = 0; i < allClips.length; i++) {
+                  const clip = allClips[i];
+                  if (clip.startTime < currentX) {
+                      clip.startTime = Math.round(currentX * 1000) / 1000;
+                  }
+                  currentX = Math.round((clip.startTime + clip.duration) * 1000) / 1000;
+              }
+          }
+
+          return { ...track, clips: allClips };
       });
       return { ...prev, tracks: newTracks };
     });

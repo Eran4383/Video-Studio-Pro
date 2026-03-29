@@ -17,6 +17,8 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
   
   if (!settings) return null;
 
+  const liveOverrides = (window as any).liveOverrides?.[block.id] || {};
+
   // Optimized Clip Map for O(1) lookup
   const clipMap = useMemo(() => {
     const map: Record<string, Clip> = {};
@@ -53,6 +55,69 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
     return metadata;
   }, [words]);
 
+  const cropT = block.effects?.find((e: any) => e.name === 'crop')?.params?.top ?? 0;
+  const cropB = block.effects?.find((e: any) => e.name === 'crop')?.params?.bottom ?? 0;
+  const cropL = block.effects?.find((e: any) => e.name === 'crop')?.params?.left ?? 0;
+  const cropR = block.effects?.find((e: any) => e.name === 'crop')?.params?.right ?? 0;
+
+  const getEffectParam = (effectName: string, paramName: string, defaultValue: any) => {
+    const overrideKey = `effect_${effectName}_${paramName}`;
+    if (liveOverrides[overrideKey] !== undefined) return liveOverrides[overrideKey];
+    const effect = block.effects?.find((e: any) => e.name === effectName);
+    return effect?.params?.[paramName] ?? defaultValue;
+  };
+
+  let effectOpacity = 1;
+  let filterString = '';
+  let transformValue = '';
+  let glitchOffsetX = 0;
+  let glitchOffsetY = 0;
+
+  const flickerEffect = block.effects?.find((e: any) => e.name === 'flicker') || liveOverrides.effect_flicker_speed !== undefined || liveOverrides.effect_flicker_intensity !== undefined;
+  if (flickerEffect) {
+    const speed = getEffectParam('flicker', 'speed', 50) / 100;
+    const intensity = getEffectParam('flicker', 'intensity', 50) / 100;
+    const flickerVal = Math.sin(currentTime * (10 + speed * 50));
+    effectOpacity = flickerVal > 0 ? 1 : 1 - intensity;
+  }
+
+  const glitchEffect = block.effects?.find((e: any) => e.name === 'glitch') || liveOverrides.effect_glitch_intensity !== undefined;
+  if (glitchEffect) {
+    const intensity = getEffectParam('glitch', 'intensity', 50) / 100;
+    const isGlitching = Math.sin(currentTime * 30) > (1 - intensity * 0.8);
+    if (isGlitching) {
+      glitchOffsetX = (Math.random() - 0.5) * intensity * 20;
+      glitchOffsetY = (Math.random() - 0.5) * intensity * 10;
+      filterString += ` hue-rotate(${Math.random() * 90 - 45}deg) saturate(${100 + intensity * 100}%)`;
+    }
+  }
+
+  const vhsEffect = block.effects?.find((e: any) => e.name === 'vhs') || liveOverrides.effect_vhs_colorBleed !== undefined || liveOverrides.effect_vhs_noise !== undefined;
+  if (vhsEffect) {
+     const colorBleed = getEffectParam('vhs', 'colorBleed', 50) / 100;
+     filterString += ` sepia(30%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%)`;
+  }
+
+  const shakeEffect = block.effects?.find((e: any) => e.name === 'shake') || liveOverrides.effect_shake_intensity !== undefined || liveOverrides.effect_shake_speed !== undefined;
+  if (shakeEffect) {
+    const intensity = getEffectParam('shake', 'intensity', 50) / 100;
+    const speed = getEffectParam('shake', 'speed', 50) / 100;
+    glitchOffsetX += Math.sin(currentTime * (10 + speed * 40)) * intensity * 10;
+    glitchOffsetY += Math.cos(currentTime * (12 + speed * 35)) * intensity * 10;
+  }
+
+  const spinEffect = block.effects?.find((e: any) => e.name === 'spin') || liveOverrides.effect_spin_speed !== undefined || liveOverrides.effect_spin_direction !== undefined;
+  if (spinEffect) {
+    const speed = getEffectParam('spin', 'speed', 50) / 100;
+    const dir = getEffectParam('spin', 'direction', 1);
+    const spinRot = (currentTime * speed * 360) * dir;
+    transformValue += ` rotate(${spinRot}deg)`;
+  }
+
+  if (glitchOffsetX !== 0 || glitchOffsetY !== 0) {
+    transformValue += ` translate(${glitchOffsetX}px, ${glitchOffsetY}px)`;
+  }
+
   // Calculate container style based on bounding box
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
@@ -63,6 +128,10 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
     overflow: 'hidden',
     pointerEvents: 'none',
     containerType: 'size', // Allows children to use cqh/cqw units relative to this box
+    clipPath: (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) ? `inset(${cropT}% ${cropR}% ${cropB}% ${cropL}%)` : 'none',
+    opacity: effectOpacity,
+    filter: filterString || undefined,
+    transform: transformValue || undefined
   };
 
   const getAnimationClass = (type: string) => {
@@ -84,9 +153,43 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
       if (property === 'bbox_y') containerRef.current.style.top = `${value}%`;
       if (property === 'bbox_width') containerRef.current.style.width = `${value}%`;
       if (property === 'bbox_height') containerRef.current.style.height = `${value}%`;
+
+      // Handle Crop Overrides for the block container
+      if (property.startsWith('effect_crop_')) {
+        const overrides = (window as any).liveOverrides?.[block.id] || {};
+        const cropT = property === 'effect_crop_top' ? value : (overrides.effect_crop_top !== undefined ? overrides.effect_crop_top : (block.effects?.find((e: any) => e.name === 'crop')?.params?.top ?? 0));
+        const cropB = property === 'effect_crop_bottom' ? value : (overrides.effect_crop_bottom !== undefined ? overrides.effect_crop_bottom : (block.effects?.find((e: any) => e.name === 'crop')?.params?.bottom ?? 0));
+        const cropL = property === 'effect_crop_left' ? value : (overrides.effect_crop_left !== undefined ? overrides.effect_crop_left : (block.effects?.find((e: any) => e.name === 'crop')?.params?.left ?? 0));
+        const cropR = property === 'effect_crop_right' ? value : (overrides.effect_crop_right !== undefined ? overrides.effect_crop_right : (block.effects?.find((e: any) => e.name === 'crop')?.params?.right ?? 0));
+        
+        if (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) {
+          containerRef.current.style.clipPath = `inset(${cropT}% ${cropR}% ${cropB}% ${cropL}%)`;
+        } else {
+          containerRef.current.style.clipPath = 'none';
+        }
+      }
+    };
+    const handleClear = (e: Event) => {
+      const { clipId } = (e as CustomEvent).detail || {};
+      if (clipId === block.id || !clipId) {
+        if (containerRef.current) {
+          containerRef.current.style.left = '';
+          containerRef.current.style.top = '';
+          containerRef.current.style.width = '';
+          containerRef.current.style.height = '';
+          containerRef.current.style.clipPath = '';
+          containerRef.current.style.opacity = '';
+          containerRef.current.style.filter = '';
+          containerRef.current.style.transform = '';
+        }
+      }
     };
     window.addEventListener('gfx-override', handleOverride);
-    return () => window.removeEventListener('gfx-override', handleOverride);
+    window.addEventListener('gfx-override-clear', handleClear);
+    return () => {
+      window.removeEventListener('gfx-override', handleOverride);
+      window.removeEventListener('gfx-override-clear', handleClear);
+    };
   }, [block.id]);
 
   return (
@@ -190,6 +293,8 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
             <KineticDraggableWord
               key={word.id}
               word={word}
+              clip={clip}
+              currentTime={currentTime}
               blockId={block.id}
               store={store}
               isActive={isActive}

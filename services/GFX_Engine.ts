@@ -100,7 +100,74 @@ export class GFX_Engine {
           const grayscale = override.grayscale !== undefined ? override.grayscale / 100 : (clip.grayscale ?? 0);
           const invert = override.invert !== undefined ? override.invert / 100 : (clip.invert ?? 0);
 
-          if (brightness !== 1) filterString += `brightness(${brightness * 100}%) `;
+          const getEffectParam = (effectName: string, paramName: string, defaultValue: number) => {
+            const overrideKey = `effect_${effectName}_${paramName}`;
+            if (override[overrideKey] !== undefined) return override[overrideKey];
+            const effect = clip.effects?.find(e => e.name === effectName);
+            if (effect && effect.params && effect.params[paramName] !== undefined) return effect.params[paramName];
+            return defaultValue;
+          };
+
+          // NEW EFFECTS
+          let flickerBrightness = 1;
+          const flickerEffect = clip.effects?.find(e => e.name === 'flicker') || override.effect_flicker_speed !== undefined || override.effect_flicker_intensity !== undefined;
+          if (flickerEffect) {
+            const speed = getEffectParam('flicker', 'speed', 50) / 100;
+            const intensity = getEffectParam('flicker', 'intensity', 50) / 100;
+            const flickerVal = Math.sin(currentTime * (10 + speed * 50));
+            flickerBrightness = flickerVal > 0 ? 1 + (intensity * 0.5) : 1 - (intensity * 0.5);
+          }
+
+          let glitchOffsetX = 0;
+          let glitchOffsetY = 0;
+          const glitchEffect = clip.effects?.find(e => e.name === 'glitch') || override.effect_glitch_intensity !== undefined;
+          if (glitchEffect) {
+            const intensity = getEffectParam('glitch', 'intensity', 50) / 100;
+            const isGlitching = Math.sin(currentTime * 30) > (1 - intensity * 0.8);
+            if (isGlitching) {
+              glitchOffsetX = (Math.random() - 0.5) * intensity * drawW * 0.1;
+              glitchOffsetY = (Math.random() - 0.5) * intensity * drawH * 0.05;
+              filterString += `hue-rotate(${Math.random() * 90 - 45}deg) saturate(${100 + intensity * 100}%) `;
+            }
+          }
+
+          const vhsEffect = clip.effects?.find(e => e.name === 'vhs') || override.effect_vhs_colorBleed !== undefined || override.effect_vhs_noise !== undefined;
+          let vhsNoise = 0;
+          if (vhsEffect) {
+             const colorBleed = getEffectParam('vhs', 'colorBleed', 50) / 100;
+             vhsNoise = getEffectParam('vhs', 'noise', 30) / 100;
+             filterString += `sepia(${30}%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%) `;
+          }
+
+          let shakeX = 0;
+          let shakeY = 0;
+          const shakeEffect = clip.effects?.find(e => e.name === 'shake') || override.effect_shake_intensity !== undefined || override.effect_shake_speed !== undefined;
+          if (shakeEffect) {
+            const intensity = getEffectParam('shake', 'intensity', 50) / 100;
+            const speed = getEffectParam('shake', 'speed', 50) / 100;
+            shakeX = Math.sin(currentTime * (10 + speed * 40)) * intensity * drawW * 0.05;
+            shakeY = Math.cos(currentTime * (12 + speed * 35)) * intensity * drawH * 0.05;
+          }
+
+          let spinRot = 0;
+          const spinEffect = clip.effects?.find(e => e.name === 'spin') || override.effect_spin_speed !== undefined || override.effect_spin_direction !== undefined;
+          if (spinEffect) {
+            const speed = getEffectParam('spin', 'speed', 50) / 100;
+            const dir = getEffectParam('spin', 'direction', 1);
+            spinRot = (currentTime * speed * 360) * dir;
+          }
+
+          const cropEffect = clip.effects?.find(e => e.name === 'crop') || override.effect_crop_top !== undefined || override.effect_crop_bottom !== undefined || override.effect_crop_left !== undefined || override.effect_crop_right !== undefined;
+          let cropT = 0, cropB = 0, cropL = 0, cropR = 0;
+          if (cropEffect) {
+            cropT = getEffectParam('crop', 'top', 0) / 100;
+            cropB = getEffectParam('crop', 'bottom', 0) / 100;
+            cropL = getEffectParam('crop', 'left', 0) / 100;
+            cropR = getEffectParam('crop', 'right', 0) / 100;
+          }
+
+          const finalBrightness = brightness * flickerBrightness;
+          if (finalBrightness !== 1) filterString += `brightness(${finalBrightness * 100}%) `;
           if (contrast !== 1) filterString += `contrast(${contrast * 100}%) `;
           if (saturation !== 1) filterString += `saturate(${saturation * 100}%) `;
           if (hue !== 0) filterString += `hue-rotate(${hue}deg) `;
@@ -112,12 +179,11 @@ export class GFX_Engine {
           // Apply Visual Effects (Filters)
           if (clip.effects && clip.effects.length > 0) {
             filterString += clip.effects.map(effect => {
-              const params = effect.params || {};
               switch (effect.name) {
-                case 'blur': return `blur(${params.amount || 0}px)`;
-                case 'grayscale': return `grayscale(${params.amount || 0}%)`;
-                case 'sepia': return `sepia(${params.amount || 0}%)`;
-                case 'invert': return `invert(${params.amount || 0}%)`;
+                case 'blur': return `blur(${getEffectParam('blur', 'amount', 0)}px)`;
+                case 'grayscale': return `grayscale(${getEffectParam('grayscale', 'amount', 0)}%)`;
+                case 'sepia': return `sepia(${getEffectParam('sepia', 'amount', 0)}%)`;
+                case 'invert': return `invert(${getEffectParam('invert', 'amount', 0)}%)`;
                 default: return '';
               }
             }).filter(Boolean).join(' ');
@@ -125,8 +191,8 @@ export class GFX_Engine {
           
           if (filterString.trim()) ctx.filter = filterString.trim();
 
-          ctx.translate(posX * ctx.canvas.width, posY * ctx.canvas.height);
-          ctx.rotate(rotation * Math.PI / 180);
+          ctx.translate(posX * ctx.canvas.width + glitchOffsetX + shakeX, posY * ctx.canvas.height + glitchOffsetY + shakeY);
+          ctx.rotate((rotation + spinRot) * Math.PI / 180);
           
           // Apply Motion Effects
           let motionScale = scale;
@@ -143,7 +209,27 @@ export class GFX_Engine {
           }
           ctx.scale(motionScale, motionScale);
 
+          // Apply Crop
+          if (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) {
+            ctx.beginPath();
+            ctx.rect(-drawW / 2 + drawW * cropL, -drawH / 2 + drawH * cropT, drawW * (1 - cropL - cropR), drawH * (1 - cropT - cropB));
+            ctx.clip();
+          }
+
           ctx.drawImage(element, -drawW / 2, -drawH / 2, drawW, drawH);
+
+          // Apply VHS Scanlines
+          if (vhsNoise > 0) {
+            ctx.fillStyle = `rgba(0,0,0,${vhsNoise * 0.3})`;
+            for (let i = 0; i < drawH; i += 4) {
+              ctx.fillRect(-drawW / 2, -drawH / 2 + i, drawW, 1);
+            }
+            ctx.fillStyle = `rgba(255,255,255,${vhsNoise * 0.2})`;
+            for (let i = 0; i < 50; i++) {
+               ctx.fillRect(-drawW / 2 + Math.random() * drawW, -drawH / 2 + Math.random() * drawH, 2, 2);
+            }
+          }
+
           ctx.restore();
         }
       });
@@ -152,14 +238,22 @@ export class GFX_Engine {
     activeClips
       .filter(({ clip }) => clip.type === MediaType.EFFECT)
       .forEach(({ clip }) => {
+        const override = liveOverrides[clip.id] || {};
+        const getEffectParam = (effectName: string, paramName: string, defaultValue: number) => {
+          const overrideKey = `effect_${effectName}_${paramName}`;
+          if (override[overrideKey] !== undefined) return override[overrideKey];
+          const effect = clip.effects?.find(e => e.name === effectName);
+          if (effect && effect.params && effect.params[paramName] !== undefined) return effect.params[paramName];
+          return defaultValue;
+        };
+
         if (clip.effects && clip.effects.length > 0) {
           const filterString = clip.effects.map(effect => {
-            const params = effect.params || {};
             switch (effect.name) {
-              case 'blur': return `blur(${params.amount || 0}px)`;
-              case 'grayscale': return `grayscale(${params.amount || 0}%)`;
-              case 'sepia': return `sepia(${params.amount || 0}%)`;
-              case 'invert': return `invert(${params.amount || 0}%)`;
+              case 'blur': return `blur(${getEffectParam('blur', 'amount', 0)}px)`;
+              case 'grayscale': return `grayscale(${getEffectParam('grayscale', 'amount', 0)}%)`;
+              case 'sepia': return `sepia(${getEffectParam('sepia', 'amount', 0)}%)`;
+              case 'invert': return `invert(${getEffectParam('invert', 'amount', 0)}%)`;
               default: return '';
             }
           }).filter(Boolean).join(' ');

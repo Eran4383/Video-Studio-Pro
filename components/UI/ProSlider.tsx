@@ -61,7 +61,7 @@ export const ProSlider = ({
     
     // Clear override so the store value takes over
     if (clipId && previewId) {
-      window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+      window.dispatchEvent(new CustomEvent('gfx-override-clear', { detail: { clipId } }));
     }
   };
 
@@ -70,7 +70,7 @@ export const ProSlider = ({
         setLocalValue(defaultValue);
         onChange(defaultValue);
         if (clipId && previewId) {
-          window.dispatchEvent(new CustomEvent('gfx-override-clear'));
+          window.dispatchEvent(new CustomEvent('gfx-override-clear', { detail: { clipId } }));
         }
     }
   };

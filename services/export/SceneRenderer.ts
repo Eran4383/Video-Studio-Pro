@@ -186,6 +186,46 @@ export class SceneRenderer {
 
         if (opacityValue <= 0) return;
 
+        this.ctx.save();
+
+        let vhsNoiseLevel = 0;
+        if (clip) {
+          const {
+            filterString, offsetX, offsetY, spinRot, motionScale, cropT, cropB, cropL, cropR, vhsNoise
+          } = this.calculateClipEffects(clip, time, boxWidth, boxHeight);
+          
+          vhsNoiseLevel = vhsNoise;
+          if (filterString) this.ctx.filter = filterString;
+          
+          // Apply offsets and rotation
+          this.ctx.translate(offsetX, offsetY);
+          if (spinRot !== 0) {
+            // Translate to center of word, rotate, translate back
+            this.ctx.translate(boxX + (word.position.x * boxWidth), boxY + (word.position.y * boxHeight));
+            this.ctx.rotate(spinRot * Math.PI / 180);
+            this.ctx.translate(-(boxX + (word.position.x * boxWidth)), -(boxY + (word.position.y * boxHeight)));
+          }
+          
+          // Apply motion scale
+          if (motionScale !== 1) {
+            this.ctx.translate(boxX + (word.position.x * boxWidth), boxY + (word.position.y * boxHeight));
+            this.ctx.scale(motionScale, motionScale);
+            this.ctx.translate(-(boxX + (word.position.x * boxWidth)), -(boxY + (word.position.y * boxHeight)));
+          }
+
+          // Apply Crop
+          if (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) {
+            this.ctx.beginPath();
+            this.ctx.rect(
+              boxX + (boxWidth * cropL),
+              boxY + (boxHeight * cropT),
+              boxWidth * (1 - cropL - cropR),
+              boxHeight * (1 - cropT - cropB)
+            );
+            this.ctx.clip();
+          }
+        }
+
         const isStretchX = word.stretchX;
         const isStretchY = word.stretchY;
 
@@ -236,10 +276,142 @@ export class SceneRenderer {
         }
 
         this.ctx.fillText(textToDraw, wordX, wordY);
+        
+        if (vhsNoiseLevel > 0) {
+          this.ctx.fillStyle = `rgba(0,0,0,${vhsNoiseLevel * 0.3})`;
+          for (let i = 0; i < boxHeight; i += 4) {
+            this.ctx.fillRect(boxX, boxY + i, boxWidth, 1);
+          }
+        }
+        
+        this.ctx.restore();
       });
 
       this.ctx.restore();
     }
+  }
+
+  private calculateClipEffects(clip: Clip, time: number, drawWidth: number, drawHeight: number) {
+    let filterString = '';
+    const brightness = clip.brightness ?? 1;
+    const contrast = clip.contrast ?? 1;
+    const saturation = clip.saturation ?? 1;
+    const hue = clip.hue ?? 0;
+    const blur = clip.blur ?? 0;
+    const sepia = clip.sepia ?? 0;
+    const grayscale = clip.grayscale ?? 0;
+    const invert = clip.invert ?? 0;
+
+    // NEW EFFECTS
+    let flickerBrightness = 1;
+    const flickerEffect = clip.effects?.find(e => e.name === 'flicker');
+    if (flickerEffect) {
+      const p = flickerEffect.params || {};
+      const speed = (p.speed || 50) / 100;
+      const intensity = (p.intensity || 50) / 100;
+      const flickerVal = Math.sin(time * (10 + speed * 50));
+      flickerBrightness = flickerVal > 0 ? 1 + (intensity * 0.5) : 1 - (intensity * 0.5);
+    }
+
+    let glitchOffsetX = 0;
+    let glitchOffsetY = 0;
+    const glitchEffect = clip.effects?.find(e => e.name === 'glitch');
+    if (glitchEffect) {
+      const p = glitchEffect.params || {};
+      const intensity = (p.intensity || 50) / 100;
+      const isGlitching = Math.sin(time * 30) > (1 - intensity * 0.8);
+      if (isGlitching) {
+        glitchOffsetX = (Math.random() - 0.5) * intensity * drawWidth * 0.1;
+        glitchOffsetY = (Math.random() - 0.5) * intensity * drawHeight * 0.05;
+        filterString += `hue-rotate(${Math.random() * 90 - 45}deg) saturate(${100 + intensity * 100}%) `;
+      }
+    }
+
+    const vhsEffect = clip.effects?.find(e => e.name === 'vhs');
+    let vhsNoise = 0;
+    if (vhsEffect) {
+       const p = vhsEffect.params || {};
+       const colorBleed = (p.colorBleed || 50) / 100;
+       vhsNoise = (p.noise || 30) / 100;
+       filterString += `sepia(${30}%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%) `;
+    }
+
+    let shakeX = 0;
+    let shakeY = 0;
+    const shakeEffect = clip.effects?.find(e => e.name === 'shake');
+    if (shakeEffect) {
+      const p = shakeEffect.params || {};
+      const intensity = (p.intensity || 50) / 100;
+      const speed = (p.speed || 50) / 100;
+      shakeX = Math.sin(time * (10 + speed * 40)) * intensity * drawWidth * 0.05;
+      shakeY = Math.cos(time * (12 + speed * 35)) * intensity * drawHeight * 0.05;
+    }
+
+    let spinRot = 0;
+    const spinEffect = clip.effects?.find(e => e.name === 'spin');
+    if (spinEffect) {
+      const p = spinEffect.params || {};
+      const speed = (p.speed || 50) / 100;
+      const dir = p.direction || 1;
+      spinRot = (time * speed * 360) * dir;
+    }
+
+    const cropEffect = clip.effects?.find(e => e.name === 'crop');
+    let cropT = 0, cropB = 0, cropL = 0, cropR = 0;
+    if (cropEffect) {
+      const p = cropEffect.params || {};
+      cropT = (p.top || 0) / 100;
+      cropB = (p.bottom || 0) / 100;
+      cropL = (p.left || 0) / 100;
+      cropR = (p.right || 0) / 100;
+    }
+
+    const finalBrightness = brightness * flickerBrightness;
+    if (finalBrightness !== 1) filterString += `brightness(${finalBrightness * 100}%) `;
+    if (contrast !== 1) filterString += `contrast(${contrast * 100}%) `;
+    if (saturation !== 1) filterString += `saturate(${saturation * 100}%) `;
+    if (hue !== 0) filterString += `hue-rotate(${hue}deg) `;
+    if (blur !== 0) filterString += `blur(${blur}px) `;
+    if (sepia !== 0) filterString += `sepia(${sepia * 100}%) `;
+    if (grayscale !== 0) filterString += `grayscale(${grayscale * 100}%) `;
+    if (invert !== 0) filterString += `invert(${invert * 100}%) `;
+
+    // Apply Visual Effects (Filters)
+    if (clip.effects && clip.effects.length > 0) {
+      filterString += clip.effects.map(effect => {
+        const params = effect.params || {};
+        switch (effect.name) {
+          case 'blur': return `blur(${params.amount || 0}px)`;
+          case 'grayscale': return `grayscale(${params.amount || 0}%)`;
+          case 'sepia': return `sepia(${params.amount || 0}%)`;
+          case 'invert': return `invert(${params.amount || 0}%)`;
+          default: return '';
+        }
+      }).filter(Boolean).join(' ');
+    }
+
+    let motionScale = 1;
+    if (clip.effects) {
+      const progress = (time - clip.startTime) / clip.duration;
+      clip.effects.forEach(effect => {
+        const params = effect.params || {};
+        if (effect.name === 'zoom-in') {
+          motionScale *= (1 + (params.intensity || 0.2) * progress);
+        } else if (effect.name === 'zoom-out') {
+          motionScale *= (1 + (params.intensity || 0.2) * (1 - progress));
+        }
+      });
+    }
+
+    return {
+      filterString: filterString.trim(),
+      offsetX: glitchOffsetX + shakeX,
+      offsetY: glitchOffsetY + shakeY,
+      spinRot,
+      motionScale,
+      cropT, cropB, cropL, cropR,
+      vhsNoise
+    };
   }
 
   private drawMediaClip(
@@ -308,61 +480,39 @@ export class SceneRenderer {
     }
 
     // Apply Built-in Color Grading & Adjustments
-    let filterString = '';
-    const brightness = clip.brightness ?? 1;
-    const contrast = clip.contrast ?? 1;
-    const saturation = clip.saturation ?? 1;
-    const hue = clip.hue ?? 0;
-    const blur = clip.blur ?? 0;
-    const sepia = clip.sepia ?? 0;
-    const grayscale = clip.grayscale ?? 0;
-    const invert = clip.invert ?? 0;
-
-    if (brightness !== 1) filterString += `brightness(${brightness * 100}%) `;
-    if (contrast !== 1) filterString += `contrast(${contrast * 100}%) `;
-    if (saturation !== 1) filterString += `saturate(${saturation * 100}%) `;
-    if (hue !== 0) filterString += `hue-rotate(${hue}deg) `;
-    if (blur !== 0) filterString += `blur(${blur}px) `;
-    if (sepia !== 0) filterString += `sepia(${sepia * 100}%) `;
-    if (grayscale !== 0) filterString += `grayscale(${grayscale * 100}%) `;
-    if (invert !== 0) filterString += `invert(${invert * 100}%) `;
-
-    // Apply Visual Effects (Filters)
-    if (clip.effects && clip.effects.length > 0) {
-      filterString += clip.effects.map(effect => {
-        const params = effect.params || {};
-        switch (effect.name) {
-          case 'blur': return `blur(${params.amount || 0}px)`;
-          case 'grayscale': return `grayscale(${params.amount || 0}%)`;
-          case 'sepia': return `sepia(${params.amount || 0}%)`;
-          case 'invert': return `invert(${params.amount || 0}%)`;
-          default: return '';
-        }
-      }).filter(Boolean).join(' ');
-    }
+    const {
+      filterString, offsetX, offsetY, spinRot, motionScale, cropT, cropB, cropL, cropR, vhsNoise
+    } = this.calculateClipEffects(clip, time, drawWidth, drawHeight);
     
-    if (filterString.trim()) this.ctx.filter = filterString.trim();
+    if (filterString) this.ctx.filter = filterString;
 
-    this.ctx.translate(x, y);
-    this.ctx.rotate((rotation * Math.PI) / 180);
+    this.ctx.translate(x + offsetX, y + offsetY);
+    this.ctx.rotate((rotation + spinRot) * Math.PI / 180);
     
     // Apply Motion Effects
-    let motionScale = scale;
-    if (clip.effects) {
-      const progress = (time - clip.startTime) / clip.duration;
-      clip.effects.forEach(effect => {
-        const params = effect.params || {};
-        if (effect.name === 'zoom-in') {
-          motionScale *= (1 + (params.intensity || 0.2) * progress);
-        } else if (effect.name === 'zoom-out') {
-          motionScale *= (1 + (params.intensity || 0.2) * (1 - progress));
-        }
-      });
+    this.ctx.scale(scale * motionScale, scale * motionScale);
+
+    // Apply Crop
+    if (cropT > 0 || cropB > 0 || cropL > 0 || cropR > 0) {
+      this.ctx.beginPath();
+      this.ctx.rect(-drawWidth / 2 + drawWidth * cropL, -drawHeight / 2 + drawHeight * cropT, drawWidth * (1 - cropL - cropR), drawHeight * (1 - cropT - cropB));
+      this.ctx.clip();
     }
-    this.ctx.scale(motionScale, motionScale);
 
     // 3. Draw Centered
     this.ctx.drawImage(element, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+
+    // Apply VHS Scanlines
+    if (vhsNoise > 0) {
+      this.ctx.fillStyle = `rgba(0,0,0,${vhsNoise * 0.3})`;
+      for (let i = 0; i < drawHeight; i += 4) {
+        this.ctx.fillRect(-drawWidth / 2, -drawHeight / 2 + i, drawWidth, 1);
+      }
+      this.ctx.fillStyle = `rgba(255,255,255,${vhsNoise * 0.2})`;
+      for (let i = 0; i < 50; i++) {
+         this.ctx.fillRect(-drawWidth / 2 + Math.random() * drawWidth, -drawHeight / 2 + Math.random() * drawHeight, 2, 2);
+      }
+    }
 
     this.ctx.restore();
   }

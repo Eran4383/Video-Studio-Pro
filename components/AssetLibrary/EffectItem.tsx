@@ -1,10 +1,10 @@
 import React from 'react';
-import { Sparkles, Plus, Star, Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight } from 'lucide-react';
+import { Sparkles, Plus, Star, Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight, Zap, Activity, Film, Crop, RotateCw, Tv } from 'lucide-react';
 import { EffectDefinition } from '../../config/effects';
 import { Tooltip } from '../UI/Tooltip';
 
 const ICON_MAP: Record<string, any> = {
-  Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight
+  Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight, Zap, Activity, Film, Crop, RotateCw, Tv
 };
 
 interface EffectItemProps {
@@ -42,17 +42,23 @@ export const EffectItem: React.FC<EffectItemProps> = ({
       case 'grayscale': return 'group-hover:grayscale transition-all duration-500';
       case 'sepia': return 'group-hover:sepia transition-all duration-500';
       case 'invert': return 'group-hover:invert transition-all duration-500';
+      case 'crop': return 'group-hover:scale-110 group-hover:rounded-2xl transition-all duration-500';
       case 'zoom-in': return 'preview-anim-zoom-in';
       case 'zoom-out': return 'preview-anim-zoom-out';
+      case 'shake': return 'preview-anim-shake';
+      case 'spin': return 'preview-anim-spin';
       case 'crossfade': return 'preview-anim-crossfade';
       case 'wipe-right': return 'preview-anim-wipe';
+      case 'flicker': return 'preview-anim-flicker';
+      case 'glitch': return 'preview-anim-glitch';
+      case 'vhs': return 'group-hover:contrast-150 group-hover:saturate-50 group-hover:hue-rotate-15 transition-all duration-500';
       default: return 'group-hover:brightness-150 transition-all duration-500';
     }
   };
 
   if (viewMode === 'grid') {
     return (
-      <Tooltip text={effect.description} position="top" className="w-full h-full">
+      <Tooltip text={effect.description} mouseFollow={true} className="w-full h-full">
         <div 
           draggable
           onDragStart={handleDragStart}
