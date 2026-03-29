@@ -61,8 +61,8 @@ export const KineticDraggableWord = ({
       const deltaX = (e.clientX - startMouse.current.x) / rect.width;
       const deltaY = (e.clientY - startMouse.current.y) / rect.height;
       
-      let newX = startPos.current.x + deltaX;
-      let newY = startPos.current.y + deltaY;
+      let newX = (startPos.current.x || 0) + deltaX;
+      let newY = (startPos.current.y || 0) + deltaY;
 
       // Magnetic Snapping Logic
       const isSnappingActive = store.isCanvasMagnetEnabled && !e.ctrlKey;
@@ -108,8 +108,13 @@ export const KineticDraggableWord = ({
       if (guideX) guideX.style.opacity = (isSnappingActive && snappedX) ? '1' : '0';
       if (guideY) guideY.style.opacity = (isSnappingActive && snappedY) ? '1' : '0';
       
-      if (!word.stretchX) spanRef.current.style.left = `${newX * 100}%`;
-      if (!word.stretchY) spanRef.current.style.top = `${newY * 100}%`;
+      spanRef.current.style.left = `${newX * 100}%`;
+      spanRef.current.style.top = `${newY * 100}%`;
+      
+      // Temporarily disable stretching styles during drag for visual feedback
+      spanRef.current.style.width = 'auto';
+      spanRef.current.style.height = 'auto';
+      spanRef.current.style.display = 'block';
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -129,8 +134,8 @@ export const KineticDraggableWord = ({
       const deltaX = (e.clientX - startMouse.current.x) / rect.width;
       const deltaY = (e.clientY - startMouse.current.y) / rect.height;
       
-      let newX = startPos.current.x + deltaX;
-      let newY = startPos.current.y + deltaY;
+      let newX = (startPos.current.x || 0) + deltaX;
+      let newY = (startPos.current.y || 0) + deltaY;
 
       // Apply snapping to final state too
       const isSnappingActive = store.isCanvasMagnetEnabled && !e.ctrlKey;
@@ -160,7 +165,15 @@ export const KineticDraggableWord = ({
         else if (Math.abs(bottomEdge - 1) < threshold) newY = 1 - ((1 - anchorY) * hPct);
       }
       
-      store.updateWordOverride(blockId, word.id, { position: { x: newX, y: newY } });
+      // If we moved the word, disable stretching to allow free positioning
+      const movedX = Math.abs(deltaX) > 0.0005;
+      const movedY = Math.abs(deltaY) > 0.0005;
+
+      store.updateWordOverride(blockId, word.id, { 
+        position: { x: newX, y: newY },
+        stretchX: movedX ? false : word.stretchX,
+        stretchY: movedY ? false : word.stretchY
+      });
     };
 
     window.addEventListener('mousemove', handleMouseMove);
@@ -214,10 +227,6 @@ export const KineticDraggableWord = ({
   let transformValue = `translate(-${anchorX * 100}%, -${anchorY * 100}%) scale(${scale})`;
   if (word.rotation) transformValue += ` rotate(${word.rotation}deg)`;
   
-  if (isStretchX && isStretchY) transformValue = `scale(${scale})`;
-  else if (isStretchX) transformValue = `translateY(-${anchorY * 100}%) scale(${scale})`;
-  else if (isStretchY) transformValue = `translateX(-${anchorX * 100}%) scale(${scale})`;
-
   const hardCutoffStyles: React.CSSProperties = (isPast && !isKeepVisible) ? {
     opacity: 0,
     transition: 'none !important',
@@ -242,8 +251,8 @@ export const KineticDraggableWord = ({
       onMouseDown={handleMouseDown}
       className={`absolute cursor-move hover:outline hover:outline-1 hover:outline-blue-400/50 pointer-events-auto ${(isSelected && showTransformControls) ? 'outline outline-2 outline-blue-500 z-50' : ''}`}
       style={{
-        left: isStretchX ? 0 : `${word.position.x * 100}%`,
-        top: isStretchY ? 0 : `${word.position.y * 100}%`,
+        left: `${word.position.x * 100}%`,
+        top: `${word.position.y * 100}%`,
         width: isStretchX ? '100%' : undefined,
         height: isStretchY ? '100%' : undefined,
         display: (isStretchX || isStretchY) ? 'flex' : 'block',

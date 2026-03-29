@@ -1,27 +1,33 @@
 
 import React, { useState, useMemo } from 'react';
-import { Sparkles, Search, Plus, Info, Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight, Star, Filter, Play, Move } from 'lucide-react';
+import { Search, Info, Filter, ChevronRight, ChevronDown, Folder, FolderOpen, LayoutGrid, List, Columns } from 'lucide-react';
 import { EFFECTS_LIBRARY, EffectDefinition } from '../../config/effects';
-import { Tooltip } from '../UI/Tooltip';
+import { EffectItem } from './EffectItem';
 
 interface EffectsSidebarProps {
   onApplyEffect: (effect: { type: string, name: string, params: any }) => void;
 }
 
-const ICON_MAP: Record<string, any> = {
-  Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight
-};
-
-const CATEGORIES = ['All', 'Filters', 'Transitions', 'Motion', 'Favorites'] as const;
-type Category = typeof CATEGORIES[number];
+const CATEGORIES = ['Filters', 'Transitions', 'Motion'] as const;
 
 export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect }) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState<Category>('All');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [gridCols, setGridCols] = useState<number>(2);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({
+    'Favorites': true,
+    'Filters': true,
+    'Transitions': true,
+    'Motion': true
+  });
   const [favorites, setFavorites] = useState<string[]>(() => {
     const saved = localStorage.getItem('nexus-favorite-effects');
     return saved ? JSON.parse(saved) : [];
   });
+
+  const toggleCategory = (cat: string) => {
+    setExpandedCategories(prev => ({ ...prev, [cat]: !prev[cat] }));
+  };
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -32,136 +38,145 @@ export const EffectsSidebar: React.FC<EffectsSidebarProps> = ({ onApplyEffect })
     localStorage.setItem('nexus-favorite-effects', JSON.stringify(newFavorites));
   };
 
-  const filteredEffects = useMemo(() => {
-    return EFFECTS_LIBRARY.filter(effect => {
+  const groupedEffects = useMemo(() => {
+    const groups: Record<string, EffectDefinition[]> = {
+      'Favorites': [],
+      'Filters': [],
+      'Transitions': [],
+      'Motion': []
+    };
+
+    EFFECTS_LIBRARY.forEach(effect => {
       const matchesSearch = effect.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           effect.description.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchesCategory = activeCategory === 'All' || 
-                             (activeCategory === 'Favorites' ? favorites.includes(effect.id) : effect.category === activeCategory);
-      return matchesSearch && matchesCategory;
+      
+      if (matchesSearch) {
+        if (favorites.includes(effect.id)) {
+          groups['Favorites'].push(effect);
+        }
+        if (groups[effect.category]) {
+          groups[effect.category].push(effect);
+        }
+      }
     });
-  }, [searchQuery, activeCategory, favorites]);
+
+    return groups;
+  }, [searchQuery, favorites]);
 
   return (
-    <div className="w-80 bg-[#0c0c0e] border-r border-zinc-800/50 flex flex-col h-full overflow-hidden">
-      <div className="p-5 space-y-5">
+    <div className="w-72 bg-[#141414] border-r border-zinc-800/50 flex flex-col h-full overflow-hidden select-none">
+      {/* Header */}
+      <div className="px-3 py-2 border-b border-zinc-800/50 flex flex-col gap-2 bg-zinc-900/20">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-              <Sparkles size={16} className="text-indigo-400" />
-            </div>
-            <div>
-              <h2 className="text-[11px] font-black uppercase tracking-[0.2em] text-zinc-100">Effects Engine</h2>
-              <p className="text-[9px] text-zinc-500 font-medium">Visual enhancement suite</p>
+          <span className="text-[11px] font-semibold text-zinc-300 uppercase tracking-wider">Effects</span>
+          <div className="flex items-center gap-1">
+            <div className="flex items-center bg-zinc-900/50 rounded p-0.5 border border-zinc-800/50 mr-1">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={`p-1 rounded transition-colors ${viewMode === 'list' ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-500 hover:text-zinc-300'}`}
+                title="List View"
+              >
+                <List size={10} />
+              </button>
+              <button 
+                onClick={() => setViewMode('grid')}
+                className={`p-1 rounded transition-colors ${viewMode === 'grid' ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-500 hover:text-zinc-300'}`}
+                title="Grid View"
+              >
+                <LayoutGrid size={10} />
+              </button>
             </div>
           </div>
         </div>
         
+        {viewMode === 'grid' && (
+          <div className="flex items-center gap-2 px-1">
+            <Columns size={10} className="text-zinc-500" />
+            <input 
+              type="range" 
+              min="1" 
+              max="3" 
+              value={gridCols} 
+              onChange={(e) => setGridCols(parseInt(e.target.value))}
+              className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+            />
+            <span className="text-[9px] text-zinc-500 w-2 text-center">{gridCols}</span>
+          </div>
+        )}
+      </div>
+      
+      {/* Search */}
+      <div className="p-2 border-b border-zinc-800/50">
         <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-600 group-focus-within:text-indigo-400 transition-colors" size={14} />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 group-focus-within:text-indigo-400 transition-colors" size={12} />
           <input 
             type="text"
-            placeholder="Search library..."
+            placeholder="Search Effects..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-zinc-900/30 border border-zinc-800/50 rounded-xl py-2.5 pl-9 pr-4 text-[11px] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/30 focus:bg-zinc-900/50 transition-all"
+            className="w-full bg-zinc-900/50 border border-zinc-800/50 rounded px-2 py-1 pl-6 text-[11px] text-zinc-300 placeholder:text-zinc-600 focus:outline-none focus:border-indigo-500/50 transition-all"
           />
-        </div>
-
-        <div className="flex gap-1 overflow-x-auto pb-1 no-scrollbar">
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                activeCategory === cat 
-                  ? 'bg-indigo-500 text-white shadow-lg shadow-indigo-500/20' 
-                  : 'bg-zinc-900/50 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-3 custom-scrollbar">
-        {filteredEffects.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3">
-            {filteredEffects.map((effect) => {
-              const Icon = ICON_MAP[effect.icon] || Sparkles;
-              const isFavorite = favorites.includes(effect.id);
+      {/* Effects Tree */}
+      <div className="flex-1 overflow-y-auto py-2 custom-scrollbar">
+        {['Favorites', ...CATEGORIES].map(category => {
+          const effects = groupedEffects[category];
+          if (effects.length === 0 && category !== 'Favorites') return null;
+          if (category === 'Favorites' && effects.length === 0 && !searchQuery) return null;
+
+          const isExpanded = expandedCategories[category];
+
+          return (
+            <div key={category} className="mb-1">
+              <button 
+                onClick={() => toggleCategory(category)}
+                className="w-full flex items-center gap-1.5 px-2 py-1 hover:bg-zinc-800/50 text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                {isExpanded ? <FolderOpen size={12} className="text-indigo-400/70" /> : <Folder size={12} className="text-indigo-400/70" />}
+                <span className="text-[11px] font-medium">{category}</span>
+                <span className="text-[9px] text-zinc-600 ml-auto">{effects.length}</span>
+              </button>
               
-              return (
-                <div 
-                  key={effect.id}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData('application/json', JSON.stringify({
-                      type: 'effect',
-                      effect: {
-                        type: effect.type,
-                        name: effect.id,
-                        params: effect.defaultParams
-                      }
-                    }));
-                  }}
-                  className="group relative p-4 rounded-2xl bg-zinc-900/20 border border-zinc-800/30 hover:border-indigo-500/30 hover:bg-zinc-900/40 transition-all cursor-grab active:cursor-grabbing overflow-hidden"
-                >
-                  {/* Subtle Background Glow */}
-                  <div className="absolute -right-4 -top-4 w-16 h-16 bg-indigo-500/5 blur-2xl rounded-full group-hover:bg-indigo-500/10 transition-all" />
-                  
-                  <div className="flex items-start gap-4 relative z-10">
-                    <div className="w-10 h-10 rounded-xl bg-zinc-800/50 flex items-center justify-center text-zinc-400 group-hover:text-indigo-400 group-hover:bg-indigo-500/10 transition-all">
-                      <Icon size={20} />
+              {isExpanded && (
+                <div className={`mt-0.5 ${viewMode === 'grid' ? `grid gap-2 px-2 py-1 ${gridCols === 1 ? 'grid-cols-1' : gridCols === 2 ? 'grid-cols-2' : 'grid-cols-3'}` : ''}`}>
+                  {effects.map(effect => (
+                    <EffectItem
+                      key={effect.id}
+                      effect={effect}
+                      isFavorite={favorites.includes(effect.id)}
+                      viewMode={viewMode}
+                      onToggleFavorite={toggleFavorite}
+                      onApplyEffect={onApplyEffect}
+                    />
+                  ))}
+                  {effects.length === 0 && category === 'Favorites' && (
+                    <div className={`px-8 py-2 text-[10px] text-zinc-600 italic ${viewMode === 'grid' ? 'col-span-full' : ''}`}>
+                      No favorites yet
                     </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-[11px] font-bold text-zinc-200 tracking-wide">{effect.name}</h3>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button 
-                            onClick={(e) => toggleFavorite(effect.id, e)}
-                            className={`p-1.5 rounded-lg transition-all ${isFavorite ? 'text-amber-400' : 'text-zinc-600 hover:text-amber-400 hover:bg-amber-400/10'}`}
-                          >
-                            <Star size={12} fill={isFavorite ? 'currentColor' : 'none'} />
-                          </button>
-                          <button 
-                            onClick={() => onApplyEffect({ type: effect.type, name: effect.id, params: effect.defaultParams })}
-                            className="p-1.5 bg-indigo-500 text-white rounded-lg hover:bg-indigo-400 transition-all shadow-lg shadow-indigo-500/20"
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-[9px] text-zinc-500 font-medium leading-relaxed mt-1 line-clamp-2">
-                        {effect.description}
-                      </p>
-                    </div>
-                  </div>
+                  )}
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center py-20 text-zinc-700">
-            <div className="w-12 h-12 rounded-full bg-zinc-900/50 flex items-center justify-center mb-4">
-              <Search size={20} className="opacity-20" />
+              )}
             </div>
-            <p className="text-[10px] uppercase font-black tracking-[0.2em] opacity-40">No effects found</p>
+          );
+        })}
+        
+        {Object.values(groupedEffects).every(arr => arr.length === 0) && (
+          <div className="flex flex-col items-center justify-center py-10 text-zinc-600">
+            <Search size={16} className="mb-2 opacity-50" />
+            <p className="text-[10px]">No effects found</p>
           </div>
         )}
       </div>
 
-      <div className="p-5 bg-zinc-900/10 border-t border-zinc-800/30">
-        <div className="flex items-start gap-3 text-zinc-500">
-          <div className="mt-0.5">
-            <Info size={12} className="text-indigo-500/50" />
-          </div>
-          <p className="text-[9px] font-medium leading-normal">
-            Drag effects to the timeline to create <span className="text-zinc-300">Adjustment Layers</span> or apply directly to clips.
-          </p>
-        </div>
+      {/* Footer Info */}
+      <div className="px-3 py-2 bg-zinc-900/30 border-t border-zinc-800/50">
+        <p className="text-[9px] text-zinc-500 flex items-center gap-1.5">
+          <Info size={10} />
+          Drag to timeline or clip
+        </p>
       </div>
     </div>
   );

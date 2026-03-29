@@ -8,18 +8,30 @@ interface TooltipProps {
   children: React.ReactElement;
   position?: 'top' | 'bottom' | 'left' | 'right';
   key?: React.Key;
+  className?: string;
 }
 
-export const Tooltip = ({ text, shortcut, children, position = 'top' }: TooltipProps) => {
+export const Tooltip = ({ text, shortcut, children, position = 'top', className = '' }: TooltipProps) => {
   const [show, setShow] = useState(false);
   const [coords, setCoords] = useState({ x: 0, y: 0 });
 
   const handleMouseEnter = (e: React.MouseEvent) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setCoords({
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    });
+    
+    let x = rect.left + rect.width / 2;
+    let y = rect.top + rect.height / 2;
+
+    if (position === 'top') {
+      y = rect.top;
+    } else if (position === 'bottom') {
+      y = rect.bottom;
+    } else if (position === 'left') {
+      x = rect.left;
+    } else if (position === 'right') {
+      x = rect.right;
+    }
+
+    setCoords({ x, y });
     setShow(true);
   };
 
@@ -50,7 +62,7 @@ export const Tooltip = ({ text, shortcut, children, position = 'top' }: TooltipP
   );
 
   return (
-    <div className="relative flex items-center" onMouseEnter={handleMouseEnter} onMouseLeave={() => setShow(false)}>
+    <div className={`relative flex items-center ${className}`} onMouseEnter={handleMouseEnter} onMouseLeave={() => setShow(false)}>
       {children}
       {show && ReactDOM.createPortal(tooltipContent, document.body)}
     </div>

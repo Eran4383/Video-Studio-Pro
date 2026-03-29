@@ -198,6 +198,49 @@ export const PreviewWorkspace = ({
         {showTransform && selectedClip && (
           (() => {
             const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === selectedClip.id));
+            const kineticBlock = project.kineticBlocks?.find((b: any) => b.clipIds.includes(selectedClip.id));
+            
+            // If it's a kinetic block, we show transform for the bounding box
+            if (kineticBlock) {
+              const isVisible = renderTime >= kineticBlock.startTime && renderTime < kineticBlock.startTime + kineticBlock.duration;
+              if (!isVisible) return null;
+
+              const box = kineticBlock.settings.boundingBox;
+              const fakeClip = {
+                id: kineticBlock.id,
+                position: { x: box.x + box.width / 2, y: box.y + box.height / 2 },
+                scaleX: 1,
+                scaleY: 1,
+                rotation: 0,
+                content: null // Force it to use container size logic
+              };
+
+              return (
+                <TransformOverlay
+                  clip={fakeClip as any}
+                  containerRef={containerRef}
+                  mediaDimensions={{ width: box.width * containerRef.current!.clientWidth, height: box.height * containerRef.current!.clientHeight }}
+                  isCanvasMagnetEnabled={store.isCanvasMagnetEnabled}
+                  onUpdate={(pos, scale, rot, scaleX, scaleY, e) => {
+                    const newWidth = (box.width * scaleX);
+                    const newHeight = (box.height * scaleY);
+                    const newX = pos.x - newWidth / 2;
+                    const newY = pos.y - newHeight / 2;
+                    
+                    store.updateKineticBlock(kineticBlock.id, {
+                      settings: {
+                        ...kineticBlock.settings,
+                        boundingBox: { x: newX, y: newY, width: newWidth, height: newHeight }
+                      }
+                    });
+                  }}
+                  onFinalize={() => {
+                    setSnapGuides({ x: false, y: false });
+                  }}
+                />
+              );
+            }
+
             const isVisual = track && (track.type === 'video' || track.type === 'image' || track.type === 'subtitle');
             const isVisible = renderTime >= selectedClip.startTime && renderTime < selectedClip.startTime + selectedClip.duration;
             if (!isVisual || !isVisible) return null;

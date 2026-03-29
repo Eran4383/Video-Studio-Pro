@@ -23,6 +23,49 @@ export const useClipActions = (
     setProject(prev => {
       let targetTrack = prev.tracks.find(t => t.id === trackId);
       if (!targetTrack || targetTrack.isLocked) return prev;
+      
+      const duration = asset.duration || 5;
+      const endTime = startTime + duration;
+      
+      const hasOverlap = targetTrack.clips.some(c => {
+        const cEnd = c.startTime + c.duration;
+        return (startTime < cEnd && endTime > c.startTime);
+      });
+
+      let actualTrackId = trackId;
+      let newTracks = [...prev.tracks];
+
+      if (hasOverlap) {
+        const availableTrack = prev.tracks.find(t => 
+          t.type === targetTrack!.type && 
+          !t.isLocked &&
+          !t.clips.some(c => {
+            const cEnd = c.startTime + c.duration;
+            return (startTime < cEnd && endTime > c.startTime);
+          })
+        );
+
+        if (availableTrack) {
+          actualTrackId = availableTrack.id;
+        } else {
+          const newTrackId = `track-${targetTrack!.type}-${Math.random().toString(36).substr(2, 9)}`;
+          const newTrack = {
+            id: newTrackId,
+            name: `${targetTrack!.type === 'video' ? 'Video' : 'Audio'} ${prev.tracks.filter(t => t.type === targetTrack!.type).length + 1}`,
+            type: targetTrack!.type,
+            clips: [],
+            isVisible: true,
+            isMuted: false,
+            isLocked: false,
+            height: targetTrack!.height
+          };
+          
+          const targetIndex = prev.tracks.findIndex(t => t.id === trackId);
+          newTracks.splice(targetIndex + 1, 0, newTrack);
+          actualTrackId = newTrackId;
+        }
+      }
+
       const hasVisualClips = prev.tracks.some(t => (t.type === 'video' || t.type === 'image') && t.clips.length > 0);
       let resolution = prev.resolution;
       if (!hasVisualClips && (asset.type === MediaType.VIDEO || asset.type === MediaType.IMAGE) && asset.width && asset.height) {
@@ -34,13 +77,13 @@ export const useClipActions = (
         type: asset.type,
         startTime: startTime,
         offset: 0,
-        duration: asset.duration || 5,
+        duration: duration,
         layer: 0,
         effects: [],
         position: { x: 0.5, y: 0.5 },
         isSilent: false
       };
-      const next = { ...prev, resolution, tracks: prev.tracks.map(t => t.id === targetTrack!.id ? { ...t, clips: [...t.clips, newClip] } : t) };
+      const next = { ...prev, resolution, tracks: newTracks.map(t => t.id === actualTrackId ? { ...t, clips: [...t.clips, newClip] } : t) };
       pushToHistory(next);
       return next;
     });

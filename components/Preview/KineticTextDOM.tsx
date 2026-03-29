@@ -106,8 +106,16 @@ export const KineticTextDOM = ({ block, currentTime, store, showTransformControl
       />
 
       {words.map((baseWord) => {
-        // Merge with overrides
-        const word = { ...baseWord, ...(block.wordOverrides?.[baseWord.id] || {}) };
+        // Safe Deep Merge with overrides
+        const override = block.wordOverrides?.[baseWord.id] || {};
+        const word = { 
+          ...baseWord, 
+          ...override,
+          position: {
+            x: override.position?.x ?? baseWord.position.x,
+            y: override.position?.y ?? baseWord.position.y
+          }
+        };
         
         // Live Time Sync: Use the current clip state from the map
         const clip = clipMap[word.sourceClipId];

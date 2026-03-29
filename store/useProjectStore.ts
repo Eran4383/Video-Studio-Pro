@@ -143,6 +143,21 @@ export const useProjectStore = () => {
     setAssets(prev => [...prev, asset]);
   }, []);
 
+  const deleteAsset = useCallback((assetId: string) => {
+    setAssets(prev => prev.filter(a => a.id !== assetId));
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(t => ({
+          ...t,
+          clips: t.clips.filter(c => c.assetId !== assetId)
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [pushToHistory]);
+
   const updateAsset = useCallback((assetId: string, updates: Partial<Asset>) => {
     setAssets(prev => prev.map(a => a.id === assetId ? { ...a, ...updates } : a));
   }, []);
@@ -197,7 +212,7 @@ export const useProjectStore = () => {
 
   return {
     project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId, fileHandle,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, updateAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, deleteAsset, updateAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
     resetProject, loadProjectData,
     ...trackActions,
     ...clipActions,

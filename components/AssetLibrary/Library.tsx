@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, Film, Music, Sparkles, Search } from 'lucide-react';
+import { Upload, Film, Music, Sparkles, Search, Trash2 } from 'lucide-react';
 import { Asset, MediaType } from '../../types';
 import { AssetService } from '../../services/AssetService';
 import { Tooltip } from '../UI/Tooltip';
@@ -7,11 +7,12 @@ import { Tooltip } from '../UI/Tooltip';
 interface LibraryProps {
   assets: Asset[];
   onAddAsset: (asset: Asset) => void;
+  onDeleteAsset: (assetId: string) => void;
   onGenerateAI: () => void;
   onDragAssetToTimeline: (asset: Asset) => void;
 }
 
-export const Library = ({ assets, onAddAsset, onGenerateAI, onDragAssetToTimeline }: LibraryProps) => {
+export const Library = ({ assets, onAddAsset, onDeleteAsset, onGenerateAI, onDragAssetToTimeline }: LibraryProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const wasFullscreenRef = useRef(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
@@ -154,6 +155,16 @@ export const Library = ({ assets, onAddAsset, onGenerateAI, onDragAssetToTimelin
                     <p className="text-[11px] font-black truncate text-zinc-300 tracking-tight leading-none mb-1 group-hover:text-white transition-colors">{asset.name}</p>
                     <p className="text-[9px] text-zinc-600 font-black uppercase tracking-[0.1em]">{asset.type}</p>
                   </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDeleteAsset(asset.id);
+                    }}
+                    className="absolute top-2 right-2 p-1.5 bg-red-500/10 text-red-500 rounded-md opacity-0 group-hover:opacity-100 hover:bg-red-500 hover:text-white transition-all"
+                    title="Delete Asset"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
               </Tooltip>
             ))}

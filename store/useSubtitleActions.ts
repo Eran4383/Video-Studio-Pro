@@ -15,9 +15,19 @@ export const useSubtitleActions = (
   const addSubtitleClip = useCallback((text: string, duration?: number) => {
     setProject(prev => {
       const subTracks = prev.tracks.filter(t => t.type === 'subtitle');
-      let targetTrack = subTracks[0];
       let newTracks = [...prev.tracks];
       const defaultDuration = duration || 2;
+      const endTime = currentTime + defaultDuration;
+
+      // Find an available subtitle track that doesn't have overlapping clips
+      let targetTrack = subTracks.find(t => 
+        !t.isLocked && 
+        !t.clips.some(c => {
+          const cEnd = c.startTime + c.duration;
+          return (currentTime < cEnd && endTime > c.startTime);
+        })
+      );
+
       if (!targetTrack) {
           targetTrack = { id: `track-s-${Date.now()}`, name: `Subtitles ${subTracks.length + 1}`, type: 'subtitle', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 40 };
           newTracks.push(targetTrack);
@@ -91,8 +101,10 @@ export const useSubtitleActions = (
 
     setProject(prev => {
       const subTracks = prev.tracks.filter(t => t.type === 'subtitle');
-      let targetTrack = subTracks[0];
       let newTracks = [...prev.tracks];
+
+      // Find an empty subtitle track or create a new one to avoid collisions
+      let targetTrack = subTracks.find(t => !t.isLocked && t.clips.length === 0);
 
       if (!targetTrack) {
         targetTrack = {
