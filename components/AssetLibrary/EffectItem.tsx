@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles, Plus, Star, Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight, Zap, Activity, Film, Crop, RotateCw, Tv } from 'lucide-react';
 import { EffectDefinition } from '../../config/effects';
 import { Tooltip } from '../UI/Tooltip';
+import { EFFECT_MIME_TYPE } from '../../types';
 
 const ICON_MAP: Record<string, any> = {
   Cloud, Circle, History, RefreshCw, Maximize, Minimize, Layers, ArrowRight, Zap, Activity, Film, Crop, RotateCw, Tv
@@ -25,7 +26,7 @@ export const EffectItem: React.FC<EffectItemProps> = ({
   const Icon = ICON_MAP[effect.icon] || Sparkles;
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({
+    e.dataTransfer.setData('effect', JSON.stringify({
       type: 'effect',
       effect: {
         type: effect.type,
@@ -33,6 +34,7 @@ export const EffectItem: React.FC<EffectItemProps> = ({
         params: effect.defaultParams
       }
     }));
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   // Helper to get CSS classes for the looping hover animation based on effect ID

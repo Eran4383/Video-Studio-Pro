@@ -13,7 +13,15 @@ export const useClipActions = (
     setProject(prev => {
       const targetTrack = prev.tracks.find(t => t.id === trackId);
       if (!targetTrack) return prev;
-      const next = { ...prev, tracks: prev.tracks.map(t => t.id === trackId ? { ...t, clips: [...t.clips, ...newClips] } : t) };
+      
+      const nextTracks = prev.tracks.map(t => {
+        if (t.id === trackId) {
+          return { ...t, clips: [...t.clips, ...newClips] };
+        }
+        return t;
+      });
+
+      const next = { ...prev, tracks: nextTracks };
       pushToHistory(next);
       return next;
     });
@@ -235,5 +243,27 @@ export const useClipActions = (
     });
   }, [setProject, pushToHistory, selectedClipIds]);
 
-  return { addClips, addClipAtPosition, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties };
+  const toggleEffect = useCallback((clipId: string, effectId: string) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id !== clipId) return clip;
+            return {
+              ...clip,
+              effects: clip.effects.map(eff => 
+                eff.id === effectId ? { ...eff, isEnabled: eff.isEnabled === false } : eff
+              )
+            };
+          })
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { addClips, addClipAtPosition, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties, toggleEffect };
 };

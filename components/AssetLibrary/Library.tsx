@@ -76,7 +76,7 @@ export const Library = ({ assets, onAddAsset, onDeleteAsset, onLoadProject, onDr
     if (fileInputRef.current) fileInputRef.current.value = '';
 
     // Attempt to restore fullscreen if it was active before import
-    if (wasFullscreenRef.current && !document.fullscreenElement) {
+    if (wasFullscreenRef.current && !document.fullscreenElement && document.fullscreenEnabled) {
         try {
             await document.documentElement.requestFullscreen();
         } catch (e) {

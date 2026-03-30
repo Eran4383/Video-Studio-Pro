@@ -220,6 +220,7 @@ export const useProjectStore = () => {
     ...moveActions,
     ...subtitleActions,
     detachAudio,
+    toggleEffect: clipActions.toggleEffect,
     undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1,
     pushToHistory,
     pushToHistoryDebounced,

@@ -9,6 +9,8 @@ export enum MediaType {
   EFFECT = 'EFFECT' // Adjustment layers / Global effects
 }
 
+export const EFFECT_MIME_TYPE = 'application/vnd.video-studio.effect+json';
+
 export const WAVEFORM_SAMPLES_PER_SECOND = 30;
 
 export interface Asset {
@@ -73,6 +75,7 @@ export interface Effect {
   type: 'filter' | 'transition' | 'adjustment' | 'motion';
   name: string;
   params: Record<string, any>;
+  isEnabled?: boolean;
 }
 
 export interface Project {

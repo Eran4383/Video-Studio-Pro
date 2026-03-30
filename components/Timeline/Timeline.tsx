@@ -382,34 +382,44 @@ export const Timeline = ({
           const dropTime = getT(e.clientX);
           const track = project.tracks.find(t => t.id === trackId);
           if (track) {
-            // Find clip under drop position
-            const clip = track.clips.find(c => dropTime >= c.startTime && dropTime <= c.startTime + c.duration);
-            if (clip) {
-              const currentEffects = clip.effects || [];
-              const newEffect = { ...data.effect, id: `effect-${Date.now()}` };
-              store.updateClip(clip.id, { effects: [...currentEffects, newEffect] });
-              onSelectClip(clip.id);
-              return;
-            } else {
-              // Create Adjustment Layer (Effect Clip)
-              const newEffectClip: any = {
-                id: `effect-clip-${Date.now()}`,
-                assetId: '', // No asset for adjustment layers
-                type: MediaType.EFFECT,
-                startTime: dropTime,
-                duration: 5, // Default 5s
-                offset: 0,
-                effects: [{ ...data.effect, id: `effect-${Date.now()}` }],
-                position: { x: 0.5, y: 0.5 },
-                scale: 1,
-                rotation: 0,
-                opacity: 1,
-                layer: track.clips.length
-              };
-              store.addClips(trackId, [newEffectClip]);
-              onSelectClip(newEffectClip.id);
-              return;
+            // Find if there's a clip under drop position
+            const clipUnderDrop = track.clips.find(c => dropTime >= c.startTime && dropTime <= c.startTime + c.duration);
+            
+            let targetTrackId = trackId;
+            if (clipUnderDrop) {
+              // Try to find an empty track above
+              const trackIndex = project.tracks.findIndex(t => t.id === trackId);
+              const trackAbove = project.tracks.slice(trackIndex + 1).find(t => 
+                t.type === 'video' && 
+                !t.clips.some(c => {
+                  const cEnd = c.startTime + c.duration;
+                  return (dropTime < cEnd && (dropTime + 5) > c.startTime);
+                })
+              );
+              
+              if (trackAbove) {
+                targetTrackId = trackAbove.id;
+              }
             }
+
+            // ALWAYS create Adjustment Layer (Effect Clip)
+            const newEffectClip: any = {
+              id: `effect-clip-${Date.now()}`,
+              assetId: '', // No asset for adjustment layers
+              type: MediaType.EFFECT,
+              startTime: dropTime,
+              duration: 5, // Default 5s
+              offset: 0,
+              effects: [{ ...data.effect, id: `effect-${Date.now()}` }],
+              position: { x: 0.5, y: 0.5 },
+              scale: 1,
+              rotation: 0,
+              opacity: 1,
+              layer: 0
+            };
+            store.addClips(targetTrackId, [newEffectClip]);
+            onSelectClip(newEffectClip.id);
+            return;
           }
         }
       } catch (err) {

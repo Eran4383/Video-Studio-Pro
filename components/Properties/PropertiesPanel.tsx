@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactQuill from 'react-quill-new';
-import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Trash2, Settings, Sparkles, Layers } from 'lucide-react';
+import { Type, Palette, Settings2, ChevronDown, ChevronRight, Box, MonitorPlay, Ghost, Sun, AlignLeft, AlignCenter, AlignRight, Bold, Italic, Underline, Trash2, Settings, Sparkles, Layers, Power } from 'lucide-react';
 import { ProSlider } from '../UI/ProSlider';
 import { ResolutionSwitcher } from '../ProjectSettings/ResolutionSwitcher';
 import { EFFECTS_LIBRARY } from '../../config/effects';
@@ -592,10 +592,15 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                    if (!def) return null;
                    
                    return (
-                     <div key={effect.id} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-3 space-y-3">
+                     <div key={effect.id} className={`bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-3 space-y-3 transition-opacity ${effect.enabled === false ? 'opacity-50 grayscale' : ''}`}>
                        <div className="flex items-center justify-between">
                          <div className="flex items-center gap-2">
-                           <Settings size={12} className="text-zinc-500" />
+                           <button 
+                             onClick={() => store.toggleEffect(selectedClip.id, effect.id)}
+                             className={`p-1 rounded-full transition-colors ${effect.enabled !== false ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700'}`}
+                           >
+                             <Power size={10} />
+                           </button>
                            <span className="text-[10px] font-bold text-zinc-300">{def.name}</span>
                          </div>
                          <button 
@@ -610,7 +615,7 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                          </button>
                        </div>
                        
-                       {def.controls.map(control => (
+                       {effect.enabled !== false && def.controls.map(control => (
                          <ProSlider 
                            key={control.id}
                            label={control.name}

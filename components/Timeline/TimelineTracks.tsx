@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { Project, Clip, Asset, MediaType } from '../../types';
-import { Link as LinkIcon, Layers } from 'lucide-react';
+import { Link as LinkIcon, Layers, Eye, EyeOff } from 'lucide-react';
 import { WaveformCanvas } from './WaveformCanvas';
 import { MagneticMarkers } from './MagneticMarkers';
 import { stripRichText } from '../../utils/timelineUtils';
@@ -19,10 +19,11 @@ interface TimelineTracksProps {
   onContextMenu: (e: React.MouseEvent, clipId: string, assetType: string) => void;
   onClipMouseDown: (e: React.MouseEvent, clip: Clip, trackId: string) => void;
   onClipMouseMove: (e: React.MouseEvent, clip: Clip) => void;
+  onToggleEffect: (clipId: string, effectId: string) => void;
 }
 
 export const TimelineTracks = memo(({
-  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onSelectAllTrack, onDeleteTrack, onContextMenu, onClipMouseDown, onClipMouseMove
+  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onSelectAllTrack, onDeleteTrack, onContextMenu, onClipMouseDown, onClipMouseMove, onToggleEffect
 }: TimelineTracksProps) => {
   console.log('[TimelineTracks] Render. onDeleteTrack exists:', !!onDeleteTrack);
   const pxPerSec = zoom * 10;
@@ -33,17 +34,23 @@ export const TimelineTracks = memo(({
         <div 
           key={track.id} 
           onDragOver={(e) => e.preventDefault()} 
+          onDragEnter={(e) => e.preventDefault()}
           onDrop={(e) => onDrop(e, track.id)} 
           className={`border-b border-zinc-800 group/track relative bg-[#0a0a0a] w-full shrink-0 ${track.isVisible ? '' : 'opacity-60'}`}
           style={{ height: track.height || 72 }}
           onMouseDown={(e) => { if (e.button === 0 && e.target === e.currentTarget) { onSelectClip(null); } }}
         >
           {track.clips.map(clip => {
+              console.warn('Rendering clip:', clip.id, 'type:', clip.type, 'startTime:', clip.startTime, 'duration:', clip.duration);
               const isSelected = selectedClipIds.includes(clip.id);
               const isLinked = selectedClipIds.length > 0 && selectedClipIds.some(id => project.tracks.flatMap(t=>t.clips).find(c=>c.id === id)?.linkedClipId === clip.id);
               const asset = assets.find(a => a.id === clip.assetId);
               const isEffectClip = clip.type === MediaType.EFFECT;
               const effectName = isEffectClip && clip.effects?.[0]?.name;
+              const hasDisabledEffect = clip.effects?.some(eff => eff.isEnabled === false);
+              
+              const baseStyle = `absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : isEffectClip ? 'bg-purple-900/60 ring-1 ring-inset ring-purple-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`;
+              const finalStyle = hasDisabledEffect ? `${baseStyle} opacity-50 grayscale` : baseStyle;
               
               return (
                 <div
@@ -51,7 +58,7 @@ export const TimelineTracks = memo(({
                   onContextMenu={(e) => onContextMenu(e, clip.id, track.type)}
                   onMouseDown={(e) => onClipMouseDown(e, clip, track.id)}
                   onMouseMove={(e) => onClipMouseMove(e, clip)}
-                  className={`absolute top-2 bottom-2 rounded-lg flex flex-col justify-center overflow-hidden transition-colors ${track.isLocked ? 'cursor-not-allowed grayscale' : ''} ${isSelected ? 'bg-indigo-600/50 ring-2 ring-inset ring-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.4)] z-30' : isLinked ? 'bg-indigo-900/40 ring-2 ring-inset ring-indigo-500/50 z-20' : isEffectClip ? 'bg-purple-900/60 ring-1 ring-inset ring-purple-500/50 z-20' : track.type === 'audio' ? 'bg-zinc-900/60 ring-1 ring-inset ring-zinc-800/60 z-10' : track.type === 'subtitle' ? 'bg-yellow-900/40 ring-1 ring-inset ring-yellow-600/40 z-20' : 'bg-zinc-800/80 ring-1 ring-inset ring-zinc-700 hover:ring-zinc-500 z-10'}`}
+                  className={finalStyle}
                   style={{ left: `${clip.startTime * pxPerSec}px`, width: `${clip.duration * pxPerSec}px` }}
                 >
                   {track.type === 'audio' && (
@@ -86,6 +93,20 @@ export const TimelineTracks = memo(({
                       </span>
                     </div>
                   )}
+                  {clip.effects && clip.effects.length > 0 && (
+                    <div className="absolute top-1 right-1 z-20 flex items-center gap-1 pointer-events-auto">
+                      {clip.effects.map(eff => (
+                         <button 
+                           key={eff.id}
+                           onClick={(e) => { e.stopPropagation(); e.preventDefault(); onToggleEffect(clip.id, eff.id); }}
+                           className={`p-0.5 rounded-full ${eff.isEnabled ? 'bg-white/20' : 'bg-red-500/50'}`}
+                         >
+                           {eff.isEnabled ? <Eye size={8} /> : <EyeOff size={8} />}
+                         </button>
+                      ))}
+                      {!isEffectClip && <span className="text-[8px] font-bold bg-black/50 px-1 rounded text-white">FX</span>}
+                    </div>
+                  )}
                   <span className="text-[8px] text-zinc-400 font-mono font-bold tracking-tighter z-10 pointer-events-none absolute bottom-0.5 right-1 bg-black/40 px-0.5 rounded">{clip.duration.toFixed(2)}s</span>
                   <div className="absolute left-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
                   <div className="absolute right-0 top-0 bottom-0 w-2.5 hover:bg-white/20 cursor-col-resize z-50 transition-colors" />
@@ -107,6 +128,7 @@ export const TimelineTracks = memo(({
     prev.assets === next.assets &&
     prev.zoom === next.zoom &&
     prev.selectedClipIds === next.selectedClipIds &&
-    prev.onDeleteTrack === next.onDeleteTrack
+    prev.onDeleteTrack === next.onDeleteTrack &&
+    prev.onToggleEffect === next.onToggleEffect
   );
 });

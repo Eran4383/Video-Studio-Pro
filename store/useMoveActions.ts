@@ -6,7 +6,8 @@ export const useMoveActions = (
   setSelectedClipIds: React.Dispatch<React.SetStateAction<string[]>>,
   selectedClipIds: string[],
   isMagnetEnabled: boolean,
-  currentTime: number
+  currentTime: number,
+  pushToHistory: (p: Project) => void
 ) => {
   const moveClip = useCallback((clipId: string, targetTrackId: string, xPos: number, enableSnapping: boolean = true) => {
     setProject(prev => {
@@ -136,9 +137,11 @@ export const useMoveActions = (
         return { ...track, clips: newClips };
       });
       if (newlyCreatedIds.length > 0) setTimeout(() => setSelectedClipIds(newlyCreatedIds), 0);
-      return { ...prev, tracks: newTracks };
+      const next = { ...prev, tracks: newTracks };
+      pushToHistory(next);
+      return next;
     });
-  }, [setProject, setSelectedClipIds]);
+  }, [setProject, setSelectedClipIds, pushToHistory]);
 
   return { moveClip, selectClip, splitClip };
 };

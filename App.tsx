@@ -252,9 +252,13 @@ const App = () => {
 
   const handleDoubleClick = () => {
     if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
-      });
+      if (document.fullscreenEnabled) {
+        document.documentElement.requestFullscreen().catch(err => {
+          console.warn(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+        });
+      } else {
+        console.warn("Full-screen mode is not enabled/supported in this environment.");
+      }
     } else {
       document.exitFullscreen();
     }
@@ -450,12 +454,31 @@ const App = () => {
                   const clipId = store.selectedClipIds[0];
                   const clip = store.project.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
                   if (clip) {
-                    const newEffect: Effect = { ...effect, id: `effect-${Date.now()}` } as Effect;
+                    const newEffect: Effect = { ...effect, id: `effect-${Date.now()}`, isEnabled: true } as Effect;
                     const currentEffects = clip.effects || [];
                     store.updateClip(clipId, { effects: [...currentEffects, newEffect] });
                   }
                 } else {
-                  console.warn("Select a clip on the timeline first to apply an effect.");
+                  // Create Adjustment Layer (Effect Clip) at currentTime on the first video track
+                  const videoTrack = store.project.tracks.find(t => t.type === 'video') || store.project.tracks[0];
+                  if (videoTrack) {
+                    const newEffectClip: any = {
+                      id: `effect-clip-${Date.now()}`,
+                      assetId: '',
+                      type: MediaType.EFFECT,
+                      startTime: store.currentTime,
+                      duration: 5,
+                      offset: 0,
+                      effects: [{ ...effect, id: `effect-${Date.now()}`, isEnabled: true }],
+                      position: { x: 0.5, y: 0.5 },
+                      scale: 1,
+                      rotation: 0,
+                      opacity: 1,
+                      layer: videoTrack.clips.length
+                    };
+                    store.addClips(videoTrack.id, [newEffectClip]);
+                    store.selectClip(newEffectClip.id);
+                  }
                 }
               }} />
             )}
@@ -480,6 +503,7 @@ const App = () => {
               onImportSubtitles={handleImportSubtitles}
               showAudioMonitor={store.showAudioMonitor}
               onToggleAudioMonitor={() => store.setShowAudioMonitor(!store.showAudioMonitor)}
+              onToggleEffect={store.toggleEffect}
             />
         </div>
       </main>
