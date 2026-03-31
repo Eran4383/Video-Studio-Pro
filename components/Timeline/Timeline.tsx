@@ -399,6 +399,11 @@ export const Timeline = ({
               
               if (trackAbove) {
                 targetTrackId = trackAbove.id;
+              } else {
+                // CRITICAL FIX: Create a new track if an empty one doesn't exist
+                const newTrackId = `track-v-${Date.now()}`;
+                onAddTrack('video', newTrackId);
+                targetTrackId = newTrackId;
               }
             }
 
