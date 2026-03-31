@@ -7,7 +7,6 @@ import { useTimelineSnapping } from '../../hooks/useTimelineSnapping';
 import { TimelineTracks } from './TimelineTracks';
 import { TrackHeader } from './TrackHeader';
 import { KineticBlocksOverlay } from './KineticBlocksOverlay';
-import { useProjectStore } from '../../store/useProjectStore';
 import { AudioMonitor } from './AudioMonitor';
 
 interface TimelineProps {
@@ -39,10 +38,13 @@ interface TimelineProps {
   onSelectClips: (ids: string[]) => void;
   onSelectAllTrack: (trackId: string) => void;
   onAddAsset: (asset: Asset) => void;
+  onAddClips: (trackId: string, clips: Clip[]) => void;
   onSyncToAnchors: (onlySelected?: boolean) => void;
   onImportSubtitles: (file: File) => void;
   showAudioMonitor: boolean;
   onToggleAudioMonitor: () => void;
+  onToggleEffect: (clipId: string, effectId: string, isEnabled: boolean) => void;
+  kineticCutMode: boolean;
 }
 
 type DragMode = 'MOVE' | 'RESIZE_L' | 'RESIZE_R';
@@ -60,9 +62,8 @@ interface DragState {
 }
 
 export const Timeline = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onAddClips, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor, onToggleEffect, kineticCutMode
 }: TimelineProps) => {
-  const store = useProjectStore();
   const scrollRef = useRef<HTMLDivElement>(null);
   const headersScrollRef = useRef<HTMLDivElement>(null);
   const tracksRef = useRef<HTMLDivElement>(null);
@@ -422,7 +423,7 @@ export const Timeline = ({
               opacity: 1,
               layer: 0
             };
-            store.addClips(targetTrackId, [newEffectClip]);
+            onAddClips(targetTrackId, [newEffectClip]);
             onSelectClip(newEffectClip.id);
             return;
           }
@@ -638,7 +639,7 @@ export const Timeline = ({
                 project={project} 
                 pxPerSec={pxPerSec} 
                 selectedClipIds={selectedClipIds}
-                kineticCutMode={store.kineticCutMode}
+                kineticCutMode={kineticCutMode}
                 onSelectBlock={(id) => onSelectClip(id)}
               />
               <TimelineTracks 

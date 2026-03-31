@@ -492,6 +492,7 @@ const App = () => {
               onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack} onDeleteTrack={store.deleteTrack}
               onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
               selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
+              onAddClips={store.addClips}
               onSelectAllTrack={(trackId: string) => {
                 const track = store.project.tracks.find(t => t.id === trackId);
                 if (track) {
@@ -504,6 +505,7 @@ const App = () => {
               showAudioMonitor={store.showAudioMonitor}
               onToggleAudioMonitor={() => store.setShowAudioMonitor(!store.showAudioMonitor)}
               onToggleEffect={store.toggleEffect}
+              kineticCutMode={store.kineticCutMode}
             />
         </div>
       </main>
