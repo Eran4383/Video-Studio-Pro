@@ -18,8 +18,6 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
     showTransformControls, setShowTransformControls, applyToAll
   } = store;
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -47,7 +45,7 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
 
   // Main Animation Loop
   useAnimationLoop(
-    isPlaying, isLooping, totalDuration, project, videoRef, currentTime,
+    isPlaying, isLooping, totalDuration, project, currentTime,
     (time) => { setLocalTime(time); setCurrentTime(time); },
     (time) => { setLocalTime(time); }
   );
@@ -63,8 +61,8 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
       .filter(c => c.type !== MediaType.EFFECT && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
 
     activeVideoClips.forEach(clip => {
-      const videoEl = document.getElementById(`media-${clip.id}`) as HTMLVideoElement;
-      if (videoEl) {
+      const videoEl = document.getElementById(`media-${clip.id}`);
+      if (videoEl instanceof HTMLVideoElement) {
         const targetTime = (renderTime - clip.startTime) + clip.offset;
         if (Math.abs(videoEl.currentTime - targetTime) > 0.1) {
           videoEl.currentTime = targetTime;
@@ -80,9 +78,11 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
     // Pause videos that are no longer active
     const allVideos = document.querySelectorAll('video[id^="media-"]');
     allVideos.forEach(v => {
-      const id = v.id.replace('media-', '');
-      if (!activeVideoClips.some(c => c.id === id)) {
-        (v as HTMLVideoElement).pause();
+      if (v instanceof HTMLVideoElement) {
+        const id = v.id.replace('media-', '');
+        if (!activeVideoClips.some(c => c.id === id)) {
+          v.pause();
+        }
       }
     });
   }, [renderTime, isPlaying, project.tracks]);
@@ -144,7 +144,7 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
         scale={scale} pan={pan} selectedClipIds={selectedClipIds}
         isCanvasMagnetEnabled={isCanvasMagnetEnabled}
         showTransformControls={showTransformControls}
-        videoRef={videoRef} imageRef={imageRef} containerRef={containerRef}
+        containerRef={containerRef}
         store={store} setIsCanvasMagnetEnabled={setIsCanvasMagnetEnabled}
         setShowTransformControls={setShowTransformControls}
         onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp}

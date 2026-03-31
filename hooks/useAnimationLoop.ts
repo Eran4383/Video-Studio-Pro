@@ -12,7 +12,6 @@ export const useAnimationLoop = (
   isLooping: boolean,
   totalDuration: number,
   project: Project,
-  videoRef: React.RefObject<HTMLVideoElement>,
   currentTime: number,
   onUpdate: (time: number) => void,
   onRender: (time: number) => void
@@ -35,15 +34,18 @@ export const useAnimationLoop = (
       let synced = false;
 
       // 1. Video-Slaved Timing (Priority: Video -> Clock)
-      if (videoRef.current && !videoRef.current.paused && videoRef.current.readyState >= 2) {
-          const currentT = localTimeRef.current;
-          const vidClip = project.tracks
-            .filter(t => t.type === 'video' && t.isVisible)
-            .flatMap(t => t.clips)
-            .find(c => currentT >= c.startTime && currentT <= c.startTime + c.duration);
-            
-          if (vidClip) {
-              const calculatedTime = videoRef.current.currentTime - vidClip.offset + vidClip.startTime;
+      const activeVideoClips = project.tracks
+        .filter(t => t.type === 'video' && t.isVisible)
+        .flatMap(t => t.clips)
+        .filter(c => localTimeRef.current >= c.startTime && localTimeRef.current <= c.startTime + c.duration);
+        
+      if (activeVideoClips.length > 0) {
+          // Use the top-most active video for timing
+          const vidClip = activeVideoClips[activeVideoClips.length - 1];
+          const videoEl = document.getElementById(`media-${vidClip.id}`) as HTMLVideoElement;
+          
+          if (videoEl && !videoEl.paused && videoEl.readyState >= 2) {
+              const calculatedTime = videoEl.currentTime - vidClip.offset + vidClip.startTime;
                if (Math.abs(calculatedTime - localTimeRef.current) < 1.0) {
                    nextTime = calculatedTime;
                    synced = true;

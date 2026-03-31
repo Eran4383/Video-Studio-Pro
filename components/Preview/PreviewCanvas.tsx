@@ -20,8 +20,6 @@ interface PreviewCanvasProps {
   selectedClipIds: string[];
   isCanvasMagnetEnabled: boolean;
   showTransformControls: boolean;
-  videoRef: React.RefObject<HTMLVideoElement>;
-  imageRef: React.RefObject<HTMLImageElement>;
   containerRef: React.RefObject<HTMLDivElement>;
   store: any;
   setIsCanvasMagnetEnabled: (enabled: boolean) => void;
@@ -40,7 +38,7 @@ interface PreviewCanvasProps {
 
 export const PreviewCanvas = ({
   project, assets, renderTime, scale, pan, selectedClipIds,
-  isCanvasMagnetEnabled, showTransformControls, videoRef, imageRef, containerRef, store,
+  isCanvasMagnetEnabled, showTransformControls, containerRef, store,
   setIsCanvasMagnetEnabled, setShowTransformControls, onMouseDown, onMouseMove, onMouseUp,
   onWheel,
   onSubMouseDown, onSubDoubleClick, isDraggingSub, editingSubId, snapGuides
@@ -50,17 +48,12 @@ export const PreviewCanvas = ({
   (window as any).liveOverrides = liveOverrides.current;
 
   const selectedClip = project.tracks.flatMap(t => t.clips).find(c => selectedClipIds.includes(c.id));
-  const activeVideoClip = project.tracks.slice().reverse()
-    .filter(t => (t.type === 'video' || (t.type as string) === 'image') && t.isVisible)
-    .flatMap(t => t.clips)
-    .find(c => c.type !== MediaType.EFFECT && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
-  const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
 
-  const latestProps = useRef({ project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef });
+  const latestProps = useRef({ project, renderTime });
 
   useEffect(() => {
-    latestProps.current = { project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef };
-  }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
+    latestProps.current = { project, renderTime };
+  }, [project, renderTime]);
 
   // Render GFX
   const renderGFX = () => {
@@ -69,21 +62,25 @@ export const PreviewCanvas = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const { project: p, renderTime: rt, activeVideoClip: avc, activeVideoAsset: ava, videoRef: vr, imageRef: ir } = latestProps.current;
+    const { project: p, renderTime: rt } = latestProps.current;
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const activeMedia = avc && (vr.current || ir.current) ? {
-        element: (ava?.type === 'VIDEO' ? vr.current : ir.current) as HTMLVideoElement | HTMLImageElement,
-        clipId: avc.id,
-        asset: ava
-    } : undefined;
+    const mediaElements: Record<string, HTMLVideoElement | HTMLImageElement> = {};
+    p.tracks.forEach(track => {
+      if (!track.isVisible) return;
+      track.clips.forEach(clip => {
+        if (rt >= clip.startTime && rt < clip.startTime + clip.duration) {
+          const el = document.getElementById(`media-${clip.id}`) as HTMLVideoElement | HTMLImageElement;
+          if (el) mediaElements[clip.id] = el;
+        }
+      });
+    });
 
-    GFX_Engine.render(ctx, p, rt, liveOverrides.current, activeMedia);
+    GFX_Engine.render(ctx, p, rt, liveOverrides.current, mediaElements);
   };
 
   useEffect(() => {
     renderGFX();
-  }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
+  }, [project, renderTime]);
 
   // Listen for Live Overrides
   useEffect(() => {
@@ -176,7 +173,7 @@ export const PreviewCanvas = ({
       window.removeEventListener('gfx-override-clear', handleClear);
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef]);
+  }, [project, renderTime]);
 
   const activeSubs = project.tracks
     .filter(t => t.isVisible)
