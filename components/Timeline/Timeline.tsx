@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Project, Clip, Track, Asset, MediaType } from '../../types';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
@@ -79,6 +79,13 @@ export const Timeline = ({
   const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
 
   const projectDuration = Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
+
+  const displayTracks = useMemo(() => {
+    const videoTracks = project.tracks.filter(t => t.type === 'video').reverse();
+    const audioTracks = project.tracks.filter(t => t.type === 'audio');
+    const subTracks = project.tracks.filter(t => t.type === 'subtitle').reverse();
+    return [...subTracks, ...videoTracks, ...audioTracks];
+  }, [project.tracks]);
 
   const pxPerSec = zoom * 10;
   const HEADER_WIDTH = 150;
@@ -220,7 +227,7 @@ export const Timeline = ({
                 const rect = tracksRef.current.getBoundingClientRect();
                 const relativeY = e.clientY - rect.top;
                 let accumulatedHeight = 0;
-                for (const t of project.tracks) {
+                for (const t of displayTracks) {
                     accumulatedHeight += (t.height || 72);
                     if (relativeY < accumulatedHeight) { targetTrack = t; break; }
                 }
@@ -568,7 +575,7 @@ export const Timeline = ({
             }}
           >
             <div className="flex flex-col">
-              {project.tracks.map(track => (
+              {displayTracks.map(track => (
                 <TrackHeader 
                   key={track.id} 
                   track={track} 
@@ -644,6 +651,7 @@ export const Timeline = ({
               />
               <TimelineTracks 
                 project={project}
+                displayTracks={displayTracks}
                 assets={assets}
                 zoom={zoom}
                 selectedClipIds={selectedClipIds}

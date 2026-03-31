@@ -4,6 +4,7 @@ import { PreviewCanvas } from './PreviewCanvas';
 import { PreviewControls } from './PreviewControls';
 import { useAnimationLoop } from '../../hooks/useAnimationLoop';
 import { useAudioSync } from '../../hooks/useAudioSync';
+import { MediaType } from '../../types';
 
 interface PreviewPlayerProps {
   store: any;
@@ -56,26 +57,34 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
 
   // Video Sync
   useEffect(() => {
-    if (!videoRef.current) return;
-    
-    const activeVideoClip = project.tracks.slice().reverse()
+    const activeVideoClips = project.tracks
       .filter(t => t.type === 'video' && t.isVisible)
       .flatMap(t => t.clips)
-      .find(c => renderTime >= c.startTime && renderTime < c.startTime + c.duration);
+      .filter(c => c.type !== MediaType.EFFECT && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
 
-    if (activeVideoClip) {
-      const targetTime = (renderTime - activeVideoClip.startTime) + activeVideoClip.offset;
-      if (Math.abs(videoRef.current.currentTime - targetTime) > 0.1) {
-        videoRef.current.currentTime = targetTime;
+    activeVideoClips.forEach(clip => {
+      const videoEl = document.getElementById(`media-${clip.id}`) as HTMLVideoElement;
+      if (videoEl) {
+        const targetTime = (renderTime - clip.startTime) + clip.offset;
+        if (Math.abs(videoEl.currentTime - targetTime) > 0.1) {
+          videoEl.currentTime = targetTime;
+        }
+        if (isPlaying) {
+          videoEl.play().catch(() => {});
+        } else {
+          videoEl.pause();
+        }
       }
-      if (isPlaying) {
-        videoRef.current.play().catch(() => {});
-      } else {
-        videoRef.current.pause();
+    });
+
+    // Pause videos that are no longer active
+    const allVideos = document.querySelectorAll('video[id^="media-"]');
+    allVideos.forEach(v => {
+      const id = v.id.replace('media-', '');
+      if (!activeVideoClips.some(c => c.id === id)) {
+        (v as HTMLVideoElement).pause();
       }
-    } else {
-      videoRef.current.pause();
-    }
+    });
   }, [renderTime, isPlaying, project.tracks]);
 
   // Handlers
@@ -125,8 +134,8 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
           const asset = assets.find(a => a.id === c.assetId);
           if (!asset || (renderTime < c.startTime || renderTime > c.startTime + c.duration)) return null;
           return asset.type === 'VIDEO' ? 
-            <video key={c.id} ref={videoRef} src={asset.url} playsInline muted /> : 
-            <img key={c.id} ref={imageRef} src={asset.url} referrerPolicy="no-referrer" />;
+            <video key={c.id} id={`media-${c.id}`} src={asset.url} playsInline muted /> : 
+            <img key={c.id} id={`media-${c.id}`} src={asset.url} referrerPolicy="no-referrer" />;
         })}
       </div>
 

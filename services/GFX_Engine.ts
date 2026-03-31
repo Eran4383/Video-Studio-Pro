@@ -12,15 +12,33 @@ export interface GFXLayer {
 }
 
 export class GFX_Engine {
+  private static tempCanvas: HTMLCanvasElement | null = null;
+
+  private static getTempCanvas(width: number, height: number): HTMLCanvasElement {
+    if (!this.tempCanvas) {
+      this.tempCanvas = document.createElement('canvas');
+    }
+    if (this.tempCanvas.width !== width) this.tempCanvas.width = width;
+    if (this.tempCanvas.height !== height) this.tempCanvas.height = height;
+    return this.tempCanvas;
+  }
+
   static render(
     ctx: CanvasRenderingContext2D, 
     project: Project, 
     currentTime: number, 
     liveOverrides: Record<string, any> = {}, 
-    activeMedia?: { element: HTMLVideoElement | HTMLImageElement, clipId: string, asset: any }
+    mediaElements: Record<string, HTMLVideoElement | HTMLImageElement> = {}
   ) {
-    // 1. Clear canvas
+    // 1. Clear canvas and fill background
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    if (project.backgroundColor) {
+      ctx.fillStyle = project.backgroundColor;
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    } else {
+      ctx.fillStyle = '#000000';
+      ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    }
 
     // 2. Iterate tracks from bottom to top
     // In this project, tracks are ordered from bottom to top in the tracks array (higher index = higher layer)
@@ -36,7 +54,7 @@ export class GFX_Engine {
         if (clip.type === MediaType.EFFECT) {
           this.renderAdjustmentLayer(ctx, clip, liveOverrides);
         } else if (track.type === 'video' || track.type === 'image') {
-          this.renderMediaClip(ctx, clip, track, currentTime, liveOverrides, activeMedia);
+          this.renderMediaClip(ctx, clip, track, currentTime, liveOverrides, mediaElements);
         } else if (clip.content && track.type !== 'subtitle') {
           this.renderTextClip(ctx, clip, project.resolution, liveOverrides);
         }
@@ -50,7 +68,7 @@ export class GFX_Engine {
     track: Track,
     currentTime: number,
     liveOverrides: Record<string, any>,
-    activeMedia?: { element: HTMLVideoElement | HTMLImageElement, clipId: string, asset: any }
+    mediaElements: Record<string, HTMLVideoElement | HTMLImageElement> = {}
   ) {
     const override = liveOverrides[clip.id] || {};
     const posX = override.posX !== undefined ? override.posX / 100 : (clip.position?.x ?? 0.5);
@@ -59,13 +77,14 @@ export class GFX_Engine {
     const rotation = override.rotation !== undefined ? override.rotation : (clip.rotation || 0);
     const opacity = override.opacity !== undefined ? override.opacity / 100 : (clip.opacity ?? 1);
 
-    if (activeMedia && clip.id === activeMedia.clipId) {
-      const asset = activeMedia.asset;
-      const element = activeMedia.element;
+    const element = mediaElements[clip.id];
+    if (element) {
       const isReady = element instanceof HTMLImageElement ? element.complete : element.readyState >= 2;
       if (!isReady) return;
       
-      const assetAspect = (asset.width || 1920) / (asset.height || 1080);
+      const assetWidth = (element as any).naturalWidth || (element as any).videoWidth || 1920;
+      const assetHeight = (element as any).naturalHeight || (element as any).videoHeight || 1080;
+      const assetAspect = assetWidth / assetHeight;
       const canvasAspect = ctx.canvas.width / ctx.canvas.height;
       let drawW = ctx.canvas.width;
       let drawH = ctx.canvas.height;
@@ -263,24 +282,23 @@ export class GFX_Engine {
     if (clip.effects && clip.effects.length > 0) {
       const filterString = clip.effects.map(effect => {
         switch (effect.name) {
-          case 'blur': return `blur(${getEffectParam('blur', 'amount', 0)}px)`;
-          case 'grayscale': return `grayscale(${getEffectParam('grayscale', 'amount', 0)}%)`;
-          case 'sepia': return `sepia(${getEffectParam('sepia', 'amount', 0)}%)`;
-          case 'invert': return `invert(${getEffectParam('invert', 'amount', 0)}%)`;
-          case 'brightness': return `brightness(${getEffectParam('brightness', 'amount', 100)}%)`;
-          case 'contrast': return `contrast(${getEffectParam('contrast', 'amount', 100)}%)`;
-          case 'saturate': return `saturate(${getEffectParam('saturate', 'amount', 100)}%)`;
-          case 'hue-rotate': return `hue-rotate(${getEffectParam('hue-rotate', 'amount', 0)}deg)`;
+          case 'blur': return `blur(${getEffectParam('blur', 'amount', 10)}px)`; // Default 10px
+          case 'grayscale': return `grayscale(${getEffectParam('grayscale', 'amount', 100)}%)`; // Default 100%
+          case 'sepia': return `sepia(${getEffectParam('sepia', 'amount', 100)}%)`; // Default 100%
+          case 'invert': return `invert(${getEffectParam('invert', 'amount', 100)}%)`; // Default 100%
+          case 'brightness': return `brightness(${getEffectParam('brightness', 'amount', 150)}%)`; // Default 150%
+          case 'contrast': return `contrast(${getEffectParam('contrast', 'amount', 150)}%)`; // Default 150%
+          case 'saturate': return `saturate(${getEffectParam('saturate', 'amount', 200)}%)`; // Default 200%
+          case 'hue-rotate': return `hue-rotate(${getEffectParam('hue-rotate', 'amount', 90)}deg)`; // Default 90deg
           default: return '';
         }
       }).filter(Boolean).join(' ');
 
       if (filterString) {
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = ctx.canvas.width;
-        tempCanvas.height = ctx.canvas.height;
+        const tempCanvas = this.getTempCanvas(ctx.canvas.width, ctx.canvas.height);
         const tempCtx = tempCanvas.getContext('2d');
         if (tempCtx) {
+          tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
           tempCtx.drawImage(ctx.canvas, 0, 0);
           ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
           ctx.save();

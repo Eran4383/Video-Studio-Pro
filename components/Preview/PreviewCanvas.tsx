@@ -3,7 +3,7 @@ import React, { useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import rehypeRaw from 'rehype-raw';
 import remarkBreaks from 'remark-breaks';
-import { Project, Asset, Clip } from '../../types';
+import { Project, Asset, Clip, MediaType } from '../../types';
 import { GFX_Engine } from '../../services/GFX_Engine';
 import { TransformOverlay } from './TransformOverlay';
 import { KineticTextDOM } from './KineticTextDOM';
@@ -53,7 +53,7 @@ export const PreviewCanvas = ({
   const activeVideoClip = project.tracks.slice().reverse()
     .filter(t => (t.type === 'video' || (t.type as string) === 'image') && t.isVisible)
     .flatMap(t => t.clips)
-    .find(c => renderTime >= c.startTime && renderTime < c.startTime + c.duration);
+    .find(c => c.type !== MediaType.EFFECT && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
   const activeVideoAsset = activeVideoClip ? assets.find(a => a.id === activeVideoClip.assetId) : null;
 
   const latestProps = useRef({ project, renderTime, activeVideoClip, activeVideoAsset, videoRef, imageRef });

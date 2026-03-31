@@ -1,5 +1,5 @@
 import React, { memo } from 'react';
-import { Project, Clip, Asset, MediaType } from '../../types';
+import { Project, Clip, Asset, MediaType, Track } from '../../types';
 import { Link as LinkIcon, Layers, Eye, EyeOff } from 'lucide-react';
 import { WaveformCanvas } from './WaveformCanvas';
 import { MagneticMarkers } from './MagneticMarkers';
@@ -7,6 +7,7 @@ import { stripRichText } from '../../utils/timelineUtils';
 
 interface TimelineTracksProps {
   project: Project;
+  displayTracks: Track[];
   assets: Asset[];
   zoom: number;
   selectedClipIds: string[];
@@ -23,14 +24,14 @@ interface TimelineTracksProps {
 }
 
 export const TimelineTracks = memo(({
-  project, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onSelectAllTrack, onDeleteTrack, onContextMenu, onClipMouseDown, onClipMouseMove, onToggleEffect
+  project, displayTracks, assets, zoom, selectedClipIds, onToggleTrack, onSetTrackHeight, onDrop, onSelectClip, onSelectAllTrack, onDeleteTrack, onContextMenu, onClipMouseDown, onClipMouseMove, onToggleEffect
 }: TimelineTracksProps) => {
   console.log('[TimelineTracks] Render. onDeleteTrack exists:', !!onDeleteTrack);
   const pxPerSec = zoom * 10;
 
   return (
     <div className="flex flex-col">
-      {project.tracks.map(track => (
+      {displayTracks.map(track => (
         <div 
           key={track.id} 
           onDragOver={(e) => e.preventDefault()} 
