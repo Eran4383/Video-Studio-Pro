@@ -26,7 +26,7 @@ export const EffectItem: React.FC<EffectItemProps> = ({
   const Icon = ICON_MAP[effect.icon] || Sparkles;
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('effect', JSON.stringify({
+    e.dataTransfer.setData('application/json', JSON.stringify({
       type: 'effect',
       effect: {
         type: effect.type,
