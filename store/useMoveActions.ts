@@ -143,5 +143,50 @@ export const useMoveActions = (
     });
   }, [setProject, setSelectedClipIds, pushToHistory]);
 
-  return { moveClip, selectClip, splitClip };
+  const moveClipToNewTrack = useCallback((clipId: string, type: 'video' | 'audio' | 'subtitle', startTime: number) => {
+    setProject(prev => {
+      let clip: Clip | null = null;
+      let oldTrackId: string | null = null;
+      for (const t of prev.tracks) {
+        const found = t.clips.find(c => c.id === clipId);
+        if (found) { clip = found; oldTrackId = t.id; break; }
+      }
+      if (!clip) return prev;
+
+      const typeCount = prev.tracks.filter(t => t.type === type).length + 1;
+      const newTrackId = `track-${type[0]}-${Date.now()}`;
+      const newTrack: any = {
+        id: newTrackId,
+        name: `${type.charAt(0).toUpperCase() + type.slice(1)} ${typeCount}`,
+        type,
+        clips: [{ ...clip, startTime }],
+        isVisible: true,
+        isMuted: false,
+        isLocked: false,
+        height: type === 'subtitle' ? 40 : 72
+      };
+
+      const nextTracks = prev.tracks.map(t => {
+        if (t.id === oldTrackId) {
+          return { ...t, clips: t.clips.filter(c => c.id !== clipId) };
+        }
+        return t;
+      });
+
+      let finalTracks: any[] = [];
+      const videoTracks = nextTracks.filter(t => t.type === 'video');
+      const audioTracks = nextTracks.filter(t => t.type === 'audio');
+      const subTracks = nextTracks.filter(t => t.type === 'subtitle');
+
+      if (type === 'video') finalTracks = [newTrack, ...videoTracks, ...audioTracks, ...subTracks];
+      else if (type === 'audio') finalTracks = [...videoTracks, ...audioTracks, newTrack, ...subTracks];
+      else finalTracks = [...videoTracks, ...audioTracks, ...subTracks, newTrack];
+
+      const next = { ...prev, tracks: finalTracks };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { moveClip, selectClip, splitClip, moveClipToNewTrack };
 };

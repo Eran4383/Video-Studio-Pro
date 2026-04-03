@@ -53,6 +53,7 @@ interface TimelineProps {
   onAddEffectClip: (trackId: string, startTime: number, effect: any) => void;
   onStretchClipToNextMarker: (clipId: string, edge: 'L' | 'R') => void;
   onStretchEffectToNextMarker: (clipId: string, effectId: string, edge: 'L' | 'R') => void;
+  onMoveClipToNewTrack: (clipId: string, type: 'video' | 'audio' | 'subtitle', startTime: number) => void;
   kineticCutMode: boolean;
 }
 
@@ -71,7 +72,7 @@ interface DragState {
 }
 
 export const Timeline = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onAddClips, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor, onToggleEffect, onDeleteEffect, onAddEffect, onUpdateEffect, selectedEffect, onSelectEffect, onAddEffectClip, onStretchClipToNextMarker, onStretchEffectToNextMarker, kineticCutMode
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onAddClips, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor, onToggleEffect, onDeleteEffect, onAddEffect, onUpdateEffect, selectedEffect, onSelectEffect, onAddEffectClip, onStretchClipToNextMarker, onStretchEffectToNextMarker, onMoveClipToNewTrack, kineticCutMode
 }: TimelineProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const headersScrollRef = useRef<HTMLDivElement>(null);
@@ -88,6 +89,7 @@ export const Timeline = ({
 
   // Box Selection State
   const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
+  const [isDraggingToNewTrack, setIsDraggingToNewTrack] = useState(false);
 
   const projectRef = useRef(project);
   const assetsRef = useRef(assets);
@@ -238,7 +240,7 @@ export const Timeline = ({
         const deltaSeconds = (e.clientX - transitionDragging.startX) / pxPerSec;
         let newDuration = transitionDragging.originalDuration;
         
-        const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === transitionDragging.clipId);
+        const clip = currentProject.tracks.flatMap(t => t.clips).find(c => c.id === transitionDragging.clipId);
         if (clip) {
           const isCtrl = e.ctrlKey || e.metaKey;
           const shouldSnap = isMagnetEnabled ? !isCtrl : isCtrl;
@@ -277,11 +279,22 @@ export const Timeline = ({
 
       if (dragging) {
         const deltaSeconds = (e.clientX - dragging.startX) / pxPerSec;
-        const { originalState, id, trackId } = dragging;
-        const track = currentProject.tracks.find(t => t.id === trackId);
-        if (!track) return;
-        const clip = track.clips.find(c => c.id === id);
-        if (!clip) return;
+        const { originalState, id } = dragging;
+        
+        // Find clip and track across all tracks to prevent "premature drop"
+        let track: Track | undefined;
+        let clip: Clip | undefined;
+        for (const t of currentProject.tracks) {
+            const found = t.clips.find(c => c.id === id);
+            if (found) {
+                track = t;
+                clip = found;
+                break;
+            }
+        }
+        
+        if (!track || !clip) return;
+        
         const asset = currentAssets.find(a => a.id === clip.assetId);
         const assetDuration = asset ? asset.duration : 100;
 
@@ -293,35 +306,50 @@ export const Timeline = ({
 
         if (dragging.mode === 'MOVE') {
             let targetTrack = track;
+            let toNewTrack = false;
             if (tracksRef.current) {
                 const rect = tracksRef.current.getBoundingClientRect();
                 const relativeY = e.clientY - rect.top;
-                let accumulatedHeight = 0;
-                for (const t of displayTracks) {
-                    accumulatedHeight += (t.height || 72);
-                    if (relativeY < accumulatedHeight) { targetTrack = t; break; }
-                }
-            }
-            if (!targetTrack.isLocked) {
-                const rawStartTime = Math.max(0, originalState.startTime + deltaSeconds);
                 
-                // Calculate snapping for both start and end edges
-                let snappedStartTime = rawStartTime;
-                if (shouldSnap) {
-                    const snappedStart = getGlobalSnapPoint(rawStartTime, movingClipIds, true);
-                    const snappedEnd = getGlobalSnapPoint(rawStartTime + originalState.duration, movingClipIds, true);
-                    
-                    const startDiff = Math.abs(rawStartTime - snappedStart);
-                    const endDiff = Math.abs((rawStartTime + originalState.duration) - snappedEnd);
-                    
-                    if (startDiff > 0 && (endDiff === 0 || startDiff <= endDiff)) {
-                        snappedStartTime = snappedStart;
-                    } else if (endDiff > 0 && (startDiff === 0 || endDiff < startDiff)) {
-                        snappedStartTime = snappedEnd - originalState.duration;
+                // New Track Zone is at the top (0 to 32px roughly)
+                if (relativeY < 32) {
+                    toNewTrack = true;
+                } else {
+                    let accumulatedHeight = 32; // Offset for the new track zone
+                    for (const t of displayTracks) {
+                        accumulatedHeight += (t.height || 72);
+                        if (relativeY < accumulatedHeight) { targetTrack = t; break; }
                     }
                 }
+            }
+            
+            setIsDraggingToNewTrack(toNewTrack);
+
+            const rawStartTime = Math.max(0, originalState.startTime + deltaSeconds);
+            
+            // Calculate snapping for both start and end edges
+            let snappedStartTime = rawStartTime;
+            if (shouldSnap) {
+                const snappedStart = getGlobalSnapPoint(rawStartTime, movingClipIds, true);
+                const snappedEnd = getGlobalSnapPoint(rawStartTime + originalState.duration, movingClipIds, true);
                 
+                const startDiff = Math.abs(rawStartTime - snappedStart);
+                const endDiff = Math.abs((rawStartTime + originalState.duration) - snappedEnd);
+                
+                if (startDiff > 0 && (endDiff === 0 || startDiff <= endDiff)) {
+                    snappedStartTime = snappedStart;
+                } else if (endDiff > 0 && (startDiff === 0 || endDiff < startDiff)) {
+                    snappedStartTime = snappedEnd - originalState.duration;
+                }
+            }
+            
+            if (!toNewTrack && !targetTrack.isLocked) {
                 onClipMove(id, targetTrack.id, snappedStartTime, false);
+            } else if (!toNewTrack) {
+                // If target track is locked, still allow horizontal movement on current track if not locked
+                if (!track.isLocked) {
+                    onClipMove(id, track.id, snappedStartTime, false);
+                }
             }
         } else if (dragging.mode === 'RESIZE_R') {
             let rawRightEdge = originalState.startTime + originalState.duration + deltaSeconds;
@@ -364,13 +392,29 @@ export const Timeline = ({
 
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1) setMiddlePanning(null);
-      if (dragging) onClipFinalize();
+      if (dragging) {
+        if (isDraggingToNewTrack) {
+          const currentProject = projectRef.current;
+          let clip: Clip | undefined;
+          for (const t of currentProject.tracks) {
+              const found = t.clips.find(c => c.id === dragging.id);
+              if (found) { clip = found; break; }
+          }
+          
+          if (clip) {
+              const type = clip.type === MediaType.AUDIO ? 'audio' : clip.type === MediaType.TEXT ? 'subtitle' : 'video';
+              onMoveClipToNewTrack(dragging.id, type, clip.startTime);
+          }
+        }
+        onClipFinalize();
+      }
       if (transitionDragging) {
         onClipFinalize();
         setTransitionDragging(null);
       }
       setIsDraggingPlayhead(false);
       setDragging(null);
+      setIsDraggingToNewTrack(false);
 
       // Finalize Box Selection
       if (selectionBox && tracksRef.current) {
@@ -426,7 +470,7 @@ export const Timeline = ({
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, transitionDragging, ghostTime, selectionBox, selectedClipIds, isMagnetEnabled]);
+  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, transitionDragging, ghostTime, selectionBox, selectedClipIds, isMagnetEnabled, displayTracks, isDraggingToNewTrack, onTimeChange, onClipMove, onClipResize, onClipFinalize, onSelectClips, onUpdateEffect, onMoveClipToNewTrack]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey) { 
@@ -839,11 +883,13 @@ export const Timeline = ({
             }
           }
         }}
-        className="h-8 border-b border-dashed border-zinc-800 flex items-center justify-center transition-all group/newtrack"
+        className={`h-8 border-b border-dashed border-zinc-800 flex items-center justify-center transition-all group/newtrack ${isDraggingToNewTrack ? 'bg-indigo-500/30 border-indigo-500 scale-[1.02] z-50' : ''}`}
       >
-        <div className="flex items-center gap-2 opacity-0 group-hover/newtrack:opacity-100 transition-opacity">
-          <Layers size={12} className="text-indigo-400" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Drop here to create new track</span>
+        <div className={`flex items-center gap-2 transition-opacity ${isDraggingToNewTrack ? 'opacity-100' : 'opacity-0 group-hover/newtrack:opacity-100'}`}>
+          <Layers size={12} className={isDraggingToNewTrack ? 'text-white animate-bounce' : 'text-indigo-400'} />
+          <span className={`text-[9px] font-black uppercase tracking-widest ${isDraggingToNewTrack ? 'text-white' : 'text-indigo-400'}`}>
+            {isDraggingToNewTrack ? 'Release to create new track' : 'Drop here to create new track'}
+          </span>
         </div>
       </div>
 

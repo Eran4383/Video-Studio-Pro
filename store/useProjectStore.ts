@@ -231,6 +231,7 @@ export const useProjectStore = () => {
     stretchEffectToNextMarker: clipActions.stretchEffectToNextMarker,
     ...kineticActions,
     ...moveActions,
+    moveClipToNewTrack: moveActions.moveClipToNewTrack,
     ...subtitleActions,
     detachAudio,
     toggleEffect: clipActions.toggleEffect,
