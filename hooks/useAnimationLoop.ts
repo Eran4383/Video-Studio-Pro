@@ -14,7 +14,8 @@ export const useAnimationLoop = (
   project: Project,
   currentTime: number,
   onUpdate: (time: number) => void,
-  onRender: (time: number) => void
+  onRender: (time: number) => void,
+  mediaElementsRef?: React.RefObject<Record<string, HTMLVideoElement | HTMLImageElement>>
 ) => {
   const localTimeRef = useRef(currentTime);
   const lastTimeRef = useRef(performance.now());
@@ -42,7 +43,7 @@ export const useAnimationLoop = (
       if (activeVideoClips.length > 0) {
           // Use the top-most active video for timing
           const vidClip = activeVideoClips[activeVideoClips.length - 1];
-          const videoEl = document.getElementById(`media-${vidClip.id}`) as HTMLVideoElement;
+          const videoEl = mediaElementsRef?.current ? mediaElementsRef.current[vidClip.id] as HTMLVideoElement : document.getElementById(`media-${vidClip.id}`) as HTMLVideoElement;
           
           if (videoEl && !videoEl.paused && videoEl.readyState >= 2) {
               const calculatedTime = videoEl.currentTime - vidClip.offset + vidClip.startTime;

@@ -88,6 +88,7 @@ export interface Project {
   kineticBlocks?: KineticBlock[];
   waveformStyle?: 'solid' | 'lines';
   waveformScale?: number;
+  previewQuality?: 0.25 | 0.5 | 0.75 | 1;
 }
 
 export interface Track {
@@ -99,12 +100,14 @@ export interface Track {
   isMuted: boolean;
   isLocked: boolean;
   height?: number; // Added: dynamic track height for audio inspection
+  receiveAdjustmentEffects?: boolean;
 }
 
 export interface ProjectState {
   currentProject: Project;
   assets: Asset[];
   selectedClipIds: string[];
+  selectedEffect: { clipId: string; effectId: string } | null;
   currentTime: number;
   isPlaying: boolean;
   isLooping: boolean;

@@ -229,10 +229,22 @@ const App = () => {
   };
 
   const handleAssetToTimeline = (asset: Asset) => {
-    const targetTrackId = asset.type === MediaType.AUDIO ? 
-      (store.project.tracks.find(t => t.type === 'audio')?.id || 'track-a1') : 
-      (store.project.tracks.find(t => t.type === 'video')?.id || 'track-v1');
-    store.addClipAtPosition(targetTrackId, asset, store.currentTime);
+    const targetTrack = asset.type === MediaType.AUDIO ? 
+      (store.project.tracks.find(t => t.type === 'audio') || store.project.tracks.find(t => t.id === 'track-a1')) : 
+      (store.project.tracks.find(t => t.type === 'video') || store.project.tracks.find(t => t.id === 'track-v1'));
+    
+    if (!targetTrack) return;
+
+    let startTime = store.currentTime;
+    if (targetTrack.clips.length > 0) {
+      // Find the end of the last clip on this track
+      const lastClip = [...targetTrack.clips].sort((a, b) => (a.startTime + a.duration) - (b.startTime + b.duration)).pop();
+      if (lastClip) {
+        startTime = lastClip.startTime + lastClip.duration;
+      }
+    }
+    
+    store.addClipAtPosition(targetTrack.id, asset, startTime);
   };
 
   const handleImportSubtitles = async (file: File) => {
@@ -454,7 +466,13 @@ const App = () => {
                   const clipId = store.selectedClipIds[0];
                   const clip = store.project.tracks.flatMap(t => t.clips).find(c => c.id === clipId);
                   if (clip) {
-                    const newEffect: Effect = { ...effect, id: `effect-${Date.now()}`, isEnabled: true } as Effect;
+                    const newEffect: Effect = {
+                      id: `effect-${Date.now()}`,
+                      type: effect.type as any,
+                      name: effect.id,
+                      params: effect.defaultParams,
+                      isEnabled: true
+                    };
                     const currentEffects = clip.effects || [];
                     store.updateClip(clipId, { effects: [...currentEffects, newEffect] });
                   }
@@ -488,7 +506,7 @@ const App = () => {
             <Timeline 
               project={store.project} assets={store.assets} currentTime={store.currentTime} zoom={store.zoom} isMagnetEnabled={store.isMagnetEnabled}
               setZoom={store.setZoom} setIsMagnetEnabled={store.setIsMagnetEnabled} onTimeChange={store.setCurrentTime}
-              onClipMove={store.moveClip} onClipResize={store.resizeClip} onClipFinalize={store.finalizeMove} onClipSplit={store.splitClip} onClipDelete={store.deleteClip}
+              onClipMove={store.moveClip} onClipResize={store.resizeClip} onClipFinalize={store.finalizeMove} onClipSplit={store.splitClip} onClipDelete={store.deleteSelectedClips}
               onToggleTrack={store.toggleTrackProperty} onSetTrackHeight={store.setTrackHeight} onAddClipAtPosition={store.addClipAtPosition} onAddTrack={store.addTrack} onDeleteTrack={store.deleteTrack}
               onDetachAudio={store.detachAudio} onUndo={store.undo} onRedo={store.redo} canUndo={store.canUndo} canRedo={store.canRedo}
               selectedClipIds={store.selectedClipIds} onSelectClip={store.selectClip} onSelectClips={store.selectClips}
@@ -505,6 +523,14 @@ const App = () => {
               showAudioMonitor={store.showAudioMonitor}
               onToggleAudioMonitor={() => store.setShowAudioMonitor(!store.showAudioMonitor)}
               onToggleEffect={store.toggleEffect}
+              onDeleteEffect={store.deleteEffect}
+              onAddEffect={store.addEffect}
+              onUpdateEffect={store.updateEffect}
+              selectedEffect={store.selectedEffect}
+              onSelectEffect={store.selectEffect}
+              onAddEffectClip={store.addEffectClip}
+              onStretchClipToNextMarker={store.stretchClipToNextMarker}
+              onStretchEffectToNextMarker={store.stretchEffectToNextMarker}
               kineticCutMode={store.kineticCutMode}
             />
         </div>

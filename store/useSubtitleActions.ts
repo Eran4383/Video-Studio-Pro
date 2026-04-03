@@ -17,22 +17,24 @@ export const useSubtitleActions = (
       const subTracks = prev.tracks.filter(t => t.type === 'subtitle');
       let newTracks = [...prev.tracks];
       const defaultDuration = duration || 2;
-      const endTime = currentTime + defaultDuration;
 
-      // Find an available subtitle track that doesn't have overlapping clips
-      let targetTrack = subTracks.find(t => 
-        !t.isLocked && 
-        !t.clips.some(c => {
-          const cEnd = c.startTime + c.duration;
-          return (currentTime < cEnd && endTime > c.startTime);
-        })
-      );
+      // Find an available subtitle track
+      let targetTrack = subTracks.find(t => !t.isLocked);
 
       if (!targetTrack) {
           targetTrack = { id: `track-s-${Date.now()}`, name: `Subtitles ${subTracks.length + 1}`, type: 'subtitle', clips: [], isVisible: true, isMuted: false, isLocked: false, height: 40 };
           newTracks.push(targetTrack);
       }
-      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', type: MediaType.TEXT, startTime: currentTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'normal', textAlign: 'center', opacity: 1, shadow: true };
+
+      let startTime = currentTime;
+      if (targetTrack.clips.length > 0) {
+        const lastClip = [...targetTrack.clips].sort((a, b) => (a.startTime + a.duration) - (b.startTime + b.duration)).pop();
+        if (lastClip) {
+          startTime = lastClip.startTime + lastClip.duration;
+        }
+      }
+
+      const newClip: Clip = { id: `sub-${Date.now()}`, assetId: 'subtitle-asset', type: MediaType.TEXT, startTime: startTime, duration: defaultDuration, offset: 0, layer: 10, effects: [], content: text, position: { x: 0.5, y: 0.5 }, color: '#ffffff', scale: 1, font: 'Inter, sans-serif', fontWeight: 'normal', textAlign: 'center', opacity: 1, shadow: true };
       newTracks = newTracks.map(t => t.id === targetTrack!.id ? { ...t, clips: sanitizeTrackClips([...t.clips, newClip]) } : t);
       const next = { ...prev, tracks: newTracks };
       pushToHistory(next);

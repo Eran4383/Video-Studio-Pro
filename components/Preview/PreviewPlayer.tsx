@@ -15,7 +15,8 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
     project, assets, isPlaying, isLooping, currentTime, 
     setIsPlaying, setIsLooping, setCurrentTime, updateClip, 
     selectedClipIds, selectClip, isCanvasMagnetEnabled, setIsCanvasMagnetEnabled,
-    showTransformControls, setShowTransformControls, applyToAll
+    showTransformControls, setShowTransformControls, applyToAll,
+    setPreviewQuality
   } = store;
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -28,6 +29,8 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
   const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [snapGuides, setSnapGuides] = useState({ x: false, y: false });
   const subDragStartRef = useRef({ x: 0, y: 0, startX: 0, startY: 0 });
+
+  const mediaElementsRef = useRef<Record<string, HTMLVideoElement | HTMLImageElement>>({});
 
   // Sync localTime with currentTime when seeking or when paused
   useEffect(() => {
@@ -47,21 +50,30 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
   useAnimationLoop(
     isPlaying, isLooping, totalDuration, project, currentTime,
     (time) => { setLocalTime(time); setCurrentTime(time); },
-    (time) => { setLocalTime(time); }
+    (time) => { setLocalTime(time); },
+    mediaElementsRef
   );
 
   // Audio Sync (Web Audio API)
   useAudioSync(project, assets, isPlaying, renderTime);
 
-  // Video Sync
+  // Update media elements cache
   useEffect(() => {
-    const activeVideoClips = project.tracks
-      .filter(t => t.type === 'video' && t.isVisible)
+    const activeClips = project.tracks
+      .filter(t => t.isVisible)
       .flatMap(t => t.clips)
       .filter(c => c.type !== MediaType.EFFECT && renderTime >= c.startTime && renderTime < c.startTime + c.duration);
 
-    activeVideoClips.forEach(clip => {
-      const videoEl = document.getElementById(`media-${clip.id}`);
+    const newCache: Record<string, HTMLVideoElement | HTMLImageElement> = {};
+    activeClips.forEach(clip => {
+      const el = document.getElementById(`media-${clip.id}`) as HTMLVideoElement | HTMLImageElement;
+      if (el) newCache[clip.id] = el;
+    });
+    mediaElementsRef.current = newCache;
+
+    // Video Sync Logic
+    activeClips.forEach(clip => {
+      const videoEl = mediaElementsRef.current[clip.id];
       if (videoEl instanceof HTMLVideoElement) {
         const targetTime = (renderTime - clip.startTime) + clip.offset;
         if (Math.abs(videoEl.currentTime - targetTime) > 0.1) {
@@ -80,7 +92,7 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
     allVideos.forEach(v => {
       if (v instanceof HTMLVideoElement) {
         const id = v.id.replace('media-', '');
-        if (!activeVideoClips.some(c => c.id === id)) {
+        if (!activeClips.some(c => c.id === id)) {
           v.pause();
         }
       }
@@ -151,12 +163,15 @@ export const PreviewPlayer = ({ store }: PreviewPlayerProps) => {
         onWheel={handleWheel}
         onSubMouseDown={handleSubMouseDown} onSubDoubleClick={() => {}} 
         isDraggingSub={isDraggingSub} editingSubId={editingSubId} snapGuides={snapGuides}
+        mediaElements={mediaElementsRef.current}
       />
 
       <PreviewControls 
         isPlaying={isPlaying} isLooping={isLooping} currentTime={renderTime} scale={scale}
+        previewQuality={project.previewQuality || 0.5}
         setIsPlaying={setIsPlaying} setIsLooping={setIsLooping} setCurrentTime={setCurrentTime}
-        setScale={setScale} resetView={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
+        setScale={setScale} setPreviewQuality={setPreviewQuality}
+        resetView={() => { setScale(1); setPan({ x: 0, y: 0 }); }}
       />
     </div>
   );

@@ -13,7 +13,7 @@ interface EffectItemProps {
   isFavorite: boolean;
   viewMode: 'list' | 'grid';
   onToggleFavorite: (id: string, e: React.MouseEvent) => void;
-  onApplyEffect: (effect: { type: string, name: string, params: any }) => void;
+  onApplyEffect: (effect: EffectDefinition) => void;
 }
 
 export const EffectItem: React.FC<EffectItemProps> = ({
@@ -26,14 +26,18 @@ export const EffectItem: React.FC<EffectItemProps> = ({
   const Icon = ICON_MAP[effect.icon] || Sparkles;
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.dataTransfer.setData('application/json', JSON.stringify({
+    const data = {
       type: 'effect',
       effect: {
         type: effect.type,
         name: effect.id,
         params: effect.defaultParams
       }
-    }));
+    };
+    e.dataTransfer.setData('application/json', JSON.stringify(data));
+    if (effect.type === 'transition') {
+      e.dataTransfer.setData('application/x-transition-effect', 'true');
+    }
     e.dataTransfer.effectAllowed = 'copy';
   };
 
@@ -92,7 +96,7 @@ export const EffectItem: React.FC<EffectItemProps> = ({
 
           {/* Apply Button Overlay */}
           <button 
-            onClick={() => onApplyEffect({ type: effect.type, name: effect.id, params: effect.defaultParams })}
+            onClick={() => onApplyEffect(effect)}
             className="absolute top-3 right-3 p-1.5 bg-indigo-500 text-white rounded opacity-0 group-hover:opacity-100 hover:bg-indigo-400 transition-all shadow-lg z-20"
           >
             <Plus size={12} />
@@ -123,7 +127,7 @@ export const EffectItem: React.FC<EffectItemProps> = ({
             <Star size={10} fill={isFavorite ? 'currentColor' : 'none'} />
           </button>
           <button 
-            onClick={() => onApplyEffect({ type: effect.type, name: effect.id, params: effect.defaultParams })}
+            onClick={() => onApplyEffect(effect)}
             className="p-1 rounded hover:bg-indigo-500 text-zinc-400 hover:text-white transition-colors"
           >
             <Plus size={10} />

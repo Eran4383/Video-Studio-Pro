@@ -34,6 +34,7 @@ interface PreviewCanvasProps {
   isDraggingSub: boolean;
   editingSubId: string | null;
   snapGuides: { x: boolean, y: boolean };
+  mediaElements: Record<string, HTMLVideoElement | HTMLImageElement>;
 }
 
 export const PreviewCanvas = ({
@@ -41,7 +42,8 @@ export const PreviewCanvas = ({
   isCanvasMagnetEnabled, showTransformControls, containerRef, store,
   setIsCanvasMagnetEnabled, setShowTransformControls, onMouseDown, onMouseMove, onMouseUp,
   onWheel,
-  onSubMouseDown, onSubDoubleClick, isDraggingSub, editingSubId, snapGuides
+  onSubMouseDown, onSubDoubleClick, isDraggingSub, editingSubId, snapGuides,
+  mediaElements
 }: PreviewCanvasProps) => {
   const gfxCanvasRef = useRef<HTMLCanvasElement>(null);
   const liveOverrides = useRef<Record<string, any>>({});
@@ -63,17 +65,6 @@ export const PreviewCanvas = ({
     if (!ctx) return;
 
     const { project: p, renderTime: rt } = latestProps.current;
-
-    const mediaElements: Record<string, HTMLVideoElement | HTMLImageElement> = {};
-    p.tracks.forEach(track => {
-      if (!track.isVisible) return;
-      track.clips.forEach(clip => {
-        if (rt >= clip.startTime && rt < clip.startTime + clip.duration) {
-          const el = document.getElementById(`media-${clip.id}`) as HTMLVideoElement | HTMLImageElement;
-          if (el) mediaElements[clip.id] = el;
-        }
-      });
-    });
 
     GFX_Engine.render(ctx, p, rt, liveOverrides.current, mediaElements);
   };
@@ -211,8 +202,8 @@ export const PreviewCanvas = ({
       >
         <canvas 
           ref={gfxCanvasRef} 
-          width={project.resolution?.width || 1920} 
-          height={project.resolution?.height || 1080} 
+          width={(project.resolution?.width || 1920) * (project.previewQuality || 1)} 
+          height={(project.resolution?.height || 1080) * (project.previewQuality || 1)} 
           className="absolute inset-0 w-full h-full z-10" 
         />
 
@@ -223,10 +214,13 @@ export const PreviewCanvas = ({
 
           const overrides = liveOverrides.current[sub.id] || {};
           const getEffectParam = (effectName: string, paramName: string, defaultValue: any) => {
-            const overrideKey = `effect_${effectName}_${paramName}`;
-            if (overrides[overrideKey] !== undefined) return overrides[overrideKey];
             const effect = sub.effects?.find((e: any) => e.name === effectName);
-            return effect?.params?.[paramName] ?? defaultValue;
+            if (effect) {
+              const overrideKey = `effect_${effect.id}_${paramName}`;
+              if (overrides[overrideKey] !== undefined) return overrides[overrideKey];
+              return effect.params?.[paramName] ?? defaultValue;
+            }
+            return defaultValue;
           };
 
           let effectOpacity = 1;
@@ -236,7 +230,7 @@ export const PreviewCanvas = ({
           let glitchOffsetY = 0;
           let clipPathString = 'none';
 
-          const flickerEffect = sub.effects?.find((e: any) => e.name === 'flicker') || overrides.effect_flicker_speed !== undefined || overrides.effect_flicker_intensity !== undefined;
+          const flickerEffect = sub.effects?.find((e: any) => e.name === 'flicker');
           if (flickerEffect) {
             const speed = getEffectParam('flicker', 'speed', 50) / 100;
             const intensity = getEffectParam('flicker', 'intensity', 50) / 100;
@@ -244,7 +238,7 @@ export const PreviewCanvas = ({
             effectOpacity = flickerVal > 0 ? 1 : 1 - intensity;
           }
 
-          const glitchEffect = sub.effects?.find((e: any) => e.name === 'glitch') || overrides.effect_glitch_intensity !== undefined;
+          const glitchEffect = sub.effects?.find((e: any) => e.name === 'glitch');
           if (glitchEffect) {
             const intensity = getEffectParam('glitch', 'intensity', 50) / 100;
             const isGlitching = Math.sin(renderTime * 30) > (1 - intensity * 0.8);
@@ -255,13 +249,13 @@ export const PreviewCanvas = ({
             }
           }
 
-          const vhsEffect = sub.effects?.find((e: any) => e.name === 'vhs') || overrides.effect_vhs_colorBleed !== undefined || overrides.effect_vhs_noise !== undefined;
+          const vhsEffect = sub.effects?.find((e: any) => e.name === 'vhs');
           if (vhsEffect) {
              const colorBleed = getEffectParam('vhs', 'colorBleed', 50) / 100;
              filterString += ` sepia(30%) hue-rotate(${colorBleed * 20}deg) contrast(120%) saturate(80%)`;
           }
 
-          const shakeEffect = sub.effects?.find((e: any) => e.name === 'shake') || overrides.effect_shake_intensity !== undefined || overrides.effect_shake_speed !== undefined;
+          const shakeEffect = sub.effects?.find((e: any) => e.name === 'shake');
           if (shakeEffect) {
             const intensity = getEffectParam('shake', 'intensity', 50) / 100;
             const speed = getEffectParam('shake', 'speed', 50) / 100;
@@ -269,7 +263,7 @@ export const PreviewCanvas = ({
             glitchOffsetY += Math.cos(renderTime * (12 + speed * 35)) * intensity * 10;
           }
 
-          const spinEffect = sub.effects?.find((e: any) => e.name === 'spin') || overrides.effect_spin_speed !== undefined || overrides.effect_spin_direction !== undefined;
+          const spinEffect = sub.effects?.find((e: any) => e.name === 'spin');
           if (spinEffect) {
             const speed = getEffectParam('spin', 'speed', 50) / 100;
             const dir = getEffectParam('spin', 'direction', 1);
@@ -277,7 +271,7 @@ export const PreviewCanvas = ({
             transformValue += ` rotate(${spinRot}deg)`;
           }
 
-          const cropEffect = sub.effects?.find((e: any) => e.name === 'crop') || overrides.effect_crop_top !== undefined || overrides.effect_crop_bottom !== undefined || overrides.effect_crop_left !== undefined || overrides.effect_crop_right !== undefined;
+          const cropEffect = sub.effects?.find((e: any) => e.name === 'crop');
           if (cropEffect) {
             const cropT = getEffectParam('crop', 'top', 0);
             const cropB = getEffectParam('crop', 'bottom', 0);

@@ -14,7 +14,6 @@ interface TrackHeaderProps {
 }
 
 export const TrackHeader: React.FC<TrackHeaderProps> = ({ track, onToggle, onSetHeight, onSelectAll, onDelete }) => {
-  console.log('[TrackHeader] Render for track:', track.id, 'onDelete exists:', !!onDelete);
   const isExpanded = (track.height || 72) > 80;
   const [isResizing, setIsResizing] = useState(false);
   const resizeStartY = useRef<number>(0);

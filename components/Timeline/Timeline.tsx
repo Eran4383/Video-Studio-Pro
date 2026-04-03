@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Project, Clip, Track, Asset, MediaType } from '../../types';
+import { Layers } from 'lucide-react';
 import { TimelineToolbar } from './TimelineToolbar';
 import { AssetService } from '../../services/AssetService';
 import { MagneticAnchorService } from '../../services/MagneticAnchorService';
@@ -22,7 +23,7 @@ interface TimelineProps {
   onClipResize: (clipId: string, newStart: number, newDur: number, newOffset: number) => void;
   onClipFinalize: () => void;
   onClipSplit: (clipId: string | null, time: number) => void;
-  onClipDelete: (clipId: string) => void;
+  onClipDelete: (clipIds: string[]) => void;
   onToggleTrack: (trackId: string, prop: 'isVisible' | 'isMuted' | 'isLocked') => void;
   onSetTrackHeight: (trackId: string, height: number) => void;
   onAddClipAtPosition: (trackId: string, asset: Asset, startTime: number) => void;
@@ -43,7 +44,15 @@ interface TimelineProps {
   onImportSubtitles: (file: File) => void;
   showAudioMonitor: boolean;
   onToggleAudioMonitor: () => void;
-  onToggleEffect: (clipId: string, effectId: string, isEnabled: boolean) => void;
+  onToggleEffect: (clipId: string, effectId: string) => void;
+  onDeleteEffect: (clipId: string, effectId: string) => void;
+  onAddEffect: (clipId: string, effect: any) => void;
+  onUpdateEffect: (clipId: string, effectId: string, updates: any) => void;
+  selectedEffect: { clipId: string; effectId: string } | null;
+  onSelectEffect: (clipId: string, effectId: string) => void;
+  onAddEffectClip: (trackId: string, startTime: number, effect: any) => void;
+  onStretchClipToNextMarker: (clipId: string, edge: 'L' | 'R') => void;
+  onStretchEffectToNextMarker: (clipId: string, effectId: string, edge: 'L' | 'R') => void;
   kineticCutMode: boolean;
 }
 
@@ -62,7 +71,7 @@ interface DragState {
 }
 
 export const Timeline = ({
-  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onAddClips, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor, onToggleEffect, kineticCutMode
+  project, assets, currentTime, zoom, isMagnetEnabled, setZoom, setIsMagnetEnabled, onTimeChange, onClipMove, onClipResize, onClipFinalize, onClipSplit, onClipDelete, onToggleTrack, onSetTrackHeight, onAddClipAtPosition, onAddTrack, onDeleteTrack, onDetachAudio, onUndo, onRedo, canUndo, canRedo, selectedClipIds, onSelectClip, onSelectClips, onSelectAllTrack, onAddAsset, onAddClips, onSyncToAnchors, onImportSubtitles, showAudioMonitor, onToggleAudioMonitor, onToggleEffect, onDeleteEffect, onAddEffect, onUpdateEffect, selectedEffect, onSelectEffect, onAddEffectClip, onStretchClipToNextMarker, onStretchEffectToNextMarker, kineticCutMode
 }: TimelineProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const headersScrollRef = useRef<HTMLDivElement>(null);
@@ -70,6 +79,8 @@ export const Timeline = ({
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState(false);
   const [dragging, setDragging] = useState<DragState | null>(null);
   const [middlePanning, setMiddlePanning] = useState<{ startX: number, scrollLeft: number } | null>(null);
+  const [transitionDragging, setTransitionDragging] = useState<{ clipId: string, effectId: string, startX: number, originalDuration: number, position: 'start' | 'end' } | null>(null);
+  const [dragOverTransition, setDragOverTransition] = useState<{ clipId: string, position: 'start' | 'end' } | null>(null);
   const [contextMenu, setContextMenu] = useState<{ x: number, y: number, clipId: string, assetType: string } | null>(null);
   const [ghostTime, setGhostTime] = useState<number | null>(null);
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
@@ -77,6 +88,11 @@ export const Timeline = ({
 
   // Box Selection State
   const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
+
+  const projectRef = useRef(project);
+  const assetsRef = useRef(assets);
+  useEffect(() => { projectRef.current = project; }, [project]);
+  useEffect(() => { assetsRef.current = assets; }, [assets]);
 
   const projectDuration = Math.max(10, ...project.tracks.flatMap(t => t.clips).map(c => c.startTime + c.duration));
 
@@ -127,6 +143,8 @@ export const Timeline = ({
 
   const getGlobalSnapPoint = (time: number, ignoreClipIds: string[] = [], shouldSnap: boolean = isMagnetEnabled) => {
       if (!shouldSnap) return time;
+      const currentProject = projectRef.current;
+      const currentAssets = assetsRef.current;
       const snapThreshold = 10 / pxPerSec;
       let closestDiff = Infinity;
       let snapTarget = time;
@@ -141,14 +159,14 @@ export const Timeline = ({
 
       checkSnap(currentTime);
 
-      project.tracks.forEach(t => {
+      currentProject.tracks.forEach(t => {
           t.clips.forEach(c => {
               if (ignoreClipIds.includes(c.id)) return;
               checkSnap(c.startTime);
               checkSnap(c.startTime + c.duration);
 
               if (t.type === 'audio') {
-                  const a = assets.find(asset => asset.id === c.assetId);
+                  const a = currentAssets.find(asset => asset.id === c.assetId);
                   if (a && a.anchors) {
                       a.anchors.forEach(anchorTime => {
                           const timelineAnchorTime = c.startTime + (anchorTime - c.offset);
@@ -163,7 +181,18 @@ export const Timeline = ({
   };
 
   useEffect(() => {
+    const handleTransitionResizeStart = (e: any) => {
+      setTransitionDragging(e.detail);
+    };
+    window.addEventListener('transition-resize-start', handleTransitionResizeStart);
+    return () => window.removeEventListener('transition-resize-start', handleTransitionResizeStart);
+  }, []);
+
+  useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
+      const currentProject = projectRef.current;
+      const currentAssets = assetsRef.current;
+
       if (middlePanning && scrollRef.current) {
         scrollRef.current.scrollLeft = middlePanning.scrollLeft - (e.clientX - middlePanning.startX);
         return;
@@ -205,14 +234,55 @@ export const Timeline = ({
          setGhostTime(null);
       }
 
+      if (transitionDragging) {
+        const deltaSeconds = (e.clientX - transitionDragging.startX) / pxPerSec;
+        let newDuration = transitionDragging.originalDuration;
+        
+        const clip = project.tracks.flatMap(t => t.clips).find(c => c.id === transitionDragging.clipId);
+        if (clip) {
+          const isCtrl = e.ctrlKey || e.metaKey;
+          const shouldSnap = isMagnetEnabled ? !isCtrl : isCtrl;
+
+          if (transitionDragging.position === 'start') {
+            const rawDuration = transitionDragging.originalDuration + deltaSeconds;
+            const rawEdge = clip.startTime + rawDuration;
+            let snappedEdge = rawEdge;
+            if (shouldSnap) {
+              snappedEdge = getGlobalSnapPoint(rawEdge, [clip.id], true);
+            }
+            newDuration = Math.max(0.1, snappedEdge - clip.startTime);
+          } else {
+            const rawDuration = transitionDragging.originalDuration - deltaSeconds;
+            const rawEdge = clip.startTime + clip.duration - rawDuration;
+            let snappedEdge = rawEdge;
+            if (shouldSnap) {
+              snappedEdge = getGlobalSnapPoint(rawEdge, [clip.id], true);
+            }
+            newDuration = Math.max(0.1, (clip.startTime + clip.duration) - snappedEdge);
+          }
+          
+          newDuration = Math.min(newDuration, clip.duration);
+          
+          const effect = clip.effects.find(eff => eff.id === transitionDragging.effectId);
+          if (effect) {
+            onUpdateEffect(clip.id, effect.id, {
+              params: {
+                ...effect.params,
+                duration: newDuration
+              }
+            });
+          }
+        }
+      }
+
       if (dragging) {
         const deltaSeconds = (e.clientX - dragging.startX) / pxPerSec;
         const { originalState, id, trackId } = dragging;
-        const track = project.tracks.find(t => t.id === trackId);
+        const track = currentProject.tracks.find(t => t.id === trackId);
         if (!track) return;
         const clip = track.clips.find(c => c.id === id);
         if (!clip) return;
-        const asset = assets.find(a => a.id === clip.assetId);
+        const asset = currentAssets.find(a => a.id === clip.assetId);
         const assetDuration = asset ? asset.duration : 100;
 
         const isCtrl = e.ctrlKey || e.metaKey;
@@ -295,6 +365,10 @@ export const Timeline = ({
     const handleMouseUp = (e: MouseEvent) => {
       if (e.button === 1) setMiddlePanning(null);
       if (dragging) onClipFinalize();
+      if (transitionDragging) {
+        onClipFinalize();
+        setTransitionDragging(null);
+      }
       setIsDraggingPlayhead(false);
       setDragging(null);
 
@@ -352,7 +426,7 @@ export const Timeline = ({
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mouseup', handleMouseUp);
     return () => { window.removeEventListener('mousemove', handleMouseMove); window.removeEventListener('mouseup', handleMouseUp); };
-  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, project.tracks, ghostTime, selectionBox, selectedClipIds]);
+  }, [isDraggingPlayhead, dragging, middlePanning, pxPerSec, transitionDragging, ghostTime, selectionBox, selectedClipIds, isMagnetEnabled]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey) { 
@@ -378,8 +452,55 @@ export const Timeline = ({
     return () => scrollContainer.removeEventListener('wheel', handleWheelEvent);
   }, [zoom, setZoom, projectDuration]);
 
+  const handleDragOver = (e: React.DragEvent, trackId: string) => {
+    e.preventDefault();
+    if (e.dataTransfer.types.some(t => t.toLowerCase() === 'application/x-transition-effect')) {
+      const dropTime = getT(e.clientX);
+      const track = project.tracks.find(t => t.id === trackId);
+      if (track) {
+        const clipUnderDrop = track.clips.find(c => dropTime >= c.startTime && dropTime <= c.startTime + c.duration);
+        if (clipUnderDrop) {
+          const distToStart = Math.abs(dropTime - clipUnderDrop.startTime);
+          const distToEnd = Math.abs(dropTime - (clipUnderDrop.startTime + clipUnderDrop.duration));
+          const position = distToStart < distToEnd ? 'start' : 'end';
+          if (!dragOverTransition || dragOverTransition.clipId !== clipUnderDrop.id || dragOverTransition.position !== position) {
+            setDragOverTransition({ clipId: clipUnderDrop.id, position });
+          }
+          return;
+        }
+      }
+    }
+    if (dragOverTransition) setDragOverTransition(null);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    // Only clear if we're actually leaving the track area
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isOutside = e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom;
+    if (isOutside) {
+        setDragOverTransition(null);
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement).tagName)) {
+        if (selectedEffect) {
+          onDeleteEffect(selectedEffect.clipId, selectedEffect.effectId);
+          onSelectEffect('', '');
+        } else if (selectedClipIds.length > 0) {
+          onClipDelete(selectedClipIds);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedEffect, selectedClipIds, onDeleteEffect, onClipDelete, onSelectEffect]);
+
   const handleDrop = async (e: React.DragEvent, trackId: string) => {
     e.preventDefault();
+    setDragOverTransition(null);
     
     // Handle Effect Drop
     const effectDataStr = e.dataTransfer.getData('application/json');
@@ -393,6 +514,20 @@ export const Timeline = ({
             // Find if there's a clip under drop position
             const clipUnderDrop = track.clips.find(c => dropTime >= c.startTime && dropTime <= c.startTime + c.duration);
             
+            if (clipUnderDrop && data.effect.type === 'transition') {
+              const distToStart = Math.abs(dropTime - clipUnderDrop.startTime);
+              const distToEnd = Math.abs(dropTime - (clipUnderDrop.startTime + clipUnderDrop.duration));
+              const position = distToStart < distToEnd ? 'start' : 'end';
+              
+              const newEffect = { 
+                ...data.effect, 
+                id: `effect-${Date.now()}`, 
+                params: { ...data.effect.params, position, duration: 1 } // Default 1s transition
+              };
+              onAddEffect(clipUnderDrop.id, newEffect);
+              return;
+            }
+
             let targetTrackId = trackId;
             if (clipUnderDrop) {
               // Try to find an empty track above
@@ -461,6 +596,21 @@ export const Timeline = ({
         } catch (err) {}
       }
     }
+  };
+
+  const handleClipDoubleClick = (e: React.MouseEvent, clip: Clip) => {
+    e.stopPropagation();
+    const mode = getResizeMode(e, clip);
+    if (mode === 'RESIZE_L') {
+      onStretchClipToNextMarker(clip.id, 'L');
+    } else if (mode === 'RESIZE_R') {
+      onStretchClipToNextMarker(clip.id, 'R');
+    }
+  };
+
+  const handleEffectDoubleClick = (e: React.MouseEvent, clipId: string, effectId: string, edge: 'L' | 'R') => {
+    e.stopPropagation();
+    onStretchEffectToNextMarker(clipId, effectId, edge);
   };
 
   const handleClipMouseMove = (e: React.MouseEvent, clip: Clip) => {
@@ -548,7 +698,7 @@ export const Timeline = ({
     >
       <TimelineToolbar 
         canUndo={canUndo} canRedo={canRedo} onUndo={onUndo} onRedo={onRedo} onSplit={() => onClipSplit(selectedClipIds[0], currentTime)}
-        onDelete={() => selectedClipIds.length > 0 && selectedClipIds.forEach(id => onClipDelete(id))} onAddTrack={onAddTrack}
+        onDelete={() => selectedClipIds.length > 0 && onClipDelete(selectedClipIds)} onAddTrack={onAddTrack}
         isMagnet={isMagnetEnabled} onToggleMagnet={() => setIsMagnetEnabled(!isMagnetEnabled)}
         isAutoScroll={isAutoScrollEnabled} onToggleAutoScroll={() => setIsAutoScrollEnabled(!isAutoScrollEnabled)}
         zoom={zoom} setZoom={setZoom} selectedClipCount={selectedClipIds.length}
@@ -649,22 +799,79 @@ export const Timeline = ({
                 kineticCutMode={kineticCutMode}
                 onSelectBlock={(id) => onSelectClip(id)}
               />
-              <TimelineTracks 
-                project={project}
-                displayTracks={displayTracks}
-                assets={assets}
-                zoom={zoom}
-                selectedClipIds={selectedClipIds}
-                onToggleTrack={onToggleTrack}
-                onSetTrackHeight={onSetTrackHeight}
-                onDrop={handleDrop}
-                onSelectClip={onSelectClip}
-                onSelectAllTrack={onSelectAllTrack}
-                onDeleteTrack={onDeleteTrack}
-                onContextMenu={handleContextMenu}
-                onClipMouseDown={handleClipMouseDown}
-                onClipMouseMove={handleClipMouseMove}
-              />
+      {/* New Track Drop Zone */}
+      <div 
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.currentTarget.classList.add('bg-indigo-500/20', 'border-indigo-500/50');
+        }}
+        onDragLeave={(e) => {
+          e.currentTarget.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
+        }}
+        onDrop={async (e) => {
+          e.preventDefault();
+          e.currentTarget.classList.remove('bg-indigo-500/20', 'border-indigo-500/50');
+          const assetId = e.dataTransfer.getData('assetId');
+          const effectDataStr = e.dataTransfer.getData('application/json');
+          
+          if (assetId) {
+            const asset = assets.find(a => a.id === assetId);
+            if (asset) {
+              const type = asset.type === MediaType.AUDIO ? 'audio' : asset.type === MediaType.TEXT ? 'subtitle' : 'video';
+              const newTrackId = `track-${type}-${Date.now()}`;
+              onAddTrack(type, newTrackId);
+              const rawT = getT(e.clientX);
+              const snappedT = getGlobalSnapPoint(rawT, []);
+              onAddClipAtPosition(newTrackId, asset, snappedT);
+            }
+          } else if (effectDataStr) {
+            try {
+              const data = JSON.parse(effectDataStr);
+              if (data.type === 'effect') {
+                const newTrackId = `track-video-${Date.now()}`;
+                onAddTrack('video', newTrackId);
+                const rawT = getT(e.clientX);
+                const snappedT = getGlobalSnapPoint(rawT, []);
+                onAddEffectClip(newTrackId, snappedT, data.effect);
+              }
+            } catch (err) {
+              console.error('Failed to parse effect drop data:', err);
+            }
+          }
+        }}
+        className="h-8 border-b border-dashed border-zinc-800 flex items-center justify-center transition-all group/newtrack"
+      >
+        <div className="flex items-center gap-2 opacity-0 group-hover/newtrack:opacity-100 transition-opacity">
+          <Layers size={12} className="text-indigo-400" />
+          <span className="text-[9px] font-black uppercase tracking-widest text-indigo-400">Drop here to create new track</span>
+        </div>
+      </div>
+
+      <TimelineTracks 
+        project={project}
+        displayTracks={displayTracks}
+        assets={assets}
+        zoom={zoom}
+        selectedClipIds={selectedClipIds}
+        onToggleTrack={onToggleTrack}
+        onSetTrackHeight={onSetTrackHeight}
+        onDrop={handleDrop}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onSelectClip={onSelectClip}
+        onSelectAllTrack={onSelectAllTrack}
+        onDeleteTrack={onDeleteTrack}
+        onContextMenu={handleContextMenu}
+        onClipMouseDown={handleClipMouseDown}
+        onClipMouseMove={handleClipMouseMove}
+        onClipDoubleClick={handleClipDoubleClick}
+        onEffectDoubleClick={handleEffectDoubleClick}
+        onToggleEffect={onToggleEffect}
+        onDeleteEffect={onDeleteEffect}
+        dragOverTransition={dragOverTransition}
+        selectedEffect={selectedEffect}
+        onSelectEffect={onSelectEffect}
+      />
               
               {/* Box Selection Overlay */}
               {selectionBox && (
@@ -703,7 +910,7 @@ export const Timeline = ({
         <div className="fixed z-[100] w-48 bg-[#1a1a1a] border border-zinc-700 rounded-lg shadow-2xl py-1 overflow-hidden" style={{ top: contextMenu.y, left: contextMenu.x }} onMouseDown={(e) => e.stopPropagation()}>
           <button onClick={() => { onClipSplit(contextMenu.clipId, currentTime); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold transition-colors">Split Selected</button>
           {contextMenu.assetType === 'video' && <button onClick={() => { onDetachAudio(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-indigo-600 flex items-center gap-2 font-bold border-t border-zinc-800">Unlink Audio</button>}
-          <button onClick={() => { onClipDelete(contextMenu.clipId); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-red-600 text-red-400 hover:text-white flex items-center gap-2 font-bold border-t border-zinc-800">Delete</button>
+          <button onClick={() => { onClipDelete([contextMenu.clipId]); setContextMenu(null); }} className="w-full px-4 py-2 text-left text-[11px] hover:bg-red-600 text-red-400 hover:text-white flex items-center gap-2 font-bold border-t border-zinc-800">Delete</button>
         </div>
       )}
     </div>

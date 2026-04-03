@@ -243,6 +243,26 @@ export const useClipActions = (
     });
   }, [setProject, pushToHistory, selectedClipIds]);
 
+  const addEffect = useCallback((clipId: string, effect: any) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id !== clipId) return clip;
+            return {
+              ...clip,
+              effects: [...(clip.effects || []), effect]
+            };
+          })
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
   const toggleEffect = useCallback((clipId: string, effectId: string) => {
     setProject(prev => {
       const next = {
@@ -265,5 +285,210 @@ export const useClipActions = (
     });
   }, [setProject, pushToHistory]);
 
-  return { addClips, addClipAtPosition, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties, toggleEffect };
+  const updateEffect = useCallback((clipId: string, effectId: string, updates: any) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id !== clipId) return clip;
+            return {
+              ...clip,
+              effects: clip.effects.map(eff => 
+                eff.id === effectId ? { ...eff, ...updates } : eff
+              )
+            };
+          })
+        }))
+      };
+      // Don't push to history on every mouse move, we'll do it on mouse up
+      return next;
+    });
+  }, [setProject]);
+
+  const deleteEffect = useCallback((clipId: string, effectId: string) => {
+    setProject(prev => {
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(track => ({
+          ...track,
+          clips: track.clips.map(clip => {
+            if (clip.id !== clipId) return clip;
+            return {
+              ...clip,
+              effects: clip.effects.filter(eff => eff.id !== effectId)
+            };
+          })
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  const addEffectClip = useCallback((trackId: string, startTime: number, effect: any) => {
+    setProject(prev => {
+      const targetTrack = prev.tracks.find(t => t.id === trackId);
+      if (!targetTrack) return prev;
+      
+      const duration = 5;
+      const newClip: Clip = {
+        id: `effect-clip-${Date.now()}`,
+        assetId: 'adjustment-layer',
+        type: MediaType.EFFECT,
+        startTime: startTime,
+        offset: 0,
+        duration: duration,
+        layer: 10,
+        effects: [{
+          id: `eff-${Date.now()}`,
+          type: effect.type || 'filter',
+          name: effect.name || 'Effect',
+          params: effect.params || {},
+          isEnabled: true
+        }],
+        position: { x: 0.5, y: 0.5 }
+      };
+      
+      const next = { 
+        ...prev, 
+        tracks: prev.tracks.map(t => t.id === trackId ? { ...t, clips: [...t.clips, newClip] } : t) 
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  const stretchClipToNextMarker = useCallback((clipId: string, edge: 'L' | 'R') => {
+    setProject(prev => {
+      const allClips = prev.tracks.flatMap(t => t.clips);
+      const clip = allClips.find(c => c.id === clipId);
+      if (!clip) return prev;
+      
+      const markers: number[] = [];
+      allClips.forEach(c => {
+        markers.push(c.startTime);
+        markers.push(c.startTime + c.duration);
+        // Include effect boundaries as markers
+        if (c.effects) {
+          c.effects.forEach(eff => {
+            if (eff.type === 'transition') {
+              const dur = eff.params?.duration || 1;
+              const pos = eff.params?.position || 'start';
+              if (pos === 'start') {
+                markers.push(c.startTime + dur);
+              } else {
+                markers.push(c.startTime + c.duration - dur);
+              }
+            }
+          });
+        }
+      });
+      markers.push(0);
+      const projectDuration = Math.max(10, ...allClips.map(c => c.startTime + c.duration));
+      markers.push(projectDuration);
+      
+      const sortedMarkers = [...new Set(markers)].sort((a, b) => a - b);
+      
+      if (edge === 'L') {
+        const targetTime = [...sortedMarkers].reverse().find(m => m < clip.startTime - 0.01) ?? 0;
+        const newDuration = (clip.startTime + clip.duration) - targetTime;
+        const newOffset = clip.offset + (clip.startTime - targetTime);
+        
+        const next = {
+          ...prev,
+          tracks: prev.tracks.map(t => ({
+            ...t,
+            clips: t.clips.map(c => c.id === clipId ? { ...c, startTime: targetTime, duration: newDuration, offset: newOffset } : c)
+          }))
+        };
+        pushToHistory(next);
+        return next;
+      } else {
+        const targetTime = sortedMarkers.find(m => m > (clip.startTime + clip.duration) + 0.01) ?? projectDuration;
+        const newDuration = targetTime - clip.startTime;
+        
+        const next = {
+          ...prev,
+          tracks: prev.tracks.map(t => ({
+            ...t,
+            clips: t.clips.map(c => c.id === clipId ? { ...c, duration: newDuration } : c)
+          }))
+        };
+        pushToHistory(next);
+        return next;
+      }
+    });
+  }, [setProject, pushToHistory]);
+
+  const stretchEffectToNextMarker = useCallback((clipId: string, effectId: string, edge: 'L' | 'R') => {
+    setProject(prev => {
+      const allClips = prev.tracks.flatMap(t => t.clips);
+      const clip = allClips.find(c => c.id === clipId);
+      if (!clip) return prev;
+      
+      const effect = clip.effects.find(e => e.id === effectId);
+      if (!effect || effect.type !== 'transition') return prev;
+      
+      const markers: number[] = [];
+      allClips.forEach(c => {
+        markers.push(c.startTime);
+        markers.push(c.startTime + c.duration);
+        // Include effect boundaries as markers
+        if (c.effects) {
+          c.effects.forEach(eff => {
+            if (eff.type === 'transition') {
+              const dur = eff.params?.duration || 1;
+              const pos = eff.params?.position || 'start';
+              if (pos === 'start') {
+                markers.push(c.startTime + dur);
+              } else {
+                markers.push(c.startTime + c.duration - dur);
+              }
+            }
+          });
+        }
+      });
+      markers.push(0);
+      const projectDuration = Math.max(10, ...allClips.map(c => c.startTime + c.duration));
+      markers.push(projectDuration);
+      
+      const sortedMarkers = [...new Set(markers)].sort((a, b) => a - b);
+      
+      const currentDuration = effect.params?.duration || 1;
+      const position = effect.params?.position || 'start';
+      const currentTimeOnTimeline = position === 'start' ? clip.startTime + currentDuration : clip.startTime + clip.duration - currentDuration;
+      
+      let newDuration = currentDuration;
+      
+      if (position === 'start') {
+        // Stretching the right edge of a start transition
+        const targetTime = sortedMarkers.find(m => m > currentTimeOnTimeline + 0.01) ?? projectDuration;
+        newDuration = Math.min(clip.duration, targetTime - clip.startTime);
+      } else {
+        // Stretching the left edge of an end transition
+        const targetTime = [...sortedMarkers].reverse().find(m => m < currentTimeOnTimeline - 0.01) ?? 0;
+        newDuration = Math.min(clip.duration, (clip.startTime + clip.duration) - targetTime);
+      }
+      
+      const next = {
+        ...prev,
+        tracks: prev.tracks.map(t => ({
+          ...t,
+          clips: t.clips.map(c => c.id === clipId ? {
+            ...c,
+            effects: c.effects.map(e => e.id === effectId ? {
+              ...e,
+              params: { ...e.params, duration: newDuration }
+            } : e)
+          } : c)
+        }))
+      };
+      pushToHistory(next);
+      return next;
+    });
+  }, [setProject, pushToHistory]);
+
+  return { addClips, addClipAtPosition, addEffectClip, resizeClip, deleteClip, deleteSelectedClips, updateClipProperties, toggleEffect, addEffect, updateEffect, deleteEffect, stretchClipToNextMarker, stretchEffectToNextMarker };
 };

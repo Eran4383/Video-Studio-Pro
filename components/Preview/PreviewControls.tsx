@@ -8,16 +8,18 @@ interface PreviewControlsProps {
   isLooping: boolean;
   currentTime: number;
   scale: number;
+  previewQuality: number;
   setIsPlaying: (playing: boolean) => void;
   setIsLooping: (looping: boolean) => void;
   setCurrentTime: (time: number) => void;
   setScale: (scale: number | ((s: number) => number)) => void;
+  setPreviewQuality: (quality: 0.25 | 0.5 | 0.75 | 1) => void;
   resetView: () => void;
 }
 
 export const PreviewControls = ({
-  isPlaying, isLooping, currentTime, scale,
-  setIsPlaying, setIsLooping, setCurrentTime, setScale, resetView
+  isPlaying, isLooping, currentTime, scale, previewQuality,
+  setIsPlaying, setIsLooping, setCurrentTime, setScale, setPreviewQuality, resetView
 }: PreviewControlsProps) => {
   return (
     <div className="h-14 bg-[#121212] border-t border-zinc-800 flex items-center justify-between px-6 z-20">
@@ -35,6 +37,18 @@ export const PreviewControls = ({
       </div>
       
       <div className="flex items-center gap-3 text-zinc-500">
+         <div className="flex items-center gap-1 bg-black/40 rounded-lg p-1 border border-white/5">
+            {[0.25, 0.5, 0.75, 1].map((q) => (
+              <button
+                key={q}
+                onClick={() => setPreviewQuality(q as any)}
+                className={`px-2 py-0.5 text-[9px] font-black rounded transition-all ${previewQuality === q ? 'bg-indigo-600 text-white' : 'hover:bg-white/5 text-zinc-500'}`}
+              >
+                {q * 100}%
+              </button>
+            ))}
+         </div>
+         <div className="w-px h-4 bg-zinc-800" />
          <Tooltip text="Reset View" position="top">
            <button onClick={resetView} className="hover:text-indigo-400 transition-colors"><RotateCcw size={14} /></button>
          </Tooltip>

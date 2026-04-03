@@ -32,7 +32,8 @@ const INITIAL_PROJECT: Project = {
   backgroundColor: '#000000',
   kineticBlocks: [],
   waveformStyle: 'lines',
-  waveformScale: 1.0
+  waveformScale: 1.0,
+  previewQuality: 0.5 // Default to 50% for performance
 };
 
 export const useProjectStore = () => {
@@ -42,6 +43,7 @@ export const useProjectStore = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLooping, setIsLooping] = useState(false);
   const [selectedClipIds, setSelectedClipIds] = useState<string[]>([]);
+  const [selectedEffect, setSelectedEffect] = useState<{ clipId: string; effectId: string } | null>(null);
   const [zoom, setZoom] = useState(10);
   const [isMagnetEnabled, setIsMagnetEnabled] = useState(true);
   const [isCanvasMagnetEnabled, setIsCanvasMagnetEnabled] = useState(true);
@@ -59,7 +61,7 @@ export const useProjectStore = () => {
   const trackActions = useTrackActions(setProject, pushToHistory);
   const clipActions = useClipActions(setProject, pushToHistory, assets, selectedClipIds, setSelectedClipIds);
   const kineticActions = useKineticActions(setProject, pushToHistory, pushToHistoryDebounced, lastKineticBox, setLastKineticBox);
-  const moveActions = useMoveActions(setProject, setSelectedClipIds, selectedClipIds, isMagnetEnabled, currentTime);
+  const moveActions = useMoveActions(setProject, setSelectedClipIds, selectedClipIds, isMagnetEnabled, currentTime, pushToHistory);
   const subtitleActions = useSubtitleActions(setProject, pushToHistory, assets, currentTime, setSelectedClipIds, selectedClipIds);
 
   const setBackgroundColor = useCallback((color: string) => {
@@ -85,6 +87,14 @@ export const useProjectStore = () => {
       return next;
     });
   }, [pushToHistory]);
+
+  const setPreviewQuality = useCallback((quality: 0.25 | 0.5 | 0.75 | 1) => {
+    setProject(prev => {
+      const next = { ...prev, previewQuality: quality };
+      // No history for UI settings
+      return next;
+    });
+  }, []);
 
   const setProjectResolution = useCallback((width: number, height: number) => {
     setProject(prev => {
@@ -211,16 +221,21 @@ export const useProjectStore = () => {
   const detachAudio = useCallback(() => { /* Placeholder */ }, []);
 
   return {
-    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId, fileHandle,
-    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, addAsset, deleteAsset, updateAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
+    project, assets, currentTime, isPlaying, isLooping, selectedClipIds, selectedEffect, zoom, isMagnetEnabled, isCanvasMagnetEnabled, showTransformControls, kineticDrawMode, kineticCutMode, showAudioMonitor, lastKineticBox, selectedKineticWordId, fileHandle,
+    setZoom, setCurrentTime, setIsPlaying, setIsLooping, setIsMagnetEnabled, setIsCanvasMagnetEnabled, setShowTransformControls, setKineticDrawMode, setKineticCutMode, setShowAudioMonitor, setBackgroundColor, setProjectResolution, setPreviewQuality, addAsset, deleteAsset, updateAsset, setSelectedKineticWordId, setWaveformStyle, setWaveformScale, setFileHandle,
     resetProject, loadProjectData,
     ...trackActions,
     ...clipActions,
+    addEffectClip: clipActions.addEffectClip,
+    stretchClipToNextMarker: clipActions.stretchClipToNextMarker,
+    stretchEffectToNextMarker: clipActions.stretchEffectToNextMarker,
     ...kineticActions,
     ...moveActions,
     ...subtitleActions,
     detachAudio,
     toggleEffect: clipActions.toggleEffect,
+    updateEffect: clipActions.updateEffect,
+    deleteEffect: clipActions.deleteEffect,
     undo, redo, canUndo: historyIndexRef.current > 0, canRedo: historyIndexRef.current < historyRef.current.length - 1,
     pushToHistory,
     pushToHistoryDebounced,
@@ -229,6 +244,7 @@ export const useProjectStore = () => {
     finalizeMove: () => pushToHistory(project),
     setProject,
     selectClips: setSelectedClipIds,
+    selectEffect: (clipId: string, effectId: string) => setSelectedEffect({ clipId, effectId }),
     updateClip: clipActions.updateClipProperties,
     setApplyToAll,
     applyToAll

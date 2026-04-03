@@ -383,5 +383,69 @@ export const EFFECTS_LIBRARY: EffectDefinition[] = [
     controls: [
       { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' }
     ]
+  },
+  {
+    id: 'zoom-transition',
+    name: 'Zoom Transition',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Dynamic zoom effect between clips.',
+    icon: 'Maximize',
+    defaultParams: { duration: 0.8, intensity: 50 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' },
+      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'glitch-transition',
+    name: 'Glitch Transition',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Digital glitch distortion transition.',
+    icon: 'Activity',
+    defaultParams: { duration: 0.4, intensity: 70 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 2, step: 0.1, unit: 's' },
+      { id: 'intensity', name: 'Intensity', type: 'slider', min: 0, max: 100, step: 1, unit: '%' }
+    ]
+  },
+  {
+    id: 'blur-transition',
+    name: 'Blur Transition',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Smooth blur fade transition.',
+    icon: 'Cloud',
+    defaultParams: { duration: 1, blurAmount: 20 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' },
+      { id: 'blurAmount', name: 'Blur Amount', type: 'slider', min: 0, max: 100, step: 1, unit: 'px' }
+    ]
+  },
+  {
+    id: 'slide-up',
+    name: 'Slide Up',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Vertical slide transition.',
+    icon: 'ArrowUp',
+    defaultParams: { duration: 0.6 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' }
+    ]
+  },
+  {
+    id: 'spin-transition',
+    name: 'Spin Transition',
+    type: 'transition',
+    category: 'Transitions',
+    description: 'Rotating transition effect.',
+    icon: 'RotateCw',
+    defaultParams: { duration: 0.8, rotations: 1 },
+    controls: [
+      { id: 'duration', name: 'Duration', type: 'slider', min: 0.1, max: 5, step: 0.1, unit: 's' },
+      { id: 'rotations', name: 'Rotations', type: 'slider', min: 0.5, max: 3, step: 0.5, unit: 'x' }
+    ]
   }
 ];

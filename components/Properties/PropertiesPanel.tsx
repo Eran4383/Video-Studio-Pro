@@ -26,7 +26,7 @@ const Section = ({ id, title, icon: Icon, isOpen, onToggle, children }: any) => 
 );
 
 export const PropertiesPanel = ({ store }: { store: any }) => {
-  const { selectedClipIds, project, setProject, finalizeMove, updateClip: storeUpdateClip, applyToAll, setApplyToAll } = store;
+  const { selectedClipIds, project, setProject, finalizeMove, updateClip: storeUpdateClip, applyToAll, setApplyToAll, selectedEffect, selectEffect, deleteEffect, updateEffect } = store;
   
   const primaryClipId = selectedClipIds[0];
   const isKineticBlock = primaryClipId?.startsWith('kb-');
@@ -34,7 +34,13 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
 
   const selectedClips = project.tracks.flatMap((t: any) => t.clips).filter((c: any) => selectedClipIds.includes(c.id));
   const selectedClip = selectedClips.find((c: any) => c.id === primaryClipId);
-  const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === primaryClipId));
+
+  // Effect Selection Logic
+  const effectClip = selectedEffect?.clipId ? project.tracks.flatMap((t: any) => t.clips).find((c: any) => c.id === selectedEffect.clipId) : null;
+  const effect = effectClip?.effects?.find((e: any) => e.id === selectedEffect?.effectId);
+  const effectDef = effect ? EFFECTS_LIBRARY.find(e => e.id === effect.name) : null;
+
+  const track = project.tracks.find((t: any) => t.clips.some((c: any) => c.id === (selectedEffect?.clipId || primaryClipId)));
   const isSubtitle = track?.type === 'subtitle';
   const isEffectClip = selectedClip?.type === MediaType.EFFECT;
   const isVisual = track?.type === 'video' || track?.type === 'image' || isSubtitle || isEffectClip;
@@ -48,6 +54,95 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
   const [editingText, setEditingText] = useState('');
   const [activeTab, setActiveTab] = useState<'basic' | 'kinetic'>('basic');
   const quillRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (selectedClip && isSubtitle) setEditingText(selectedClip.content || '');
+  }, [selectedClip?.id, isSubtitle]);
+
+  if (selectedEffect && effect) {
+    return (
+      <div className="w-80 bg-[#121212] border-l border-zinc-800/50 flex flex-col overflow-y-auto custom-scrollbar flex-shrink-0 h-full">
+        <div className="p-4 border-b border-zinc-800/50 bg-[#121212] sticky top-0 z-10 flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Sparkles size={14} className="text-purple-400" />
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-zinc-300">
+                {effect.type === 'transition' ? 'Transition' : 'Effect'} Properties
+              </h2>
+            </div>
+            <p className="text-[9px] font-mono text-zinc-600 truncate opacity-50">{effect.name}</p>
+          </div>
+          <button 
+            onClick={() => {
+              deleteEffect(selectedEffect.clipId, selectedEffect.effectId);
+              selectEffect('', '');
+            }}
+            className="p-2 text-zinc-500 hover:text-red-400 transition-colors"
+            title="Delete Effect"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+
+        <div className="p-4 space-y-6">
+          <Section id="effect-settings" title="Settings" icon={Settings} isOpen={true} onToggle={() => {}}>
+            <div className="space-y-4">
+              {effect.type === 'transition' && (
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] text-zinc-500 font-mono uppercase">Position</label>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => updateEffect(selectedEffect.clipId, selectedEffect.effectId, { params: { ...effect.params, position: 'start' } })}
+                      className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${effect.params.position === 'start' ? 'bg-purple-500/20 border-purple-500 text-purple-300' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                    >
+                      Start
+                    </button>
+                    <button 
+                      onClick={() => updateEffect(selectedEffect.clipId, selectedEffect.effectId, { params: { ...effect.params, position: 'end' } })}
+                      className={`flex-1 py-1 text-[10px] font-bold rounded border transition-all ${effect.params.position === 'end' ? 'bg-purple-500/20 border-purple-500 text-purple-300' : 'bg-zinc-900 border-zinc-800 text-zinc-500 hover:border-zinc-700'}`}
+                    >
+                      End
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {effectDef?.controls.map(control => (
+                <ProSlider 
+                  key={control.id}
+                  label={control.name}
+                  value={effect.params[control.id]}
+                  onChange={(v) => {
+                    updateEffect(selectedEffect.clipId, selectedEffect.effectId, { 
+                      params: { ...effect.params, [control.id]: v } 
+                    });
+                  }}
+                  previewId={`effect_${effect.id}_${control.id}`}
+                  clipId={selectedEffect.clipId}
+                  min={control.min}
+                  max={control.max}
+                  step={control.step}
+                  unit={control.unit}
+                />
+              ))}
+
+              {effect.type === 'transition' && (
+                <ProSlider 
+                  label="Duration"
+                  value={effect.params.duration || 1}
+                  onChange={(v) => updateEffect(selectedEffect.clipId, selectedEffect.effectId, { params: { ...effect.params, duration: v } })}
+                  min={0.1}
+                  max={5}
+                  step={0.1}
+                  unit="s"
+                />
+              )}
+            </div>
+          </Section>
+        </div>
+      </div>
+    );
+  }
 
   const handleFormatting = (type: 'bold' | 'italic' | 'underline') => {
     const quill = quillRef.current?.getEditor();
@@ -68,10 +163,6 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
       }
     }
   };
-
-  useEffect(() => {
-    if (selectedClip && isSubtitle) setEditingText(selectedClip.content || '');
-  }, [selectedClip?.id, isSubtitle]);
 
   if (isKineticBlock && selectedKineticBlock) {
     const isChildBlock = !!selectedKineticBlock.parentId;
@@ -592,12 +683,12 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                    if (!def) return null;
                    
                    return (
-                     <div key={effect.id} className={`bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-3 space-y-3 transition-opacity ${effect.enabled === false ? 'opacity-50 grayscale' : ''}`}>
+                     <div key={effect.id} className={`bg-zinc-900/50 border border-zinc-800/50 rounded-xl p-3 space-y-3 transition-opacity ${effect.isEnabled === false ? 'opacity-50 grayscale' : ''}`}>
                        <div className="flex items-center justify-between">
                          <div className="flex items-center gap-2">
                            <button 
                              onClick={() => store.toggleEffect(selectedClip.id, effect.id)}
-                             className={`p-1 rounded-full transition-colors ${effect.enabled !== false ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700'}`}
+                             className={`p-1 rounded-full transition-colors ${effect.isEnabled !== false ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30' : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700'}`}
                            >
                              <Power size={10} />
                            </button>
@@ -615,7 +706,7 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                          </button>
                        </div>
                        
-                       {effect.enabled !== false && def.controls.map(control => (
+                       {effect.isEnabled !== false && def.controls.map(control => (
                          <ProSlider 
                            key={control.id}
                            label={control.name}
@@ -628,7 +719,7 @@ export const PropertiesPanel = ({ store }: { store: any }) => {
                              };
                              updateClip({ effects: newEffects }, true);
                            }}
-                           previewId={`effect_${effect.name}_${control.id}`}
+                           previewId={`effect_${effect.id}_${control.id}`}
                            clipId={selectedClip.id}
                            min={control.min}
                            max={control.max}
